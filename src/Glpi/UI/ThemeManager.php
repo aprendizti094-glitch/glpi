@@ -202,11 +202,13 @@ class ThemeManager
     {
         $current = $_SESSION['glpipalette'] ?? self::DEFAULT_THEME;
         $theme = $this->getTheme($current);
-        if ($theme === null) {
-            // Force trying to get the default theme
+        if ($theme === null || in_array($current, ['auror', 'tabler', 'classic', 'teclib'], true)) {
+            // Force default theme apple_hig
             $theme = $this->getTheme(self::DEFAULT_THEME);
         }
-        // If the theme is still null, trigger an error
+        if ($theme === null) {
+            $theme = $this->getTheme('apple_hig');
+        }
         if ($theme === null) {
             throw new RuntimeException('Theme "' . $current . '" not found');
         }

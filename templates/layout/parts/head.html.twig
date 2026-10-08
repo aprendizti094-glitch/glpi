@@ -38,10 +38,8 @@
     {% if session('glpihighcontrast_css') %}
         data-high-contrast="1"
     {% endif %}
-    {% if theme is defined %}
-        data-glpi-theme="{{ theme.getKey() }}"
-        data-glpi-theme-dark="{{ theme.isDarkTheme() ? '1' : '0' }}"
-    {% endif %}
+    data-glpi-theme="apple_hig"
+    data-glpi-theme-dark="0"
     {% if glpi_request_id is defined %}
         data-glpi-request-id="{{ glpi_request_id }}"
     {% endif %}
@@ -51,9 +49,9 @@
 
    <meta charset="utf-8" />
    <script>
+   document.documentElement.setAttribute('data-glpi-theme', 'apple_hig');
    if (window.location.pathname.indexOf('ticket.form.php') !== -1 || window.location.search.indexOf('itemtype=Ticket') !== -1) {
        document.documentElement.classList.add('glpi-ticket-zap-view');
-       document.documentElement.setAttribute('data-glpi-theme', 'apple_hig');
    }
    </script>
 
@@ -78,6 +76,10 @@
    {% endfor %}
 
    {{ custom_css() }}
+
+   <link rel="stylesheet" type="text/css" href="{{ asset_path('/css_compiled/css_palettes_apple_hig.min.css') }}?v={{ 'now'|date('U') }}" />
+   <link rel="stylesheet" type="text/css" href="{{ asset_path('/apple_hig_compiled.css') }}?v={{ 'now'|date('U') }}" />
+   <link rel="stylesheet" type="text/css" href="{{ asset_path('/css/obsidian_canvas.css') }}?v={{ 'now'|date('U') }}" />
 
    <link rel="shortcut icon" type="images/x-icon" href="{{ asset_path('/pics/favicon.ico') }}" />
 
