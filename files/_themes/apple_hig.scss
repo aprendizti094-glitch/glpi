@@ -117,117 +117,278 @@ html[data-glpi-theme="apple_hig"] ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ==========================================================================
-   3. DOCK / SIDEBAR FLUTUANTE (REFERÊNCIA 1 - INTELLECTA)
+   3. DOCK / SIDEBAR FLUTUANTE (REFERÊNCIA 1 - INTELLECTA & APPLE HIG)
    ========================================================================== */
 
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical {
-    background: rgba(255, 255, 255, 0.88) !important;
-    backdrop-filter: blur(28px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.7) !important;
-    box-shadow: 0 14px 40px -4px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
-    border-radius: 28px !important;
-    margin: 16px 0 16px 16px !important;
-    height: calc(100vh - 32px) !important;
-    top: 16px !important;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    z-index: 1020 !important;
+aside.navbar-vertical.sidebar,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical.sidebar,
+body.navbar-collapsed aside.navbar-vertical.sidebar,
+body aside.navbar-vertical.sidebar {
+    background: rgba(255, 255, 255, 0.90) !important;
+    backdrop-filter: blur(32px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(32px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.08), 
+                0 2px 10px rgba(0, 0, 0, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+    margin: 14px 0 14px 14px !important;
+    height: calc(100vh - 28px) !important;
+    top: 14px !important;
+    z-index: 1040 !important;
+    transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
 }
 
-/* Brand Logo Area in Dock */
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-brand {
-    padding: 1.25rem 1rem !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+body.navbar-collapsed aside.navbar-vertical.sidebar,
+aside.navbar-vertical.sidebar.navbar-collapsed {
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+    border-radius: 34px !important;
+    padding: 18px 0 14px 0 !important;
+    overflow: visible !important;
 }
 
-/* Nav Item Styling: Squircles & Circular Active Indicators */
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-item {
-    margin: 4px 10px !important;
+body:not(.navbar-collapsed) aside.navbar-vertical.sidebar {
+    width: 250px !important;
+    border-radius: 24px !important;
+    padding: 16px 8px !important;
 }
 
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link {
-    border-radius: 16px !important;
-    padding: 10px 14px !important;
-    color: #555558 !important;
-    font-weight: 500 !important;
-    font-size: 0.92rem !important;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    display: flex;
-    align-items: center;
+aside.navbar-vertical.sidebar .container-fluid {
+    padding: 0 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    height: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link .nav-link-icon {
-    width: 28px !important;
-    height: 28px !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px !important;
-    font-size: 1.15rem !important;
-    color: inherit !important;
-    transition: transform 0.2s ease;
+aside.navbar-vertical.sidebar .navbar-brand {
+    padding: 0 0 12px 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    text-decoration: none !important;
 }
 
-/* Hover State */
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link:hover {
+aside.navbar-vertical.sidebar .navbar-brand .glpi-logo {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #1C1C1E 0%, #343438 100%) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative !important;
+    border: none !important;
+}
+
+aside.navbar-vertical.sidebar .navbar-brand:hover .glpi-logo {
+    transform: scale(1.08) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28) !important;
+}
+
+aside.navbar-vertical.sidebar .navbar-brand .glpi-logo::after {
+    content: "G" !important;
+    color: #FFFFFF !important;
+    font-size: 1.3rem !important;
+    font-weight: 800 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+    letter-spacing: -0.04em !important;
+}
+
+aside.navbar-vertical.sidebar .container-fluid > span.d-none.d-lg-inline-block,
+aside.navbar-vertical.sidebar .container-fluid > span {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    margin: 0 0 10px 0 !important;
+}
+
+aside.navbar-vertical.sidebar .trigger-fuzzy {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    border-radius: 12px !important;
     background: rgba(0, 0, 0, 0.04) !important;
-    color: #1D1D1F !important;
-    transform: translateX(2px);
+    border: 1px solid rgba(0, 0, 0, 0.03) !important;
+    color: #6E6E73 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
 }
 
-/* Active State: Identical to Reference 1 (Solid Dark Ink Squircle/Pill) */
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active,
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link {
+aside.navbar-vertical.sidebar .trigger-fuzzy:hover {
+    background: rgba(0, 113, 227, 0.12) !important;
+    color: #0071E3 !important;
+    border-color: rgba(0, 113, 227, 0.2) !important;
+    transform: scale(1.08) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar .trigger-fuzzy .menu-label,
+body.navbar-collapsed aside.navbar-vertical.sidebar .trigger-fuzzy span {
+    display: none !important;
+}
+
+aside.navbar-vertical.sidebar .trigger-fuzzy i {
+    margin: 0 !important;
+    font-size: 1.15rem !important;
+    line-height: 1 !important;
+}
+
+aside.navbar-vertical.sidebar #navbar-menu {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    overflow: visible !important;
+}
+
+aside.navbar-vertical.sidebar ul.navbar-nav {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-item::before,
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-item::after,
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-link::before,
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-link::after {
+    display: none !important;
+    content: none !important;
+}
+
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-link,
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-item {
+    border: none !important;
+    outline: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item {
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    background: transparent !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item .nav-link {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    border-radius: 12px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #555558 !important;
+    background: transparent !important;
+    border: none !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #1D1D1F !important;
+    transform: scale(1.08) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link {
     background: #1D1D1F !important;
     color: #FFFFFF !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16) !important;
-}
-
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon,
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link .nav-link-icon {
-    color: #FFFFFF !important;
-}
-
-/* Submenu Dropdowns in Sidebar */
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .dropdown-menu {
-    border-radius: 20px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(0, 0, 0, 0.06) !important;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08) !important;
-    padding: 8px !important;
-}
-
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .dropdown-item {
     border-radius: 12px !important;
-    padding: 8px 14px !important;
-    font-size: 0.875rem !important;
-    color: #1D1D1F !important;
-    transition: all 0.15s ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+    transform: scale(1.04) !important;
 }
 
-html[data-glpi-theme="apple_hig"] aside.navbar-vertical .dropdown-item:hover {
-    background: #0071E3 !important;
-    color: #FFFFFF !important;
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-link i,
+aside.navbar-vertical.sidebar ul.navbar-nav .nav-link .nav-link-icon {
+    font-size: 1.25rem !important;
+    margin: 0 !important;
+    color: inherit !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
 }
 
-/* Bottom Collapse Button */
-html[data-glpi-theme="apple_hig"] .reduce-menu {
-    border-radius: 9999px !important;
+body.navbar-collapsed aside.navbar-vertical.sidebar .menu-label,
+body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-toggle::after {
+    display: none !important;
+}
+
+aside.navbar-vertical.sidebar #navbar-menu p {
+    margin: auto 0 4px 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+aside.navbar-vertical.sidebar .reduce-menu {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    border-radius: 50% !important;
     background: rgba(0, 0, 0, 0.04) !important;
-    border: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.03) !important;
     color: #86868B !important;
-    padding: 6px 16px !important;
-    font-size: 0.8rem !important;
-    transition: all 0.2s ease;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
 }
 
-html[data-glpi-theme="apple_hig"] .reduce-menu:hover {
-    background: rgba(0, 0, 0, 0.08) !important;
+aside.navbar-vertical.sidebar .reduce-menu:hover {
+    background: rgba(0, 0, 0, 0.09) !important;
     color: #1D1D1F !important;
+    transform: scale(1.1) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar .reduce-menu .menu-label {
+    display: none !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-menu {
+    border-radius: 20px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(28px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    padding: 8px !important;
+    margin-left: 12px !important;
 }
 
 /* ==========================================================================
