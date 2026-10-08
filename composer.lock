@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "048944bb724a894de58de840527ee577",
+    "content-hash": "80871b8550d672ae9d9f3b519f820805",
     "packages": [
         {
             "name": "altcha-org/altcha",
@@ -2531,21 +2531,22 @@
         },
         {
             "name": "league/oauth2-client",
-            "version": "2.9.0",
+            "version": "2.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/oauth2-client.git",
-                "reference": "26e8c5da4f3d78cede7021e09b1330a0fc093d5e"
+                "reference": "8cedfef9d01a8d1fd2ecfabb41734b17592c4b71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/26e8c5da4f3d78cede7021e09b1330a0fc093d5e",
-                "reference": "26e8c5da4f3d78cede7021e09b1330a0fc093d5e",
+                "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/8cedfef9d01a8d1fd2ecfabb41734b17592c4b71",
+                "reference": "8cedfef9d01a8d1fd2ecfabb41734b17592c4b71",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/guzzle": "^6.5.8 || ^7.4.5",
+                "guzzlehttp/guzzle": "^6.5.8 || ^7.8.2 || ^8.0",
+                "guzzlehttp/psr7": "^1.9.1 || ^2.6.3 || ^3.0",
                 "php": "^7.1 || >=8.0.0 <8.6.0"
             },
             "require-dev": {
@@ -2590,27 +2591,27 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/oauth2-client/issues",
-                "source": "https://github.com/thephpleague/oauth2-client/tree/2.9.0"
+                "source": "https://github.com/thephpleague/oauth2-client/tree/2.9.1"
             },
-            "time": "2025-11-25T22:17:17+00:00"
+            "time": "2026-09-16T13:14:31+00:00"
         },
         {
             "name": "league/oauth2-google",
-            "version": "4.0.1",
+            "version": "5.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/oauth2-google.git",
-                "reference": "1b01ba18ba31b29e88771e3e0979e5c91d4afe76"
+                "reference": "23ba9a808fd88d7c9a9fdec5548c4861b3a4b295"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/oauth2-google/zipball/1b01ba18ba31b29e88771e3e0979e5c91d4afe76",
-                "reference": "1b01ba18ba31b29e88771e3e0979e5c91d4afe76",
+                "url": "https://api.github.com/repos/thephpleague/oauth2-google/zipball/23ba9a808fd88d7c9a9fdec5548c4861b3a4b295",
+                "reference": "23ba9a808fd88d7c9a9fdec5548c4861b3a4b295",
                 "shasum": ""
             },
             "require": {
-                "league/oauth2-client": "^2.0",
-                "php": "^7.3 || ^8.0"
+                "league/oauth2-client": "^2.0 || ^3.0",
+                "php": "^8.0"
             },
             "require-dev": {
                 "eloquent/phony-phpunit": "^6.0 || ^7.1",
@@ -2645,9 +2646,9 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/oauth2-google/issues",
-                "source": "https://github.com/thephpleague/oauth2-google/tree/4.0.1"
+                "source": "https://github.com/thephpleague/oauth2-google/tree/5.0.0"
             },
-            "time": "2023-03-17T15:20:52+00:00"
+            "time": "2026-03-23T14:25:21+00:00"
         },
         {
             "name": "league/oauth2-server",
