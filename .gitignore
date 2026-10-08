@@ -26,20 +26,14 @@ phpunit.xml
 /tests/.env
 /nbproject
 .composer.hash
-/**/*.min.css
-!/tests/**/*.min.css
-/css/lib/
-/**/*.min.js
-!/tests/**/*.min.js
-/node_modules/
-.package.hash
-/public/build/
-/public/css_compiled/
-/public/js/
-/public/lib/
-/tests/web/error.log
-/inventory-vendors/*.json
-/locales/*.mo
+# Permite bibliotecas de estilo e fontes customizadas
+# /css/lib/
+# /**/*.min.js
+# /public/lib/
+# /locales/*.mo
+!/locales/*.mo
+!/css/lib/
+!/public/lib/
 /inc/downstream.php
 /docker-compose.override.yaml
 /.devcontainer/docker-compose.override.yaml

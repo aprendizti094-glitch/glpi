@@ -24,9 +24,263 @@
     {% set kpi_waiting = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': 4}]) %}
     {% set kpi_solved = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': [5, 6]}]) %}
 
+    <style>
+    /* ==========================================================
+       ELERA KPI METRIC CARDS & FILTER BAR (APPLE HIG REDESIGN)
+       ========================================================== */
+    .elera-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .elera-kpi-card {
+        background: #FFFFFF;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 16px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none !important;
+        color: #1D1D1F !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .elera-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        border-color: rgba(0, 113, 227, 0.25);
+    }
+    .kpi-icon-wrap {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    .card-blue .kpi-icon-wrap { background: #EBF3FF; color: #0071E3; }
+    .card-green .kpi-icon-wrap { background: #E8F8EE; color: #1D6F24; }
+    .card-purple .kpi-icon-wrap { background: #F2EDFC; color: #6D28D9; }
+    .card-amber .kpi-icon-wrap { background: #FFF4E5; color: #B45309; }
+    .card-emerald .kpi-icon-wrap { background: #ECFDF5; color: #059669; }
+
+    .kpi-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+    .kpi-label {
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: #6E6E73;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .kpi-value-row {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        margin-top: 1px;
+    }
+    .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #1D1D1F;
+        line-height: 1.1;
+    }
+    .kpi-unit {
+        font-size: 0.72rem;
+        color: #86868B;
+        font-weight: 500;
+    }
+    .kpi-tag {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 9999px;
+    }
+    .tag-blue { background: #EBF3FF; color: #0071E3; }
+    .tag-green { background: #E8F8EE; color: #1D6F24; }
+    .tag-purple { background: #F2EDFC; color: #6D28D9; }
+    .tag-amber { background: #FFF4E5; color: #B45309; }
+    .tag-emerald { background: #ECFDF5; color: #059669; }
+
+    /* Barra de Filtros Rápidos (Chips) */
+    .elera-ticket-filter-bar {
+        background: #FFFFFF;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 18px;
+        padding: 10px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+    .elera-filter-chips {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .elera-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #555558 !important;
+        background: #F4F5F8;
+        text-decoration: none !important;
+        transition: all 0.18s ease;
+        border: 1px solid transparent;
+    }
+    .elera-pill:hover {
+        background: #E8EAEE;
+        color: #1D1D1F !important;
+        transform: translateY(-1px);
+    }
+    .elera-pill.active {
+        background: #1D1D1F !important;
+        color: #FFFFFF !important;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    }
+    .elera-pill.active i {
+        color: #FFFFFF !important;
+    }
+
+    .elera-filter-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .elera-view-toggle {
+        display: inline-flex;
+        background: #F0F2F5;
+        border-radius: 9999px;
+        padding: 3px;
+        gap: 2px;
+    }
+    .elera-view-toggle-btn {
+        border: none;
+        background: transparent;
+        border-radius: 9999px;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #555558;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.15s ease;
+    }
+    .elera-view-toggle-btn:hover {
+        color: #1D1D1F;
+    }
+    .elera-view-toggle-btn.active {
+        background: #FFFFFF;
+        color: #1D1D1F;
+        font-weight: 600;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .elera-search-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .elera-search-input-wrapper i {
+        position: absolute;
+        left: 12px;
+        color: #86868B;
+        font-size: 0.95rem;
+    }
+    .elera-search-input {
+        border-radius: 9999px !important;
+        background: #F4F5F8 !important;
+        border: 1px solid rgba(0, 0, 0, 0.06) !important;
+        padding: 6px 14px 6px 34px !important;
+        font-size: 0.82rem !important;
+        width: 170px !important;
+        height: 32px !important;
+        color: #1D1D1F !important;
+        transition: all 0.2s ease !important;
+    }
+    .elera-search-input:focus {
+        background: #FFFFFF !important;
+        border-color: #0071E3 !important;
+        width: 220px !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
+    }
+    .elera-btn-filters {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        background: #FFFFFF;
+        border-radius: 9999px;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #4B5563;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .elera-btn-filters:hover {
+        background: #F8FAFC;
+        color: #1D1D1F;
+    }
+    .elera-showing-count {
+        font-size: 0.78rem;
+        color: #86868B;
+    }
+    .elera-btn-new-ticket {
+        background: #0071E3 !important;
+        color: #FFFFFF !important;
+        border-radius: 9999px !important;
+        padding: 6px 14px !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        box-shadow: 0 2px 6px rgba(0, 113, 227, 0.25) !important;
+        transition: all 0.2s ease !important;
+    }
+    .elera-btn-new-ticket:hover {
+        background: #0077ED !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35) !important;
+    }
+    </style>
+
     <!-- Top KPI Metric Cards (Elera Style) -->
     <div class="elera-kpi-row">
-        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-kpi-card card-blue" title="Ver todos os chamados">
+        <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-kpi-card card-blue" title="Ver todos os chamados">
             <div class="kpi-icon-wrap">
                 <i class="ti ti-ticket"></i>
             </div>
@@ -40,7 +294,7 @@
             <span class="kpi-tag tag-blue">Total</span>
         </a>
 
-        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-kpi-card card-green" title="Ver chamados novos">
+        <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-kpi-card card-green" title="Ver chamados novos">
             <div class="kpi-icon-wrap">
                 <i class="ti ti-sparkles"></i>
             </div>
@@ -54,7 +308,7 @@
             <span class="kpi-tag tag-green">+ novos</span>
         </a>
 
-        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-kpi-card card-purple" title="Ver chamados atribuídos">
+        <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-kpi-card card-purple" title="Ver chamados atribuídos">
             <div class="kpi-icon-wrap">
                 <i class="ti ti-users"></i>
             </div>
@@ -68,7 +322,7 @@
             <span class="kpi-tag tag-purple">Atribuídos</span>
         </a>
 
-        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-kpi-card card-amber" title="Ver chamados pendentes">
+        <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-kpi-card card-amber" title="Ver chamados pendentes">
             <div class="kpi-icon-wrap">
                 <i class="ti ti-clock-pause"></i>
             </div>
@@ -82,7 +336,7 @@
             <span class="kpi-tag tag-amber">Atenção</span>
         </a>
 
-        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-kpi-card card-emerald" title="Ver chamados solucionados">
+        <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-kpi-card card-emerald" title="Ver chamados solucionados">
             <div class="kpi-icon-wrap">
                 <i class="ti ti-circle-check"></i>
             </div>
@@ -126,31 +380,31 @@
 
     <div class="elera-ticket-filter-bar">
         <div class="elera-filter-chips">
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'all' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'all' ? 'active' : '' }}">
                 <i class="ti ti-layers-subtract"></i>
                 <span>Todos</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]={{ my_field }}&criteria[0][searchtype]=equals&criteria[0][value]=myself&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'my' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]={{ my_field }}&criteria[0][searchtype]=equals&criteria[0][value]=myself&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'my' ? 'active' : '' }}">
                 <i class="ti ti-user"></i>
                 <span>Meus chamados</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=notold&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'notold' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=notold&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'notold' ? 'active' : '' }}">
                 <i class="ti ti-clock-play"></i>
                 <span>Não solucionados</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'new' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'new' ? 'active' : '' }}">
                 <i class="ti ti-alert-circle"></i>
                 <span>Novos</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'process' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'process' ? 'active' : '' }}">
                 <i class="ti ti-progress"></i>
                 <span>Em atendimento</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'waiting' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'waiting' ? 'active' : '' }}">
                 <i class="ti ti-player-pause"></i>
                 <span>Pendentes</span>
             </a>
-            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'solved' ? 'active' : '' }}">
+            <a href="ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'solved' ? 'active' : '' }}">
                 <i class="ti ti-circle-check"></i>
                 <span>Solucionados</span>
             </a>
@@ -169,7 +423,7 @@
                 </button>
             </div>
 
-            <form method="get" action="/glpi/front/ticket.php" class="elera-quick-search-form">
+            <form method="get" action="ticket.php" class="elera-quick-search-form">
                 <div class="elera-search-input-wrapper">
                     <i class="ti ti-search"></i>
                     <input type="text" name="criteria[0][value]" class="elera-search-input" placeholder="Buscar chamados..." value="{{ (data['search']['criteria'][0]['field']|default(0) == 1 ? data['search']['criteria'][0]['value']|default('') : '') }}" />
@@ -188,7 +442,7 @@
                 Exibindo <strong>{{ count }}</strong> chamados
             </span>
 
-            {% set new_ticket_url = get_current_interface() == 'helpdesk' ? '/glpi/front/helpdesk.public.php?create_ticket=1' : '/glpi/front/ticket.form.php' %}
+            {% set new_ticket_url = get_current_interface() == 'helpdesk' ? (asset_path('/front/helpdesk.public.php?create_ticket=1')) : (asset_path('/front/ticket.form.php')) %}
             <a href="{{ new_ticket_url }}" class="elera-btn-new-ticket">
                 <i class="ti ti-plus"></i>
                 <span>Novo Chamado</span>

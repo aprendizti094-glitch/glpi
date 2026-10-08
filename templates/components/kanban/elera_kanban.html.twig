@@ -6,6 +6,259 @@
 
 {% set kanban_data = call('EleraKanban::getData', [search_data|default(data['search']|default(null))]) %}
 
+<style>
+/* ==========================================================
+   ELERA KANBAN BOARD STYLING (APPLE HIG MODERN)
+   ========================================================== */
+.elera-kanban-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 24px;
+    margin-top: 8px;
+    box-sizing: border-box;
+}
+.elera-kanban-board {
+    display: grid;
+    gap: 16px;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+}
+.elera-kanban-col {
+    background: #F4F6F9;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 480px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    box-sizing: border-box;
+}
+.elera-kanban-col.is-drag-over {
+    background: #EBF3FF !important;
+    border-color: #0071E3 !important;
+}
+.elera-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 2px 4px;
+}
+.col-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.col-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1D1D1F;
+    letter-spacing: -0.01em;
+}
+.col-count-pill {
+    background: rgba(0, 0, 0, 0.07);
+    color: #555558;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+.col-target-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #86868B;
+}
+
+/* Today Summary Card */
+.elera-today-summary-card {
+    background: #FFFFFF;
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+.summary-header {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6E6E73;
+    margin-bottom: 8px;
+}
+.summary-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: #1D1D1F;
+    margin-bottom: 4px;
+}
+.summary-progress-bar {
+    height: 5px;
+    background: #E5E7EB;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin: 6px 0;
+}
+.summary-progress-fill {
+    background: #34C759;
+    height: 100%;
+    border-radius: 9999px;
+}
+.summary-footer-text {
+    font-size: 0.72rem;
+    color: #34C759;
+    font-weight: 600;
+}
+
+/* Kanban Cards */
+.elera-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-height: 120px;
+}
+.elera-ticket-card {
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 14px;
+    padding: 12px;
+    cursor: grab;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    user-select: none;
+}
+.elera-ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 113, 227, 0.3);
+}
+.elera-ticket-card.is-dragging {
+    opacity: 0.4;
+    transform: scale(0.96);
+}
+.card-main {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+.card-avatar {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #FFFFFF;
+}
+.card-body-content {
+    flex: 1;
+    min-width: 0;
+}
+.card-ticket-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1D1D1F;
+    text-decoration: none !important;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.card-ticket-title:hover {
+    color: #0071E3;
+}
+.card-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0;
+}
+.card-category {
+    font-size: 0.72rem;
+    color: #86868B;
+    background: #F2F4F7;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+.card-tech-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: #555558;
+}
+.tech-level-tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.level-aprendiz { background: #FEF3C7; color: #B45309; }
+.level-pleno { background: #EDE9FE; color: #6D28D9; }
+.level-senior { background: #D1FAE5; color: #047857; }
+
+.card-urgent-notice {
+    background: #FFF4E5;
+    color: #B45309;
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.card-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #86868B;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+.card-id-badge {
+    font-weight: 700;
+    color: #1D1D1F;
+    margin-right: 4px;
+}
+.card-time-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.elera-btn-add-patient {
+    margin-top: 12px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    background: transparent;
+    color: #6E6E73;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+.elera-btn-add-patient:hover {
+    background: #FFFFFF;
+    color: #1D1D1F;
+    border-color: rgba(0, 0, 0, 0.3);
+}
+</style>
+
 <div class="elera-kanban-wrapper" id="eleraKanbanWrapper">
     <div class="elera-kanban-board" style="grid-template-columns: repeat({{ kanban_data|length }}, minmax(260px, 1fr)) !important; min-width: 950px !important;">
         {% for col in kanban_data %}
@@ -61,7 +314,7 @@
                                 <!-- Conteúdo Principal do Card -->
                                 <div class="card-body-content">
                                     <div class="card-top-row">
-                                        <a href="/glpi/front/ticket.form.php?id={{ ticket['id'] }}" class="card-ticket-title" title="{{ ticket['name'] }}">
+                                        <a href="{{ asset_path('/front/ticket.form.php') }}?id={{ ticket['id'] }}" class="card-ticket-title" title="{{ ticket['name'] }}">
                                             {{ ticket['name'] }}
                                         </a>
                                     </div>
@@ -105,7 +358,7 @@
                     {% endfor %}
                 </div>
 
-                <a href="/glpi/front/ticket.form.php?_status={{ col['id'] }}" class="elera-btn-add-patient" title="Adicionar novo chamado nesta etapa">
+                <a href="ticket.form.php?_status={{ col['id'] }}" class="elera-btn-add-patient" title="Adicionar novo chamado nesta etapa">
                     <i class="ti ti-plus"></i>
                     <span>+ Adicionar Chamado</span>
                 </a>
@@ -116,6 +369,9 @@
 
 <script>
 let isDraggingKanban = false;
+const glpiRootDoc = (window.CFG_GLPI && typeof window.CFG_GLPI.root_doc !== 'undefined') 
+    ? window.CFG_GLPI.root_doc 
+    : (window.location.pathname.startsWith('/glpi') ? '/glpi' : '');
 
 function onKanbanDragStart(e, id) {
     isDraggingKanban = true;
@@ -133,7 +389,7 @@ function onKanbanCardClick(e, ticketId) {
     if (e.target.closest('a')) {
         return;
     }
-    const targetUrl = '/glpi/front/ticket.form.php?id=' + ticketId;
+    const targetUrl = 'ticket.form.php?id=' + ticketId;
     if (e.ctrlKey || e.metaKey || e.button === 1) {
         window.open(targetUrl, '_blank');
     } else {
@@ -183,10 +439,12 @@ function onKanbanDrop(e, targetStatus) {
         ? getAjaxCsrfToken()
         : (document.querySelector('meta[property="glpi:csrf_token"]')?.getAttribute('content') || '');
 
+    const ajaxUrl = glpiRootDoc + '/ajax/update_ticket_status.php';
+
     // Se jQuery estiver disponível (padrão em todas as telas do GLPI)
     if (window.$ && typeof $.ajax === 'function') {
         $.ajax({
-            url: '/glpi/ajax/update_ticket_status.php',
+            url: ajaxUrl,
             type: 'POST',
             data: {
                 id: ticketId,
@@ -221,7 +479,7 @@ function onKanbanDrop(e, targetStatus) {
             formData.append('_glpi_csrf_token', csrfToken);
         }
 
-        fetch('/glpi/ajax/update_ticket_status.php', {
+        fetch(ajaxUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
