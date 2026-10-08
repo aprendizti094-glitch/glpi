@@ -49,7 +49,7 @@ use function Safe\scandir;
  */
 class ThemeManager
 {
-    public const DEFAULT_THEME = 'auror';
+    public const DEFAULT_THEME = 'apple_hig';
     public const CORE_THEME_ROOT = GLPI_ROOT . '/css/palettes/';
 
     private array $core_themes = [];
@@ -73,6 +73,7 @@ class ThemeManager
         if ($this->core_themes === []) {
             $this->core_themes = [
                 new Theme('aerialgreen', 'Aerial Green', false, false),
+                new Theme('apple_hig', 'Apple HIG', false, false),
                 new Theme('auror', 'Auror', false, false),
                 new Theme('auror_dark', 'Dark Auror', true, false),
                 new Theme('automn', 'Autumn', false, false),

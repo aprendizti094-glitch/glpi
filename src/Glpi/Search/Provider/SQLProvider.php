@@ -5813,6 +5813,28 @@ final class SQLProvider implements SearchProviderInterface
                             );
                             $out = sprintf(__s('%1$s %2$s'), $userlink, $toadd);
                         }
+                        if ($orig_id == 5 && isset($data['id']) && is_subclass_of($itemtype, CommonITILObject::class)) {
+                            global $DB;
+                            $gt_iter = $DB->request([
+                                'SELECT' => ['groups_id'],
+                                'FROM'   => 'glpi_groups_tickets',
+                                'WHERE'  => [
+                                    'tickets_id' => (int)$data['id'],
+                                    'type'       => \CommonITILActor::ASSIGN
+                                ],
+                                'LIMIT'  => 1
+                            ]);
+                            foreach ($gt_iter as $gt) {
+                                $grp = new Group();
+                                if ($grp->getFromDB($gt['groups_id'])) {
+                                    if (empty($out)) {
+                                        $out = "<span class='badge bg-secondary-lt text-secondary' title='" . __s('Assigned group') . "'><i class='ti ti-users me-1'></i>" . \htmlescape($grp->getName()) . "</span>";
+                                    } else {
+                                        $out .= " <small class='text-muted'>(" . \htmlescape($grp->getName()) . ")</small>";
+                                    }
+                                }
+                            }
+                        }
                         return $out;
                     }
 
@@ -6365,9 +6387,85 @@ final class SQLProvider implements SearchProviderInterface
                         . "</span>";
 
                 case 'glpi_tickets.status':
-                    $status = Ticket::getStatus($data[$ID][0]['name']);
+                    $status_val = (int)$data[$ID][0]['name'];
+                    $status = Ticket::getStatus($status_val);
+                    if ($status_val == CommonITILObject::ASSIGNED && isset($data['id'])) {
+                        $ticket_id = (int)$data['id'];
+                        global $DB;
+                        $assignee_name = '';
+                        $tu_iter = $DB->request([
+                            'SELECT' => ['users_id'],
+                            'FROM'   => 'glpi_tickets_users',
+                            'WHERE'  => [
+                                'tickets_id' => $ticket_id,
+                                'type'       => \CommonITILActor::ASSIGN
+                            ],
+                            'LIMIT'  => 1
+                        ]);
+                        foreach ($tu_iter as $tu) {
+                            $u = new User();
+                            if ($u->getFromDB($tu['users_id'])) {
+                                $fname = trim($u->fields['firstname'] ?? '');
+                                $rname = trim($u->fields['realname'] ?? '');
+                                if (!empty($fname) && !empty($rname)) {
+                                    $assignee_name = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                                } else {
+                                    $assignee_name = !empty($fname) ? $fname : (!empty($rname) ? $rname : $u->getName());
+                                }
+                            }
+                        }
+                        if (empty($assignee_name)) {
+                            $gt_iter = $DB->request([
+                                'SELECT' => ['groups_id'],
+                                'FROM'   => 'glpi_groups_tickets',
+                                'WHERE'  => [
+                                    'tickets_id' => $ticket_id,
+                                    'type'       => \CommonITILActor::ASSIGN
+                                ],
+                                'LIMIT'  => 1
+                            ]);
+                            foreach ($gt_iter as $gt) {
+                                $gid = (int)$gt['groups_id'];
+                                $gu_iter = $DB->request([
+                                    'SELECT' => ['glpi_users.id', 'glpi_users.name', 'glpi_users.firstname', 'glpi_users.realname'],
+                                    'FROM'   => 'glpi_groups_users',
+                                    'INNER JOIN' => [
+                                        'glpi_users' => [
+                                            'FKEY' => [
+                                                'glpi_groups_users' => 'users_id',
+                                                'glpi_users' => 'id'
+                                            ]
+                                        ]
+                                    ],
+                                    'WHERE'  => [
+                                        'glpi_groups_users.groups_id' => $gid
+                                    ],
+                                    'ORDER'  => 'glpi_groups_users.id DESC',
+                                    'LIMIT'  => 1
+                                ]);
+                                foreach ($gu_iter as $gu) {
+                                    $gfname = trim($gu['firstname'] ?? '');
+                                    $grname = trim($gu['realname'] ?? '');
+                                    if (!empty($gfname) && !empty($grname)) {
+                                        $assignee_name = (stripos($gfname, $grname) !== false) ? $gfname : "$gfname $grname";
+                                    } else {
+                                        $assignee_name = !empty($gfname) ? $gfname : (!empty($grname) ? $grname : $gu['name']);
+                                    }
+                                }
+                                if (empty($assignee_name)) {
+                                    $g = new Group();
+                                    if ($g->getFromDB($gid)) {
+                                        $assignee_name = $g->getName();
+                                    }
+                                }
+                            }
+                        }
+                        if (!empty($assignee_name)) {
+                            $status = preg_replace('/\s*\([^)]*(?:atribu[ií]do|assigned|attribué)[^)]*\)/iu', " ($assignee_name)", $status);
+                        }
+                    }
                     return "<span class='text-nowrap'>"
-                        . Ticket::getStatusIcon($data[$ID][0]['name']) . "&nbsp;" . \htmlescape($status)
+                        . Ticket::getStatusIcon($status_val) . "&nbsp;" . \htmlescape($status)
                         . "</span>";
 
                 case 'glpi_projectstates.name':

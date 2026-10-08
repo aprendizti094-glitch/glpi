@@ -1911,9 +1911,13 @@ TWIG,
             ? $CFG_GLPI[$help_url_key]
             : 'https://glpi-project.org/documentation';
 
+        $is_ticket_form = str_contains($_SERVER['SCRIPT_NAME'] ?? '', 'ticket.form.php')
+            || str_contains($_SERVER['REQUEST_URI'] ?? '', 'ticket.form.php');
+
         return [
             'is_debug_active'       => $_SESSION['glpi_use_mode'] == Session::DEBUG_MODE,
             'is_impersonate_active' => Session::isImpersonateActive(),
+            'is_ticket_form'        => $is_ticket_form,
             'found_new_version'   => $found_new_version,
             'user'                  => $user instanceof User ? $user : null,
             'platform'              => $platform,
@@ -3199,6 +3203,7 @@ JS;
         }
 
         // Search on +- x days, hours...
+        $matches = [];
         if (preg_match("/^(-?)(\d+)(\w+)$/", $val, $matches)) {
             if (in_array($matches[3], ['YEAR', 'MONTH', 'WEEK', 'DAY', 'HOUR', 'MINUTE'])) {
                 $nb = intval($matches[2]);
@@ -6483,6 +6488,7 @@ JS);
         }
 
         // Requested file path
+        $path_matches = [];
         if (preg_match(Plugin::PLUGIN_RESOURCE_PATTERN, $file, $path_matches) === 1) {
             $plugin_key  = $path_matches['plugin_key'];
             $plugin_dir  = Plugin::getPhpDir($plugin_key) . '/public/'; // only expose public files

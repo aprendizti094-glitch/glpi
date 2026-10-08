@@ -640,17 +640,8 @@ class Central extends CommonGLPI
             // encrypt/decrypt key problems
             $messages['errors'] = (new GLPIKey())->getKeyFileReadErrors();
 
-            $security_requirements = [
-                new PhpSupportedVersion(),
-                new SessionsSecurityConfiguration(),
-            ];
-            foreach ($security_requirements as $requirement) {
-                if (!$requirement->isValidated()) {
-                    foreach ($requirement->getValidationMessages() as $message) {
-                        $messages['warnings'][] = htmlescape($message);
-                    }
-                }
-            }
+            // Avisos de versão de PHP e configuração suprimidos a pedido do usuário
+            $security_requirements = [];
 
             // Check for available plugin updates
             $count = Controller::countUpdatablePlugins();

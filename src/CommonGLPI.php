@@ -1020,6 +1020,23 @@ class CommonGLPI implements CommonGLPIInterface
                 ];
             }
 
+            // Ensure Canvas tab appears after "Todos" (-1), exactly as requested in custom UI layout
+            if (isset($tabs['Ticket$canvas'])) {
+                $canvas_entry = $tabs['Ticket$canvas'];
+                unset($tabs['Ticket$canvas']);
+                $tabs['Ticket$canvas'] = $canvas_entry;
+            }
+            if (isset($tabs['KnowbaseItem$4'])) {
+                $canvas_entry = $tabs['KnowbaseItem$4'];
+                unset($tabs['KnowbaseItem$4']);
+                $tabs['KnowbaseItem$4'] = $canvas_entry;
+            }
+            if (isset($tabs['KnowbaseItem_Canvas$1'])) {
+                $canvas_entry = $tabs['KnowbaseItem_Canvas$1'];
+                unset($tabs['KnowbaseItem_Canvas$1']);
+                $tabs['KnowbaseItem_Canvas$1'] = $canvas_entry;
+            }
+
             Ajax::createTabs(
                 'tabspanel',
                 'tabcontent',

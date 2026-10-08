@@ -349,6 +349,11 @@ class PendingReason extends CommonDropdown
 
     public static function getDefault(): ?PendingReason
     {
+        global $DB;
+        if (!isset($DB) || !$DB->fieldExists(self::getTable(), 'is_default')) {
+            return null;
+        }
+
         $pending_reason = new PendingReason();
         if (
             $pending_reason->getFromDBByCrit([
@@ -366,9 +371,14 @@ class PendingReason extends CommonDropdown
      */
     public static function isDefaultPending()
     {
+        global $DB;
+        if (!isset($DB) || !$DB->fieldExists(self::getTable(), 'is_default')) {
+            return false;
+        }
+
         $default_pending = self::getDefault();
 
-        return $default_pending && $default_pending->fields['is_pending_per_default'];
+        return $default_pending && !empty($default_pending->fields['is_pending_per_default']);
     }
 
     /**

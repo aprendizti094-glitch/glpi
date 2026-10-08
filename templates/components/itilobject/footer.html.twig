@@ -282,7 +282,14 @@
    });
 
    $(function() {
-      {% if openfollowup %}
+      {% if item.getType() == 'Ticket' and item.isNotSolved() %}
+         // Automatically open WhatsApp message bar on tickets
+         var myCollapse = document.getElementById('new-ITILFollowup-block');
+         if (myCollapse && !myCollapse.classList.contains('show')) {
+            var bsCollapse = new bootstrap.Collapse(myCollapse, {toggle: false});
+            bsCollapse.show();
+         }
+      {% elseif openfollowup %}
          // trigger for reopen, show followup form in timeline
          var myCollapse = document.getElementById('new-ITILFollowup-block')
          var bsCollapse = new bootstrap.Collapse(myCollapse);

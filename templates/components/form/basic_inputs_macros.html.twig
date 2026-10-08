@@ -395,10 +395,10 @@
             {% for attr, value in options.additional_attributes %}
                {{ attr }}="{{ value }}"
             {% endfor %}
-            {% if not options.aria_label is empty %}
+            {% if options.aria_label is not empty %}
                 aria-label="{{ options.aria_label }}"
             {% endif %}
-            {% if not options.placeholder is empty %}
+            {% if options.placeholder is not empty %}
                 placeholder="{{ options.placeholder }}"
             {% endif %}
             {{ options.disabled ? 'disabled' : '' }}

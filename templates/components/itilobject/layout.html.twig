@@ -57,7 +57,29 @@
 
 {% set can_have_form = not template_preview %}
 
-<div id="itil-object-container" class="mt-n1 {{ collapsed_cls }} {{ expanded_cls }}">
+{% set is_ticket_type = item.getType() == 'Ticket' %}
+<div id="itil-object-container" class="mt-n1 {{ collapsed_cls }} {{ expanded_cls }} {% if is_ticket_type %}is-ticket-page{% endif %}" data-itemtype="{{ item.getType() }}">
+{% if is_ticket_type %}
+<script type="text/javascript">
+if (document.body) {
+    document.body.classList.add('glpi-ticket-zap-view');
+}
+$(function() {
+    if (window.tinyMCE) {
+        tinyMCE.on('AddEditor', function(e) {
+            e.editor.on('keydown', function(event) {
+                if (event.keyCode === 13 && !event.shiftKey && !event.ctrlKey) {
+                    event.preventDefault();
+                    var form = $(e.editor.getElement()).closest('form');
+                    form.find('button[name="add"]').trigger('click');
+                }
+            });
+        });
+    }
+});
+</script>
+<link rel="stylesheet" type="text/css" href="/glpi/css_compiled/css_palettes_apple_hig.min.css?v={{ 'now'|date('U') }}" />
+{% endif %}
 
     {% if can_have_form and item.isNewItem() %}
         {{ include('components/itilobject/mainform_open.html.twig') }}
@@ -65,7 +87,7 @@
 
     <div class="row d-flex flex-column itil-object">
         {% set is_timeline_reversed = user_pref('timeline_order') == constant('CommonITILObject::TIMELINE_ORDER_REVERSE') %}
-        {% set fl_direction = (item.isNewItem() or is_timeline_reversed ? 'flex-column' : 'flex-column-reverse') %}
+        {% set fl_direction = (item.isNewItem() or is_timeline_reversed or is_ticket_type ? 'flex-column' : 'flex-column-reverse') %}
         <div class="itil-left-side col-12 {{ left_side_cls }} order-last order-lg-first pt-2 pe-2 pe-lg-4 d-flex {{ fl_direction }} border-top border-4 {{ not show_extra_fields ? "w-100" : "" }}" tabindex="-1">
             {% if item.isNewItem() %}
                 {{ include('components/itilobject/timeline/new_form.html.twig') }}
@@ -84,10 +106,13 @@
             {% if can_have_form and not item.isNewItem() %}
                 {{ include('components/itilobject/mainform_close.html.twig') }}
             {% endif %}
+            {% if not template_preview and not item.isNewItem() %}
+                {{ include('components/itilobject/footer.html.twig') }}
+            {% endif %}
         </div>
     </div>
 
-    {% if not template_preview %}
+    {% if not template_preview and item.isNewItem() %}
         {{ include('components/itilobject/footer.html.twig') }}
     {% endif %}
 

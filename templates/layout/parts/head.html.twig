@@ -50,6 +50,12 @@
    <title>{% if title is defined %}{{ title }} - {% endif %}{{ config('app_name') }}</title>
 
    <meta charset="utf-8" />
+   <script>
+   if (window.location.pathname.indexOf('ticket.form.php') !== -1 || window.location.search.indexOf('itemtype=Ticket') !== -1) {
+       document.documentElement.classList.add('glpi-ticket-zap-view');
+       document.documentElement.setAttribute('data-glpi-theme', 'apple_hig');
+   }
+   </script>
 
    {# prevent IE to turn into compatible mode... #}
    <meta http-equiv="X-UA-Compatible" content="IE=edge" />

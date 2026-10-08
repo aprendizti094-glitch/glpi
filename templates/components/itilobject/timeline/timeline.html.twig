@@ -177,11 +177,18 @@
                     {% endif %}
                 </div>
                 <div class="col-12 col-sm d-flex flex-column content-part">
-                    <div class="mt-2 timeline-content {{ solution_class }} flex-grow-1 {{ item_position }} card">
+                    <div class="mt-2 timeline-content {{ solution_class }} flex-grow-1 {{ item_position }} card{% if entry['documents'] is defined and entry['documents']|length > 0 %} has-documents{% endif %}">
                         <div class="card-body px-1 px-xxl-3">
                             {{ include('components/itilobject/timeline/timeline_item_header.html.twig', {
                                 'user_object': entry_user,
                             }) }}
+
+                            {% if entry['documents'] is defined and entry['documents']|length > 0 %}
+                                {{ include('components/itilobject/timeline/sub_documents.html.twig', {
+                                    'item': item,
+                                    'entry': entry
+                                }) }}
+                            {% endif %}
 
                             {% if itiltype in timeline_itemtypes|column('type') %}
                                 {% set matching_types = timeline_itemtypes|filter((v) => v.type == itiltype) %}
@@ -209,13 +216,6 @@
                             </div>
                         </div>
                     </div>
-
-                    {% if entry['documents'] is defined %}
-                        {{ include('components/itilobject/timeline/sub_documents.html.twig', {
-                            'item': item,
-                            'entry': entry
-                        }) }}
-                    {% endif %}
                 </div>
             </div>
 
@@ -227,6 +227,7 @@
         {{ include('components/itilobject/timeline/main_description.html.twig') }}
     {% endif %}
 
+    {% if item.getType() != 'Ticket' %}
     <div class="timeline-item tasks-title d-none">
         <h3>{{ _n('Task', 'Tasks', get_plural_number()) }}</h3>
     </div>
@@ -236,10 +237,10 @@
     <div class="timeline-item validations-title d-none mt-4">
         <h3>{{ 'CommonITILValidation'|itemtype_name(get_plural_number()) }}</h3>
     </div>
+    {% endif %}
 
     {% if not is_timeline_reversed %}
         {{ include('components/itilobject/timeline/approbation_form.html.twig') }}
-        {{ include('components/itilobject/answer.html.twig') }}
     {% endif %}
 
     {% if survey is defined and survey %}
@@ -254,6 +255,10 @@
             {# showSatisactionForm closes the extra div and form tag by itself... #}
             {% endif %}
         </div>
+
+    {% if not is_timeline_reversed %}
+        {{ include('components/itilobject/answer.html.twig') }}
+    {% endif %}
 
         <script type="text/javascript">
             $(function() {

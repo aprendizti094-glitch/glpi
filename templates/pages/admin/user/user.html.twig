@@ -170,7 +170,119 @@
                             {% endif %}
                             {% if not simple_form %}
                                 {% if not is_preference_form %}
-                                    {{ fields.dropdownField('UserTitle', 'usertitles_id', item.fields['usertitles_id'], _x('person', 'Title')) }}
+                                    <div class="col-12 my-2">
+                                        <!-- SELETOR E CARIMBO DE NÍVEL DO TÉCNICO -->
+                                        {% set current_title_id = item.fields['usertitles_id']|default(0) %}
+                                        <div class="technician-level-selector-box">
+                                            <div class="technician-stamp-header">
+                                                <div class="technician-stamp-title-wrap">
+                                                    <i class="ti ti-certificate"></i>
+                                                    <span class="title-text">{{ __('Nível do Técnico (Distribuição de Chamados)') }}</span>
+                                                </div>
+                                                <div id="technician-stamp-display" class="technician-stamp-tag stamp-none">
+                                                    <i class="ti ti-user"></i>
+                                                    <span>{{ __('Usuário Comum') }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="technician-level-cards-grid">
+                                                <!-- Card Aprendiz (ID 1) -->
+                                                <div class="technician-level-card card-aprendiz {{ current_title_id == 1 ? 'is-selected' : '' }}" 
+                                                     onclick="selectTechnicianLevel(1, 'Aprendiz', 'ti ti-school', 'stamp-aprendiz')">
+                                                    <div class="tech-card-top">
+                                                        <span class="tech-card-badge" style="color: #d97706 !important;"><i class="ti ti-school"></i> Aprendiz</span>
+                                                        <div class="tech-card-radio-indicator"><i class="ti ti-check"></i></div>
+                                                    </div>
+                                                    <div class="tech-card-desc">{{ __('Recebe chamados de Baixa e Média urgência.') }}</div>
+                                                </div>
+
+                                                <!-- Card Pleno (ID 2) -->
+                                                <div class="technician-level-card card-pleno {{ current_title_id == 2 ? 'is-selected' : '' }}" 
+                                                     onclick="selectTechnicianLevel(2, 'Pleno', 'ti ti-bolt', 'stamp-pleno')">
+                                                    <div class="tech-card-top">
+                                                        <span class="tech-card-badge" style="color: #7c3aed !important;"><i class="ti ti-bolt"></i> Pleno</span>
+                                                        <div class="tech-card-radio-indicator"><i class="ti ti-check"></i></div>
+                                                    </div>
+                                                    <div class="tech-card-desc">{{ __('Recebe chamados de Média, Alta e Muito Alta urgência.') }}</div>
+                                                </div>
+
+                                                <!-- Card Sênior (ID 3) -->
+                                                <div class="technician-level-card card-senior {{ current_title_id == 3 ? 'is-selected' : '' }}" 
+                                                     onclick="selectTechnicianLevel(3, 'Sênior', 'ti ti-crown', 'stamp-senior')">
+                                                    <div class="tech-card-top">
+                                                        <span class="tech-card-badge" style="color: #059669 !important;"><i class="ti ti-crown"></i> Sênior</span>
+                                                        <div class="tech-card-radio-indicator"><i class="ti ti-check"></i></div>
+                                                    </div>
+                                                    <div class="tech-card-desc">{{ __('Recebe chamados Críticos / Alta e Muito Alta urgência.') }}</div>
+                                                </div>
+
+                                                <!-- Card Comum (ID 0) -->
+                                                <div class="technician-level-card card-none {{ (current_title_id <= 0 or current_title_id > 3) ? 'is-selected' : '' }}" 
+                                                     onclick="selectTechnicianLevel(0, 'Usuário Comum', 'ti ti-user', 'stamp-none')">
+                                                    <div class="tech-card-top">
+                                                        <span class="tech-card-badge" style="color: #64748b !important;"><i class="ti ti-user"></i> Comum / Nenhum</span>
+                                                        <div class="tech-card-radio-indicator"><i class="ti ti-check"></i></div>
+                                                    </div>
+                                                    <div class="tech-card-desc">{{ __('Solicitante ou usuário sem fila técnica de chamados.') }}</div>
+                                                </div>
+                                            </div>
+
+                                            <input type="hidden" name="usertitles_id" id="hidden_usertitles_id" value="{{ current_title_id }}" />
+                                        </div>
+
+                                        <script>
+                                        function selectTechnicianLevel(id, name, iconClass, stampClass) {
+                                            const hiddenInput = document.getElementById('hidden_usertitles_id');
+                                            if (hiddenInput) {
+                                                hiddenInput.value = id;
+                                            }
+                                            
+                                            // Atualiza classes selecionadas nos cards
+                                            document.querySelectorAll('.technician-level-card').forEach(function(card) {
+                                                card.classList.remove('is-selected');
+                                            });
+                                            if (window.event && window.event.currentTarget) {
+                                                window.event.currentTarget.classList.add('is-selected');
+                                            }
+
+                                            // Atualiza o Carimbo visual no topo
+                                            const stamp = document.getElementById('technician-stamp-display');
+                                            if (stamp) {
+                                                stamp.className = 'technician-stamp-tag ' + stampClass;
+                                                stamp.innerHTML = '<i class="' + iconClass + '"></i> <span>' + name.toUpperCase() + '</span>';
+                                            }
+                                        }
+
+                                        // Inicializar carimbo correto no carregamento
+                                        (function initTechStamp() {
+                                            function applyStamp() {
+                                                const hiddenInput = document.getElementById('hidden_usertitles_id');
+                                                const stamp = document.getElementById('technician-stamp-display');
+                                                if (!hiddenInput || !stamp) return;
+                                                const curId = parseInt(hiddenInput.value || '0');
+                                                if (curId === 1) {
+                                                    stamp.className = 'technician-stamp-tag stamp-aprendiz';
+                                                    stamp.innerHTML = '<i class="ti ti-school"></i> <span>APRENDIZ</span>';
+                                                } else if (curId === 2) {
+                                                    stamp.className = 'technician-stamp-tag stamp-pleno';
+                                                    stamp.innerHTML = '<i class="ti ti-bolt"></i> <span>PLENO</span>';
+                                                } else if (curId === 3) {
+                                                    stamp.className = 'technician-stamp-tag stamp-senior';
+                                                    stamp.innerHTML = '<i class="ti ti-crown"></i> <span>SÊNIOR</span>';
+                                                } else {
+                                                    stamp.className = 'technician-stamp-tag stamp-none';
+                                                    stamp.innerHTML = '<i class="ti ti-user"></i> <span>USUÁRIO COMUM</span>';
+                                                }
+                                            }
+                                            if (document.readyState === 'loading') {
+                                                document.addEventListener('DOMContentLoaded', applyStamp);
+                                            } else {
+                                                applyStamp();
+                                            }
+                                        })();
+                                        </script>
+                                    </div>
+
                                     {{ fields.textareaField('comment', item.fields['comment'], __('Comments')) }}
                                 {% endif %}
                                 {{ fields.textField('registration_number', item.fields['registration_number'], __('Administrative number')) }}

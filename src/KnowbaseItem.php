@@ -228,6 +228,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria, S
         $this->addStandardTab(Log::class, $ong, $options);
         $this->addStandardTab(KnowbaseItem_Revision::class, $ong, $options);
         $this->addStandardTab(KnowbaseItem_Comment::class, $ong, $options);
+        $this->addStandardTab(KnowbaseItem_Canvas::class, $ong, $options);
 
         return $ong;
     }
@@ -251,6 +252,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria, S
                         );
                         $ong[3] = self::createTabEntry(__('Edit'), 0, $item::class, 'ti ti-pencil');
                     }
+                    $ong[4] = self::createTabEntry('Canvas', 0, $item::getType(), 'ti ti-layout-board');
                     return $ong;
             }
         }
@@ -271,6 +273,10 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria, S
 
             case 3:
                 return $item->showForm($item->getID());
+
+            case 4:
+                require_once __DIR__ . '/KnowbaseItem_Canvas.php';
+                return KnowbaseItem_Canvas::showCanvas($item);
 
             default:
                 return false;
@@ -310,6 +316,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria, S
             $this->updateInDB(['answer']);
         }
 
+        $has_target = false;
         if (isset($this->input["_visibility"]['_type']) && !empty($this->input["_visibility"]["_type"])) {
             $this->input["_visibility"]['knowbaseitems_id'] = $this->getID();
             $item                                           = null;
@@ -352,15 +359,34 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria, S
             }
             if (!is_null($item)) {
                 $item->add($this->input["_visibility"]);
+                $has_target = true;
                 Event::log(
                     $this->getID(),
                     "knowbaseitem",
                     4,
                     "tools",
                     //TRANS: %s is the user login
-                    sprintf(__('%s adds a target'), $_SESSION["glpiname"])
+                    sprintf(__('%s adds a target'), $_SESSION["glpiname"] ?? 'GLPI')
                 );
             }
+        }
+
+        // If no explicit visibility target was specified, share by default across Root Entity and Technician profile
+        if (!$has_target) {
+            $ent_kb = new Entity_KnowbaseItem();
+            $ent_kb->add([
+                'knowbaseitems_id' => $this->getID(),
+                'entities_id'      => 0,
+                'is_recursive'     => 1,
+            ]);
+            $prof_kb = new KnowbaseItem_Profile();
+            $prof_kb->add([
+                'knowbaseitems_id'      => $this->getID(),
+                'profiles_id'           => 6, // Technician
+                'entities_id'           => 0,
+                'is_recursive'          => 1,
+                'no_entity_restriction' => 1,
+            ]);
         }
 
         if (isset($this->input['_do_item_link']) && (bool) $this->input['_do_item_link']) {

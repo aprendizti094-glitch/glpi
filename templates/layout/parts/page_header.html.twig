@@ -36,7 +36,7 @@
 {% set is_horizontal = not is_vertical %}
 {% set is_helpdesk = anonymous or get_current_interface() == 'helpdesk' %}
 
-<body class="{{ user_pref('fold_menu') and is_vertical ? 'navbar-collapsed' : '' }} {{ is_vertical ? 'vertical-layout' : 'horizontal-layout' }} {{ is_debug_active ? 'debug-active' : '' }} {{ is_helpdesk ? 'helpdesk' : 'central' }}">
+<body class="{{ user_pref('fold_menu') and is_vertical ? 'navbar-collapsed' : '' }} {{ is_vertical ? 'vertical-layout' : 'horizontal-layout' }} {{ is_debug_active ? 'debug-active' : '' }} {{ is_helpdesk ? 'helpdesk' : 'central' }}{{ is_ticket_form|default(false) ? ' glpi-ticket-zap-view' : '' }}">
    <div class="skip-links">
       <a class="visually-hidden-focusable skip-link" href="#page">{{ __('Go to main content') }}</a>
    </div>

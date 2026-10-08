@@ -1,0 +1,249 @@
+{#
+ # ---------------------------------------------------------------------
+ # GLPI - Elera Kanban Board for Tickets
+ # ---------------------------------------------------------------------
+ #}
+
+{% set kanban_data = call('EleraKanban::getData', [search_data|default(data['search']|default(null))]) %}
+
+<div class="elera-kanban-wrapper" id="eleraKanbanWrapper">
+    <div class="elera-kanban-board" style="grid-template-columns: repeat({{ kanban_data|length }}, minmax(260px, 1fr)) !important; min-width: 950px !important;">
+        {% for col in kanban_data %}
+            <div class="elera-kanban-col col-{{ col['code'] }}" 
+                 data-status="{{ col['id'] }}" 
+                 ondragover="onKanbanDragOver(event)" 
+                 ondragleave="onKanbanDragLeave(event)" 
+                 ondrop="onKanbanDrop(event, {{ col['id'] }})">
+                
+                <div class="elera-col-header">
+                    <div class="col-title-wrap">
+                        <span class="col-title">{{ col['alias'] }}</span>
+                        <span class="col-count-pill">{{ col['tickets']|length }}</span>
+                    </div>
+                    <span class="col-target-badge">{{ col['target'] }}</span>
+                </div>
+
+                {% if col['code'] == 'solved' %}
+                    <!-- Elera Left Today Summary Card (Matches Reference Image) -->
+                    <div class="elera-today-summary-card">
+                        <div class="summary-header">Hoje até o momento</div>
+                        <div class="summary-stat-row">
+                            <span class="stat-label">Atendidos</span>
+                            <span class="stat-value">{{ col['tickets']|length }}</span>
+                        </div>
+                        <div class="summary-stat-row">
+                            <span class="stat-label">Concluídos na meta</span>
+                            <span class="stat-value">100%</span>
+                        </div>
+                        <div class="summary-progress-bar">
+                            <div class="summary-progress-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="summary-footer-text">100% resolvidos no prazo</div>
+                    </div>
+                {% endif %}
+
+                <div class="elera-cards-container" data-status="{{ col['id'] }}">
+                    {% for ticket in col['tickets'] %}
+                        <div class="elera-ticket-card {{ ticket['is_urgent'] ? 'card-urgent' : '' }} {{ ticket['is_my_ticket'] ? 'card-my-ticket' : '' }}" 
+                             id="kanban-ticket-{{ ticket['id'] }}" 
+                             data-id="{{ ticket['id'] }}" 
+                             draggable="true" 
+                             onclick="onKanbanCardClick(event, {{ ticket['id'] }})"
+                             ondragstart="onKanbanDragStart(event, {{ ticket['id'] }})"
+                             title="Clique para abrir o Chamado #{{ ticket['id'] }}">
+                            
+                            <div class="card-main">
+                                <!-- Avatar Inicial -->
+                                <div class="card-avatar" style="background-color: {{ ticket['avatar_bg'] }};">
+                                    {{ ticket['avatar_initial'] }}
+                                </div>
+
+                                <!-- Conteúdo Principal do Card -->
+                                <div class="card-body-content">
+                                    <div class="card-top-row">
+                                        <a href="/glpi/front/ticket.form.php?id={{ ticket['id'] }}" class="card-ticket-title" title="{{ ticket['name'] }}">
+                                            {{ ticket['name'] }}
+                                        </a>
+                                    </div>
+                                    
+                                    <div class="card-meta-row">
+                                        <div class="card-category">
+                                            {{ ticket['category_short'] }}
+                                        </div>
+                                        {% if ticket['assignee'] %}
+                                            <span class="card-tech-pill" title="Atribuído para: {{ ticket['assignee'] }}{% if ticket['technician_title'] %} ({{ ticket['technician_title'] }}){% endif %}">
+                                                <i class="ti ti-{{ ticket['technician'] ? 'user-check' : 'users' }}"></i>
+                                                <span class="tech-name">{{ ticket['assignee'] }}</span>
+                                                {% if ticket['technician_title'] %}
+                                                    <span class="tech-level-tag level-{{ ticket['technician_title']|lower|replace({' ': '-', 'ê': 'e', 'ú': 'u'}) }}">{{ ticket['technician_title'] }}</span>
+                                                {% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if ticket['is_urgent'] %}
+                                        <!-- Aviso de destaque âmbar como no Elera -->
+                                        <div class="card-urgent-notice">
+                                            <i class="ti ti-clock-exclamation"></i>
+                                            <span>Prioridade Alta / Urgente</span>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="card-bottom-row">
+                                        <div class="card-requester-info">
+                                            <span class="card-id-badge">#{{ ticket['id'] }}</span>
+                                            <span class="card-user-name" title="Requerente: {{ ticket['requester'] }}">{{ ticket['requester'] }}</span>
+                                        </div>
+                                        <span class="card-time-pill">
+                                            <i class="ti ti-clock"></i>
+                                            {{ ticket['time_ago'] }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <a href="/glpi/front/ticket.form.php?_status={{ col['id'] }}" class="elera-btn-add-patient" title="Adicionar novo chamado nesta etapa">
+                    <i class="ti ti-plus"></i>
+                    <span>+ Adicionar Chamado</span>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+let isDraggingKanban = false;
+
+function onKanbanDragStart(e, id) {
+    isDraggingKanban = true;
+    e.dataTransfer.setData('text/plain', id);
+    e.currentTarget.classList.add('is-dragging');
+}
+
+function onKanbanCardClick(e, ticketId) {
+    // Se o usuário estiver arrastando o card, não dispara navegação
+    if (isDraggingKanban) {
+        isDraggingKanban = false;
+        return;
+    }
+    // Se o clique foi no próprio link <a> do título, deixa o navegador agir normalmente
+    if (e.target.closest('a')) {
+        return;
+    }
+    const targetUrl = '/glpi/front/ticket.form.php?id=' + ticketId;
+    if (e.ctrlKey || e.metaKey || e.button === 1) {
+        window.open(targetUrl, '_blank');
+    } else {
+        window.location.href = targetUrl;
+    }
+}
+
+document.addEventListener('dragend', function() {
+    setTimeout(function() {
+        isDraggingKanban = false;
+    }, 150);
+});
+
+function onKanbanDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.closest('.elera-kanban-col').classList.add('is-drag-over');
+}
+
+function onKanbanDragLeave(e) {
+    const col = e.currentTarget.closest('.elera-kanban-col');
+    if (col) col.classList.remove('is-drag-over');
+}
+
+function onKanbanDrop(e, targetStatus) {
+    e.preventDefault();
+    const col = e.currentTarget.closest('.elera-kanban-col');
+    if (col) col.classList.remove('is-drag-over');
+    
+    const ticketId = e.dataTransfer.getData('text/plain');
+    const card = document.getElementById('kanban-ticket-' + ticketId);
+    if (!card) return;
+
+    // Move no DOM imediatamente para fluidez máxima
+    const container = col.querySelector('.elera-cards-container');
+    container.prepend(card);
+    card.classList.remove('is-dragging');
+
+    // Atualiza contadores dos headers das colunas
+    document.querySelectorAll('.elera-kanban-col').forEach(function(c) {
+        const count = c.querySelectorAll('.elera-ticket-card').length;
+        const countBadge = c.querySelector('.col-count-pill');
+        if (countBadge) countBadge.textContent = count;
+    });
+
+    // Obter token CSRF ativo do GLPI
+    const csrfToken = (typeof getAjaxCsrfToken === 'function')
+        ? getAjaxCsrfToken()
+        : (document.querySelector('meta[property="glpi:csrf_token"]')?.getAttribute('content') || '');
+
+    // Se jQuery estiver disponível (padrão em todas as telas do GLPI)
+    if (window.$ && typeof $.ajax === 'function') {
+        $.ajax({
+            url: '/glpi/ajax/update_ticket_status.php',
+            type: 'POST',
+            data: {
+                id: ticketId,
+                status: targetStatus,
+                _glpi_csrf_token: csrfToken
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-Glpi-Csrf-Token': csrfToken
+            },
+            dataType: 'json',
+            success: function(data) {
+                if (!data || !data.success) {
+                    console.error('Falha ao atualizar status:', data);
+                    alert('Não foi possível alterar o status do chamado.');
+                    location.reload();
+                } else {
+                    card.setAttribute('data-status', targetStatus);
+                }
+            },
+            error: function(xhr, status, err) {
+                console.error('Erro na requisição AJAX:', status, err, xhr.responseText);
+                alert('Não foi possível salvar o status do chamado.');
+                location.reload();
+            }
+        });
+    } else {
+        const formData = new URLSearchParams();
+        formData.append('id', ticketId);
+        formData.append('status', targetStatus);
+        if (csrfToken) {
+            formData.append('_glpi_csrf_token', csrfToken);
+        }
+
+        fetch('/glpi/ajax/update_ticket_status.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-Glpi-Csrf-Token': csrfToken
+            },
+            body: formData.toString()
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (!data || !data.success) {
+                alert('Não foi possível alterar o status do chamado.');
+                location.reload();
+            } else {
+                card.setAttribute('data-status', targetStatus);
+            }
+        })
+        .catch(function(err) {
+            console.error('Erro na requisição AJAX:', err);
+            alert('Não foi possível salvar o status do chamado.');
+            location.reload();
+        });
+    }
+}
+</script>

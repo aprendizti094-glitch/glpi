@@ -1,32 +1,6 @@
 {#
  # ---------------------------------------------------------------------
- #
- # GLPI - Gestionnaire Libre de Parc Informatique
- #
- # http://glpi-project.org
- #
- # @copyright 2015-2026 Teclib' and contributors.
- # @licence   https://www.gnu.org/licenses/gpl-3.0.html
- #
- # ---------------------------------------------------------------------
- #
- # LICENSE
- #
- # This file is part of GLPI.
- #
- # This program is free software: you can redistribute it and/or modify
- # it under the terms of the GNU General Public License as published by
- # the Free Software Foundation, either version 3 of the License, or
- # (at your option) any later version.
- #
- # This program is distributed in the hope that it will be useful,
- # but WITHOUT ANY WARRANTY; without even the implied warranty of
- # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- # GNU General Public License for more details.
- #
- # You should have received a copy of the GNU General Public License
- # along with this program.  If not, see <https://www.gnu.org/licenses/>.
- #
+ # GLPI - Apple HIG & Elera Dashboard Redesign
  # ---------------------------------------------------------------------
  #}
 
@@ -43,6 +17,215 @@
 {% set normalized_itemtype = itemtype|replace({'\\': ''}) %}
 {% set as_map = (data['search']['as_map'] ?? false) == 1 %}
 
+{% if itemtype == 'Ticket' and data['display_type'] != constant('Search::GLOBAL_SEARCH') %}
+    {% set kpi_total = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0}]) %}
+    {% set kpi_new = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': 1}]) %}
+    {% set kpi_assigned = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': [2, 3]}]) %}
+    {% set kpi_waiting = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': 4}]) %}
+    {% set kpi_solved = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': [5, 6]}]) %}
+
+    <!-- Top KPI Metric Cards (Elera Style) -->
+    <div class="elera-kpi-row">
+        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-kpi-card card-blue" title="Ver todos os chamados">
+            <div class="kpi-icon-wrap">
+                <i class="ti ti-ticket"></i>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Total Chamados</span>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">{{ kpi_total }}</span>
+                    <span class="kpi-unit">total</span>
+                </div>
+            </div>
+            <span class="kpi-tag tag-blue">Total</span>
+        </a>
+
+        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-kpi-card card-green" title="Ver chamados novos">
+            <div class="kpi-icon-wrap">
+                <i class="ti ti-sparkles"></i>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Novos</span>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">{{ kpi_new }}</span>
+                    <span class="kpi-unit">abertos</span>
+                </div>
+            </div>
+            <span class="kpi-tag tag-green">+ novos</span>
+        </a>
+
+        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-kpi-card card-purple" title="Ver chamados atribuídos">
+            <div class="kpi-icon-wrap">
+                <i class="ti ti-users"></i>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Atendimento</span>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">{{ kpi_assigned }}</span>
+                    <span class="kpi-unit">em ação</span>
+                </div>
+            </div>
+            <span class="kpi-tag tag-purple">Atribuídos</span>
+        </a>
+
+        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-kpi-card card-amber" title="Ver chamados pendentes">
+            <div class="kpi-icon-wrap">
+                <i class="ti ti-clock-pause"></i>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Pendentes</span>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">{{ kpi_waiting }}</span>
+                    <span class="kpi-unit">aguardando</span>
+                </div>
+            </div>
+            <span class="kpi-tag tag-amber">Atenção</span>
+        </a>
+
+        <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-kpi-card card-emerald" title="Ver chamados solucionados">
+            <div class="kpi-icon-wrap">
+                <i class="ti ti-circle-check"></i>
+            </div>
+            <div class="kpi-info">
+                <span class="kpi-label">Solucionados</span>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">{{ kpi_solved }}</span>
+                    <span class="kpi-unit">concluídos</span>
+                </div>
+            </div>
+            <span class="kpi-tag tag-emerald">Concluído</span>
+        </a>
+    </div>
+
+    <!-- Barra de Filtros Rápidos (Elera Pill Chips) -->
+    {% set current_filter = 'all' %}
+    {% set is_my_filter = false %}
+    {% set is_helpdesk = (call('Session::getCurrentInterface') == 'helpdesk') %}
+    {% set my_field = is_helpdesk ? 4 : 5 %}
+    {% for crit in data['search']['criteria']|default([]) %}
+        {% if (crit['field'] in [4, 5, 22, 60]) and (crit['value'] == 'myself' or (call('Session::getLoginUserID') and crit['value'] == call('Session::getLoginUserID'))) %}
+            {% set is_my_filter = true %}
+        {% endif %}
+    {% endfor %}
+
+    {% if is_my_filter %}
+        {% set current_filter = 'my' %}
+    {% else %}
+        {% for crit in data['search']['criteria']|default([]) %}
+            {% if crit['field'] == 12 %}
+                {% if crit['value'] == 'all' %}{% set current_filter = 'all' %}
+                {% elseif crit['value'] == 'notold' %}{% set current_filter = 'notold' %}
+                {% elseif crit['value'] == '1' %}{% set current_filter = 'new' %}
+                {% elseif crit['value'] == 'process' or crit['value'] == '2' %}{% set current_filter = 'process' %}
+                {% elseif crit['value'] == '4' %}{% set current_filter = 'waiting' %}
+                {% elseif crit['value'] == '5' %}{% set current_filter = 'solved' %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <div class="elera-ticket-filter-bar">
+        <div class="elera-filter-chips">
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=all&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'all' ? 'active' : '' }}">
+                <i class="ti ti-layers-subtract"></i>
+                <span>Todos</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]={{ my_field }}&criteria[0][searchtype]=equals&criteria[0][value]=myself&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'my' ? 'active' : '' }}">
+                <i class="ti ti-user"></i>
+                <span>Meus chamados</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=notold&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'notold' ? 'active' : '' }}">
+                <i class="ti ti-clock-play"></i>
+                <span>Não solucionados</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=1&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'new' ? 'active' : '' }}">
+                <i class="ti ti-alert-circle"></i>
+                <span>Novos</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=process&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'process' ? 'active' : '' }}">
+                <i class="ti ti-progress"></i>
+                <span>Em atendimento</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=4&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'waiting' ? 'active' : '' }}">
+                <i class="ti ti-player-pause"></i>
+                <span>Pendentes</span>
+            </a>
+            <a href="/glpi/front/ticket.php?criteria[0][field]=12&criteria[0][searchtype]=equals&criteria[0][value]=5&criteria[0][link]=AND" class="elera-pill {{ current_filter == 'solved' ? 'active' : '' }}">
+                <i class="ti ti-circle-check"></i>
+                <span>Solucionados</span>
+            </a>
+        </div>
+
+        <div class="elera-filter-actions">
+            <!-- Toggle de Visualização Kanban / Lista -->
+            <div class="elera-view-toggle">
+                <button type="button" class="elera-view-toggle-btn active" id="btnViewKanban" onclick="switchEleraView('kanban')" title="Visualização em Kanban">
+                    <i class="ti ti-layout-kanban"></i>
+                    <span>Kanban</span>
+                </button>
+                <button type="button" class="elera-view-toggle-btn" id="btnViewTable" onclick="switchEleraView('table')" title="Visualização em Lista">
+                    <i class="ti ti-list"></i>
+                    <span>Lista</span>
+                </button>
+            </div>
+
+            <form method="get" action="/glpi/front/ticket.php" class="elera-quick-search-form">
+                <div class="elera-search-input-wrapper">
+                    <i class="ti ti-search"></i>
+                    <input type="text" name="criteria[0][value]" class="elera-search-input" placeholder="Buscar chamados..." value="{{ (data['search']['criteria'][0]['field']|default(0) == 1 ? data['search']['criteria'][0]['value']|default('') : '') }}" />
+                    <input type="hidden" name="criteria[0][field]" value="1" />
+                    <input type="hidden" name="criteria[0][searchtype]" value="contains" />
+                    <input type="hidden" name="criteria[0][link]" value="AND" />
+                </div>
+            </form>
+
+            <button type="button" class="elera-btn-filters" onclick="$('.search-form-container').slideToggle(200);" title="Alternar filtros avançados">
+                <i class="ti ti-adjustments-horizontal"></i>
+                <span>Filtros</span>
+            </button>
+
+            <span class="elera-showing-count">
+                Exibindo <strong>{{ count }}</strong> chamados
+            </span>
+
+            {% set new_ticket_url = get_current_interface() == 'helpdesk' ? '/glpi/front/helpdesk.public.php?create_ticket=1' : '/glpi/front/ticket.form.php' %}
+            <a href="{{ new_ticket_url }}" class="elera-btn-new-ticket">
+                <i class="ti ti-plus"></i>
+                <span>Novo Chamado</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Visualização em Kanban (Estilo Elera) -->
+    {{ include('components/kanban/elera_kanban.html.twig', {'search_data': data['search']|default(null)}) }}
+
+    <script>
+    function switchEleraView(view) {
+        try {
+            localStorage.setItem('glpi_ticket_view', view);
+        } catch(e) {}
+        if (view === 'table') {
+            $('#eleraKanbanWrapper').hide();
+            $('.search-card').fadeIn(150);
+            $('#btnViewTable').addClass('active');
+            $('#btnViewKanban').removeClass('active');
+        } else {
+            $('#eleraKanbanWrapper').fadeIn(150);
+            $('.search-card').hide();
+            $('#btnViewKanban').addClass('active');
+            $('#btnViewTable').removeClass('active');
+        }
+    }
+
+    $(function() {
+        let savedView = 'kanban';
+        try {
+            savedView = localStorage.getItem('glpi_ticket_view') || 'kanban';
+        } catch(e) {}
+        switchEleraView(savedView);
+    });
+    </script>
+{% endif %}
 <div
     class="card search-card"
     data-testid="search-format-{{ as_map ? "map" : "table" }}"
@@ -98,25 +281,19 @@
           window.initFluidSearch{{ rand }}  = () => {
              const allowed_forced_params = ['hide_controls', 'usesession', 'forcetoview', 'criteria', 'showmassiveactions'];
              let forced_params = {};
-             let all_params = {{ data['search']|default({})|json_encode|raw }};
+             {% for param in forced_params %}
+                forced_params['{{ param }}'] = '{{ params[param] }}';
+             {% endfor %}
 
-             $.each(all_params, (k, v) => {
-                if (allowed_forced_params.includes(k)) {
-                   forced_params[k] = v;
-                }
-             });
-
-             new GLPI.Search.ResultsView(
-                "{{ massive_action_form_id }}",
-                GLPI.Search.Table,
-                {{ push_history ? "true" : "false" }},
-                forced_params
-             );
+             const view = new GLPI.Search.ResultsView('{{ massive_action_form_id }}', GLPI.Search.Table, forced_params);
+             view.init();
+             $('div.ajax-container.search-display-data').data('js_class', view);
           };
-          if (document.readyState === 'complete') {
-              initFluidSearch{{ rand }}();
+
+          if (document.readyState === 'loading') {
+             document.addEventListener('DOMContentLoaded', window.initFluidSearch{{ rand }});
           } else {
-              $(document).on('ready', initFluidSearch{{ rand }});
+             window.initFluidSearch{{ rand }}();
           }
       </script>
    {% endif %}

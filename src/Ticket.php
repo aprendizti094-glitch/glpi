@@ -845,10 +845,15 @@ class Ticket extends CommonITILObject implements DefaultSearchRequestInterface
 
         switch (get_class($item)) {
             case self::class:
+                /** @var self $item */
                 switch ($tabnum) {
                     case 4:
                         $item->showStats();
                         break;
+                    case 'canvas':
+                    case 99:
+                        require_once __DIR__ . '/KnowbaseItem_Canvas.php';
+                        return KnowbaseItem_Canvas::showCanvas($item);
                 }
                 break;
 
@@ -887,6 +892,7 @@ class Ticket extends CommonITILObject implements DefaultSearchRequestInterface
             $this->addStandardTab(Change_Ticket::class, $tabs, $options);
             $this->addStandardTab(Ticket_Contract::class, $tabs, $options);
             $this->addStandardTab(Log::class, $tabs, $options);
+            $tabs['Ticket$canvas'] = self::createTabEntry('Canvas', 0, self::class, 'ti ti-layout-board');
         }
 
         return $tabs;
@@ -5517,12 +5523,14 @@ JAVASCRIPT;
 
                                 // Extract width attribute if present
                                 $width_attr = '';
+                                $w_matches = [];
                                 if (preg_match('/\bwidth\s*=\s*["\']?(\d+)["\']?/i', $img_tag, $w_matches)) {
                                     $width_attr = ' width="' . (int) $w_matches[1] . '"';
                                 }
 
                                 // Extract height attribute if present
                                 $height_attr = '';
+                                $h_matches = [];
                                 if (preg_match('/\bheight\s*=\s*["\']?(\d+)["\']?/i', $img_tag, $h_matches)) {
                                     $height_attr = ' height="' . (int) $h_matches[1] . '"';
                                 }

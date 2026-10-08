@@ -40,7 +40,7 @@
 {% set can_update_kb = has_profile_right('knowbase', constant('UPDATE')) %}
 {% set nokb = params['nokb'] is defined or (params['nokb'] ?? false) == true %}
 {% set rand = random() %}
-{% set is_default_pending = call('PendingReason::isDefaultPending') %}
+{% set is_default_pending = false %}
 
 {% set content_field_id = 'solution_content_' ~ rand %}
 
@@ -105,6 +105,7 @@
             <div class="row mx-n3 mx-xxl-auto">
                {% set col_md = get_current_interface() == 'central' ? 'col-xl-7 col-xxl-8' : 'col-xxl-12' %}
                <div class="col-12 {{ col_md }}">
+                  <div id="chat-attachment-previews" class="chat-attachment-previews"></div>
                   {{ fields.textareaField(
                      'content',
                      subitem.fields['content'],
@@ -113,15 +114,273 @@
                         'id': content_field_id,
                         'full_width': true,
                         'no_label': true,
-                        'enable_richtext': true,
+                        'enable_richtext': false,
                         'enable_fileupload': true,
                         'mention_options': mention_options,
                         'entities_id': item.fields['entities_id'],
                         'rand': rand,
                         'required': add_reopen,
                         'aria_label': _n('Followup', 'Followups', 1),
+                        'placeholder': 'Digite uma mensagem',
+                        'rows': 1,
+                        'additional_attributes': {
+                           'placeholder': 'Digite uma mensagem',
+                           'rows': '1',
+                        },
                      }
                   ) }}
+                  <script>
+                     $(function() {
+                        const $fupTextarea = $('#{{ content_field_id }}');
+                        const $fupBlock = $('#new-ITILFollowup-block');
+                        const $previewContainer = $('#chat-attachment-previews');
+
+                         // Mover .fileupload_info para o container de previews logo acima da barra de mensagem
+                         const $fuInfo = $fupBlock.find('.fileupload .fileupload_info');
+                         if ($fuInfo.length && $previewContainer.length) {
+                            $previewContainer.append($fuInfo);
+                         }
+
+                         // Map de miniaturas para imagens coladas/arrastadas/selecionadas
+                         window._chatThumbMap = window._chatThumbMap || {};
+
+                         // Patch de segurança para exclusão de anexo (quando sem RichText/TinyMCE)
+                         if (!window._deleteImagePastedPatched) {
+                            window._deleteImagePastedPatched = true;
+                            const origDelete = window.deleteImagePasted;
+                            window.deleteImagePasted = function(e, t, n) {
+                               if (Array.isArray(e)) {
+                                  $.each(e, function(idx, idVal) { $('#' + idVal).remove(); });
+                               }
+                               if (n && typeof n.dom !== 'undefined' && t) {
+                                  var a = new RegExp('#', 'g');
+                                  n.dom.remove(t.replace(a, ''));
+                               } else if (typeof origDelete === 'function') {
+                                  try { origDelete(e, t, n); } catch(err) {}
+                               }
+                            };
+                         }
+
+                         const $fileInput = $fupBlock.find('.fileupload input[type="file"][name^="_uploader_"]');
+
+                         function registerImageThumbs(files) {
+                            if (!files) return;
+                            Array.from(files).forEach(function(file) {
+                               if (file.type && file.type.indexOf('image') !== -1) {
+                                  try {
+                                     const blobUrl = URL.createObjectURL(file);
+                                     window._chatThumbMap[file.name] = blobUrl;
+                                     if (file.size) window._chatThumbMap[file.size] = blobUrl;
+                                  } catch (err) {}
+                               }
+                            });
+                         }
+
+                         if ($fileInput.length) {
+                            $fileInput.on('fileuploadadd', function(e, data) {
+                               if (data && data.files) registerImageThumbs(data.files);
+                            });
+                            $fileInput.on('change', function() {
+                               if (this.files) registerImageThumbs(this.files);
+                            });
+                         }
+
+                         // Observar adições em .fileupload_info para injetar miniaturas de imagem estilo WhatsApp
+                         if (window.MutationObserver && $fuInfo.length) {
+                            const enhancePreview = function($p) {
+                               if ($p.hasClass('chat-thumb-enhanced')) return;
+                               $p.addClass('chat-thumb-enhanced');
+                               
+                               const pText = $p.text() || '';
+                               const bText = $p.find('b').text() || '';
+                               const hiddenVal = $p.find('input[name*="_filename"]').val() || '';
+                               
+                               let matchedThumb = null;
+                               for (let key in window._chatThumbMap) {
+                                  if (pText.indexOf(key) !== -1 || bText.indexOf(key) !== -1 || hiddenVal.indexOf(key) !== -1) {
+                                     matchedThumb = window._chatThumbMap[key];
+                                     break;
+                                  }
+                               }
+                               
+                               if (matchedThumb) {
+                                  $p.find('img').remove();
+                                  $p.prepend('<img src="' + matchedThumb + '" class="chat-thumb-preview" alt="Preview" />');
+                               } else {
+                                  const isImg = /\.(jpe?g|png|gif|webp|bmp|svg)/i.test(pText + ' ' + hiddenVal);
+                                  if (isImg) {
+                                     $p.find('img').first().addClass('chat-thumb-preview');
+                                  }
+                               }
+                            };
+
+                            const observer = new MutationObserver(function(mutations) {
+                               $fuInfo.find('p').each(function() {
+                                  enhancePreview($(this));
+                               });
+                            });
+                            observer.observe($fuInfo[0], { childList: true, subtree: true });
+                            $fuInfo.find('p').each(function() { enhancePreview($(this)); });
+                         }
+
+                         // Função central para envio de arquivos pelo uploader do GLPI
+                         function uploadFilesToChat(files) {
+                            if (!files || !files.length) return;
+                            if (!$fileInput.length) return;
+
+                            registerImageThumbs(files);
+
+                            const fileArr = Array.from(files);
+                            fileArr.forEach(function(file) {
+                               // Trigger jQuery File Upload
+                               if (typeof $fileInput.fileupload === 'function') {
+                                  $fileInput.fileupload('add', { files: [file] });
+                               } else if (window.DataTransfer) {
+                                  const dt = new DataTransfer();
+                                  dt.items.add(file);
+                                  $fileInput[0].files = dt.files;
+                                  $fileInput.trigger('change');
+                               }
+                            });
+                         }
+
+                         // 1. Suporte a colar imagem (Ctrl+V) no textarea ou no chat
+                         function handlePasteEvent(e) {
+                            const clip = e.clipboardData || e.originalEvent?.clipboardData;
+                            if (!clip) return;
+                            const items = clip.items;
+                            if (!items || !items.length) return;
+
+                            const imagesToUpload = [];
+                            for (let i = 0; i < items.length; i++) {
+                               if (items[i].type && items[i].type.indexOf('image') !== -1) {
+                                  const blob = items[i].getAsFile();
+                                  if (blob) {
+                                     let fname = blob.name;
+                                     if (!fname || fname === 'image.png') {
+                                        const now = new Date();
+                                        const pad = (n) => String(n).padStart(2, '0');
+                                        const ext = blob.type.split('/')[1] || 'png';
+                                        fname = 'imagem_' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '_' + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds()) + '.' + ext;
+                                        const namedFile = new File([blob], fname, { type: blob.type });
+                                        imagesToUpload.push(namedFile);
+                                     } else {
+                                        imagesToUpload.push(blob);
+                                     }
+                                  }
+                               }
+                            }
+
+                            if (imagesToUpload.length > 0) {
+                               e.preventDefault();
+                               e.stopPropagation();
+                               uploadFilesToChat(imagesToUpload);
+                            }
+                         }
+
+                         if ($fupTextarea.length) {
+                            $fupTextarea.attr('placeholder', 'Digite uma mensagem');
+                            $fupTextarea.attr('rows', '1');
+
+                            // Enviar com Enter (sem Shift) ou se tiver anexo
+                            $fupTextarea.on('keydown', function(e) {
+                               if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  if ($(this).val().trim().length > 0 || $fupBlock.find('.fileupload_info p').length > 0) {
+                                     $(this).closest('form').find('button[name="add"]').trigger('click');
+                                  }
+                               }
+                            });
+
+                            // Auto-ajuste de altura sutil ao digitar multiplas linhas
+                            $fupTextarea.on('input', function() {
+                               this.style.height = '36px';
+                               if (this.scrollHeight > 36) {
+                                  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+                               }
+                            });
+
+                            // Focar textarea ao clicar em qualquer lugar da pilula branca
+                            $fupTextarea.closest('.col-12.mb-3').on('click', function(e) {
+                               if (!$(e.target).closest('.fileupload').length) {
+                                  $fupTextarea.focus();
+                               }
+                            });
+
+                            $fupTextarea.on('paste', handlePasteEvent);
+                         }
+
+                         // Interceptar paste de imagem também no bloco do followup e timeline
+                         $fupBlock.on('paste', handlePasteEvent);
+                         $('.itil-timeline, .itil-left-side').on('paste', handlePasteEvent);
+
+                         // 2. Suporte a Drag & Drop de imagens no chat (estilo WhatsApp)
+                         let $overlay = $('#chat-drag-overlay');
+                         if (!$overlay.length) {
+                            $overlay = $(
+                               '<div id="chat-drag-overlay" class="chat-drop-overlay">' +
+                                  '<div class="chat-drop-overlay-text">' +
+                                     '<i class="ti ti-photo-up" style="font-size: 2.2rem;"></i>' +
+                                     '<span>Solte a imagem para anexar ao chamado</span>' +
+                                  '</div>' +
+                               '</div>'
+                            );
+                            $('body').append($overlay);
+                         }
+
+                         let dragTimer = null;
+
+                         $(window).off('dragenter.zap dragover.zap dragleave.zap drop.zap');
+
+                         $(window).on('dragenter.zap dragover.zap', function(e) {
+                            const dt = e.originalEvent?.dataTransfer;
+                            if (dt && dt.types && (dt.types.includes('Files') || dt.types.indexOf('Files') !== -1)) {
+                               e.preventDefault();
+                               if (e.originalEvent?.dataTransfer) {
+                                  e.originalEvent.dataTransfer.dropEffect = 'copy';
+                               }
+                               const $timeline = $('.itil-left-side:visible, #itil-object-container:visible').first();
+                               if ($timeline.length) {
+                                  const offset = $timeline.offset();
+                                  $overlay.css({
+                                     top: offset.top,
+                                     left: offset.left,
+                                     width: $timeline.outerWidth(),
+                                     height: $timeline.outerHeight()
+                                  });
+                               }
+                               $overlay.addClass('active');
+                               clearTimeout(dragTimer);
+                            }
+                         });
+
+                         $(window).on('dragleave.zap', function(e) {
+                            clearTimeout(dragTimer);
+                            if (e.originalEvent.clientX <= 0 || e.originalEvent.clientY <= 0 ||
+                                e.originalEvent.clientX >= window.innerWidth || e.originalEvent.clientY >= window.innerHeight) {
+                               $overlay.removeClass('active');
+                            } else {
+                               dragTimer = setTimeout(function() {
+                                  $overlay.removeClass('active');
+                               }, 150);
+                            }
+                         });
+
+                         $(window).on('drop.zap', function(e) {
+                            clearTimeout(dragTimer);
+                            $overlay.removeClass('active');
+                            const dt = e.originalEvent?.dataTransfer || e.dataTransfer;
+                            if (!dt || !dt.files || !dt.files.length) return;
+
+                            const $t = $(e.target);
+                            if ($t.is('#chat-drag-overlay') || $t.closest('#chat-drag-overlay, #itil-object-container, .itil-timeline, .itil-left-side, #new-ITILFollowup-block').length) {
+                               e.preventDefault();
+                               e.stopPropagation();
+                               uploadFilesToChat(dt.files);
+                            }
+                         });
+                     });
+                  </script>
                </div>
                {% if get_current_interface() == 'central' %}
                   <div class="col-12 col-xl-5 col-xxl-4 order-first order-md-last pe-0 pe-xxl-auto">

@@ -1,0 +1,1070 @@
+/**
+ * Obsidian Canvas Integration for GLPI Knowledge Base
+ * Authentic Obsidian Canvas Design & Styling
+ */
+
+:root {
+    --obs-bg: #f8fafc;
+    --obs-grid-dot: #cbd5e1;
+    --obs-grid-size: 20px;
+    --obs-header-bg: #f1f5f9;
+    --obs-border: #e2e8f0;
+    --obs-border-hover: #94a3b8;
+    --obs-text-main: #0f172a;
+    --obs-text-muted: #64748b;
+    --obs-card-bg: #ffffff;
+    --obs-card-shadow: 0 4px 14px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+    --obs-card-shadow-active: 0 0 0 2px #3b82f6, 0 10px 25px rgba(59, 130, 246, 0.15);
+    
+    /* Obsidian Canvas Node Colors */
+    --obs-c-default: #94a3b8;
+    --obs-c-green: #22c55e;
+    --obs-c-green-bg: #f0fdf4;
+    --obs-c-blue: #3b82f6;
+    --obs-c-blue-bg: #eff6ff;
+    --obs-c-red: #ef4444;
+    --obs-c-red-bg: #fef2f2;
+    --obs-c-yellow: #eab308;
+    --obs-c-yellow-bg: #fefce8;
+    --obs-c-purple: #a855f7;
+    --obs-c-purple-bg: #faf5ff;
+}
+
+/* Main Container Frame */
+.obsidian-canvas-root {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: calc(100vh - 165px);
+    min-height: 680px;
+    background-color: var(--obs-bg);
+    border: 1px solid var(--obs-border);
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    position: relative;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--obs-text-main);
+    box-sizing: border-box;
+}
+
+.obsidian-canvas-root * {
+    box-sizing: border-box;
+}
+
+/* Top Obsidian Bar */
+.obs-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    background: var(--obs-header-bg);
+    border-bottom: 1px solid var(--obs-border);
+    padding: 0 12px;
+    z-index: 60;
+    user-select: none;
+}
+
+/* Tabs Left */
+.obs-tabs-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.obs-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid var(--obs-border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--obs-text-main);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.obs-tab-icon {
+    font-size: 14px;
+    color: #6366f1;
+}
+
+.obs-tab-title {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.obs-tab-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--obs-text-muted);
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.obs-tab-close:hover {
+    background: #e2e8f0;
+    color: #dc2626;
+}
+
+.obs-tab-add {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--obs-text-muted);
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.obs-tab-add:hover {
+    background: #e2e8f0;
+    color: var(--obs-text-main);
+}
+
+/* Center Navigation */
+.obs-topbar-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.obs-nav-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--obs-text-muted);
+    padding: 4px 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.obs-nav-btn:hover {
+    background: #e2e8f0;
+    color: var(--obs-text-main);
+}
+
+.obs-title-display {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--obs-text-main);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.obs-title-display:hover {
+    background: #e2e8f0;
+}
+
+/* Right Window Actions */
+.obs-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.obs-action-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--obs-text-muted);
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.obs-action-btn:hover {
+    background: #e2e8f0;
+    color: var(--obs-text-main);
+}
+
+/* Viewport & Grid Canvas */
+.obs-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: #fbfbfb;
+    background-image: radial-gradient(var(--obs-grid-dot) 1.25px, transparent 1.25px);
+    background-size: var(--obs-grid-size) var(--obs-grid-size);
+    cursor: grab;
+    user-select: none;
+}
+
+.obs-viewport.is-dragging-canvas {
+    cursor: grabbing !important;
+}
+
+/* SVG Edges Layer */
+.obs-svg-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* SVG Edges Layer & Unreal Blueprint Style Connections */
+.obs-edge-group {
+    cursor: pointer;
+}
+
+/* Wide invisible hitbox for easy click & right-click selection */
+.obs-edge-hitbox {
+    stroke: transparent;
+    stroke-width: 22px;
+    fill: none;
+    pointer-events: stroke;
+    cursor: pointer;
+}
+
+/* Base wire path */
+.obs-edge-path,
+.obs-edge-base {
+    stroke: #94a3b8;
+    stroke-width: 2.6px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    pointer-events: none;
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+
+/* Unreal Engine Blueprint Flow: Glowing Moving Beads (Bolinhas) */
+.obs-edge-flow {
+    fill: none;
+    stroke: #38bdf8;
+    stroke-width: 5px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 0.1 24;
+    animation: obsBlueprintFlow 1.6s linear infinite;
+    pointer-events: none;
+    filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.85));
+    opacity: 0.95;
+    will-change: stroke-dashoffset;
+}
+
+/* Hover and Active / Selected States */
+.obs-edge-group:hover .obs-edge-base {
+    stroke: #3b82f6;
+    stroke-width: 3.6px;
+}
+
+.obs-edge-group:hover .obs-edge-flow {
+    stroke-width: 6px;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 1));
+}
+
+.obs-edge-group.selected .obs-edge-base {
+    stroke: #2563eb !important;
+    stroke-width: 3.8px !important;
+    filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.4));
+}
+
+.obs-edge-group.selected .obs-edge-flow {
+    stroke: #60a5fa !important;
+    stroke-width: 6.5px !important;
+    filter: drop-shadow(0 0 8px rgba(96, 165, 250, 1));
+}
+
+/* Node Color-Matched Blueprint Wires & Energy Beads */
+.obs-edge-group.color-green .obs-edge-base,
+.obs-edge-base.color-green {
+    stroke: var(--obs-c-green);
+}
+.obs-edge-group.color-green .obs-edge-flow,
+.obs-edge-flow.color-green {
+    stroke: #4ade80;
+    filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.9));
+}
+
+.obs-edge-group.color-blue .obs-edge-base,
+.obs-edge-base.color-blue {
+    stroke: var(--obs-c-blue);
+}
+.obs-edge-group.color-blue .obs-edge-flow,
+.obs-edge-flow.color-blue {
+    stroke: #60a5fa;
+    filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.9));
+}
+
+.obs-edge-group.color-red .obs-edge-base,
+.obs-edge-base.color-red {
+    stroke: var(--obs-c-red);
+}
+.obs-edge-group.color-red .obs-edge-flow,
+.obs-edge-flow.color-red {
+    stroke: #f87171;
+    filter: drop-shadow(0 0 4px rgba(248, 113, 113, 0.9));
+}
+
+.obs-edge-group.color-yellow .obs-edge-base,
+.obs-edge-base.color-yellow {
+    stroke: var(--obs-c-yellow);
+}
+.obs-edge-group.color-yellow .obs-edge-flow,
+.obs-edge-flow.color-yellow {
+    stroke: #fde047;
+    filter: drop-shadow(0 0 4px rgba(253, 224, 71, 0.9));
+}
+
+.obs-edge-group.color-purple .obs-edge-base,
+.obs-edge-base.color-purple {
+    stroke: var(--obs-c-purple);
+}
+.obs-edge-group.color-purple .obs-edge-flow,
+.obs-edge-flow.color-purple {
+    stroke: #c084fc;
+    filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.9));
+}
+
+/* Unreal Blueprint Continuous Flow Animation (Moving towards target arrowhead) */
+@keyframes obsBlueprintFlow {
+    from {
+        stroke-dashoffset: 48.2;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Temporary connection line while dragging from a port */
+.obs-temp-edge {
+    stroke: #3b82f6;
+    stroke-width: 3px;
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 20;
+    fill: none;
+    pointer-events: none;
+    filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
+    animation: obsBlueprintFlow 1.2s linear infinite;
+}
+
+/* Nodes Container */
+.obs-nodes-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* Individual Card / Node */
+.obs-node {
+    position: absolute;
+    background: var(--obs-card-bg);
+    border: 1.5px solid var(--obs-border);
+    border-radius: 10px;
+    box-shadow: var(--obs-card-shadow);
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+    min-height: 50px;
+    user-select: none;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.obs-node:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.obs-node.selected {
+    box-shadow: var(--obs-card-shadow-active);
+    border-color: #3b82f6 !important;
+}
+
+/* Obsidian Card Color Variations */
+.obs-node.color-green {
+    border-color: var(--obs-c-green);
+}
+.obs-node.color-green .obs-node-header {
+    background: var(--obs-c-green-bg);
+    color: #15803d;
+    border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.obs-node.color-blue {
+    border-color: var(--obs-c-blue);
+}
+.obs-node.color-blue .obs-node-header {
+    background: var(--obs-c-blue-bg);
+    color: #1d4ed8;
+    border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.obs-node.color-red {
+    border-color: var(--obs-c-red);
+}
+.obs-node.color-red .obs-node-header {
+    background: var(--obs-c-red-bg);
+    color: #b91c1c;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.obs-node.color-yellow {
+    border-color: var(--obs-c-yellow);
+}
+.obs-node.color-yellow .obs-node-header {
+    background: var(--obs-c-yellow-bg);
+    color: #a16207;
+    border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.obs-node.color-purple {
+    border-color: var(--obs-c-purple);
+}
+.obs-node.color-purple .obs-node-header {
+    background: var(--obs-c-purple-bg);
+    color: #7e22ce;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+/* Node Header */
+.obs-node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--obs-text-muted);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 8px 8px 0 0;
+    cursor: move;
+}
+
+.obs-node-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    outline: none;
+}
+
+.obs-node-title:focus {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 2px #3b82f6;
+    border-radius: 3px;
+    padding: 1px 4px;
+}
+
+/* Node Body Content */
+.obs-node-body {
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--obs-text-main);
+    flex: 1;
+    overflow: auto;
+    outline: none;
+    cursor: text;
+}
+
+.obs-node-body:focus {
+    background: rgba(248, 250, 252, 0.7);
+}
+
+/* Image Inside Node */
+.obs-node-image-wrap {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.obs-node-image-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Anchor Ports for Connections */
+.obs-port {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #3b82f6;
+    border: 2.5px solid #ffffff;
+    border-radius: 50%;
+    cursor: crosshair;
+    opacity: 0;
+    transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 36px invisible hit area for easy grabbing */
+.obs-port::after {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+    border-radius: 50%;
+    cursor: crosshair;
+    z-index: 101;
+}
+
+/* Visible on hover or when card is selected */
+.obs-node:hover .obs-port,
+.obs-node.selected .obs-port {
+    opacity: 0.95;
+}
+
+.obs-port:hover {
+    transform: scale(1.4);
+    background: #1d4ed8;
+    opacity: 1 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.35);
+}
+
+.obs-port.port-top {
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.obs-port.port-top:hover {
+    transform: translateX(-50%) scale(1.4);
+}
+
+.obs-port.port-right {
+    top: 50%;
+    right: -7px;
+    transform: translateY(-50%);
+}
+.obs-port.port-right:hover {
+    transform: translateY(-50%) scale(1.4);
+}
+
+.obs-port.port-bottom {
+    bottom: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.obs-port.port-bottom:hover {
+    transform: translateX(-50%) scale(1.4);
+}
+
+.obs-port.port-left {
+    top: 50%;
+    left: -7px;
+    transform: translateY(-50%);
+}
+.obs-port.port-left:hover {
+    transform: translateY(-50%) scale(1.4);
+}
+
+/* Visible on all nodes when in connecting mode */
+.obs-viewport.is-connecting .obs-port {
+    opacity: 0.9;
+    background: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+}
+
+.obs-viewport.is-connecting .obs-port:hover {
+    background: #2563eb;
+    transform: scale(1.5);
+    opacity: 1;
+}
+
+.obs-viewport.is-connecting .obs-node {
+    cursor: pointer;
+}
+
+.obs-viewport.is-connecting .obs-node:not(.is-source-connecting):hover {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.45) !important;
+}
+
+.obs-node.is-source-connecting {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5) !important;
+}
+
+/* Target node highlight when connection is hovering over it */
+.obs-node.connect-target {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(59, 130, 246, 0.2) !important;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.obs-node.connect-target .obs-port {
+    opacity: 1 !important;
+    background: #2563eb;
+}
+
+/* Connecting Banner */
+.obs-connect-banner {
+    position: absolute;
+    top: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 18px;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    animation: obs-slide-down 0.2s ease-out;
+}
+
+.obs-banner-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.obs-banner-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes obs-slide-down {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -10px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+/* Resize Handles */
+.obs-resize-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: transparent;
+    z-index: 25;
+}
+
+.obs-resize-handle.handle-br {
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+}
+
+.obs-node.selected .obs-resize-handle.handle-br {
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+/* Floating Bottom Pill Toolbar (Obsidian Canvas Tools) */
+.obs-bottom-toolbar {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 28px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+    z-index: 50;
+    user-select: none;
+}
+
+.obs-toolbar-item {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--obs-text-muted);
+    font-size: 19px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.obs-toolbar-item:hover {
+    background: #f1f5f9;
+    color: var(--obs-text-main);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.obs-toolbar-item:active {
+    transform: translateY(0);
+}
+
+/* Floating Right Toolbar (Obsidian Zoom & Settings) */
+.obs-right-toolbar {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    z-index: 50;
+    user-select: none;
+}
+
+.obs-right-item {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--obs-text-muted);
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.obs-right-item:hover {
+    background: #f1f5f9;
+    color: var(--obs-text-main);
+}
+
+.obs-right-sep {
+    width: 20px;
+    height: 1px;
+    background: var(--obs-border);
+    margin: 4px 0;
+}
+
+/* Floating Bottom Right Status */
+.obs-bottom-status {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--obs-border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--obs-text-muted);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    z-index: 40;
+    user-select: none;
+}
+
+.obs-status-icon {
+    font-size: 13px;
+    color: #ef4444;
+}
+
+/* Floating Card Context Menu */
+.obs-node-context-bar {
+    position: absolute;
+    top: -46px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    z-index: 35;
+    pointer-events: auto;
+}
+
+.obs-color-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.obs-color-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.15s;
+    border: 1.5px solid transparent;
+}
+
+.obs-color-dot:hover {
+    transform: scale(1.3);
+}
+
+.obs-color-dot.active {
+    box-shadow: 0 0 0 2px #0f172a;
+}
+
+.obs-color-dot.color-default { background: #94a3b8; }
+.obs-color-dot.color-green   { background: #22c55e; }
+.obs-color-dot.color-blue    { background: #3b82f6; }
+.obs-color-dot.color-red     { background: #ef4444; }
+.obs-color-dot.color-yellow  { background: #eab308; }
+.obs-color-dot.color-purple  { background: #a855f7; }
+
+.obs-ctx-sep {
+    width: 1px;
+    height: 16px;
+    background: var(--obs-border);
+}
+
+.obs-ctx-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--obs-text-muted);
+    padding: 3px 5px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.obs-ctx-btn:hover {
+    background: #f1f5f9;
+    color: #ef4444;
+}
+
+.obs-ctx-connect-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #2563eb !important;
+    background: rgba(37, 99, 235, 0.08);
+    padding: 3px 8px;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.obs-ctx-connect-btn:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* Mini Pop-up Context Menu for Edge / Link (Right-click next to arrow) */
+.obs-edge-context-menu {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    min-width: 175px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+    padding: 6px;
+    z-index: 100;
+    pointer-events: auto;
+    animation: obs-edge-popup-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top left;
+    user-select: none;
+}
+
+@keyframes obs-edge-popup-in {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.obs-edge-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--obs-text-muted);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    margin-bottom: 4px;
+}
+
+.obs-edge-menu-header i {
+    font-size: 13px;
+    color: #3b82f6;
+}
+
+.obs-edge-menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.obs-edge-menu-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--obs-text-main);
+    padding: 7px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.obs-edge-menu-btn i {
+    font-size: 15px;
+    width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.obs-edge-menu-btn:hover {
+    background: #f1f5f9;
+    color: var(--obs-text-main);
+}
+
+/* Disconnect button with red hover state */
+.obs-edge-btn-delete {
+    color: #dc2626 !important;
+}
+
+.obs-edge-btn-delete i {
+    color: #ef4444;
+}
+
+.obs-edge-btn-delete:hover {
+    background: #fef2f2 !important;
+    color: #b91c1c !important;
+}
+
+/* Flip direction button */
+.obs-edge-btn-flip:hover {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+}
+
+.obs-edge-btn-flip:hover i {
+    color: #2563eb;
+}
+
+/* Help Modal */
+.obs-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.obs-modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid var(--obs-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    width: 90%;
+    max-width: 480px;
+    overflow: hidden;
+}
+
+.obs-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--obs-border);
+    background: var(--obs-header-bg);
+}
+
+.obs-modal-header h5 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.obs-modal-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--obs-text-muted);
+}
+
+.obs-modal-body {
+    padding: 16px 20px;
+    font-size: 13px;
+}
+
+.obs-modal-body table td {
+    padding: 8px 4px;
+}

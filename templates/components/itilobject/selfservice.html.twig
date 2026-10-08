@@ -1,0 +1,942 @@
+{#
+ # ---------------------------------------------------------------------
+ # GLPI - Redesign Apple HIG (Central de Atendimento / Novo Chamado)
+ # ---------------------------------------------------------------------
+ #}
+
+{% import 'components/form/fields_macros.html.twig' as fields %}
+
+{% set rand = random() %}
+{% set base_field_options = {
+    'is_horizontal': false,
+    'full_width': true,
+    'full_width_adapt_column': false,
+    'fields_template': itiltemplate,
+    'rand': rand,
+} %}
+{% set right_field_options = base_field_options|merge({
+    'is_horizontal': false,
+    'label_class': 'form-label fw-bold mb-2',
+    'input_class': 'w-100',
+}) %}
+
+{% set user_info_is_enabled = config('use_check_pref') %}
+{% set delegation_is_enabled = not params['nodelegate'] %}
+
+<div class="container-lg apple-helpdesk-container py-1">
+
+    {% if has_tickets_to_validate and not url_validate is empty %}
+        <div class="alert alert-warning mb-4" role="alert" style="border-radius: 18px;">
+            {{ __('There are some tickets awaiting approval') }} — <a href="{{ url_validate }}" class="alert-link">{{ __('check it out!') }}</a>
+        </div>
+    {% endif %}
+
+    <!-- =========================================================================
+         APPLE HIG STEPPER BAR (INDICADOR DE ETAPAS PREMIUM)
+         ========================================================================= -->
+    <div class="apple-wizard-stepper-wrap mb-3">
+        <div class="apple-wizard-stepper">
+            <!-- Etapa 1 -->
+            <div class="stepper-step active" id="stepperStep1" onclick="goToStep(1)">
+                <div class="stepper-indicator">
+                    <span class="step-num">1</span>
+                    <i class="fas fa-check step-check"></i>
+                </div>
+                <div class="stepper-meta">
+                    <span class="stepper-step-label">Etapa 1</span>
+                    <span class="stepper-step-title">Categoria & Tipo</span>
+                </div>
+            </div>
+
+            <!-- Conector 1 -> 2 -->
+            <div class="stepper-track" id="stepperTrack1">
+                <div class="stepper-track-fill" id="trackFill1"></div>
+            </div>
+
+            <!-- Etapa 2 -->
+            <div class="stepper-step pending" id="stepperStep2" onclick="goToStep(2)">
+                <div class="stepper-indicator">
+                    <span class="step-num">2</span>
+                    <i class="fas fa-check step-check"></i>
+                </div>
+                <div class="stepper-meta">
+                    <span class="stepper-step-label">Etapa 2</span>
+                    <span class="stepper-step-title">Detalhes do Chamado</span>
+                </div>
+            </div>
+
+            <!-- Conector 2 -> 3 -->
+            <div class="stepper-track" id="stepperTrack2">
+                <div class="stepper-track-fill" id="trackFill2"></div>
+            </div>
+
+            <!-- Etapa 3 -->
+            <div class="stepper-step pending" id="stepperStep3" onclick="goToStep(3)">
+                <div class="stepper-indicator">
+                    <span class="step-num">3</span>
+                    <i class="fas fa-check step-check"></i>
+                </div>
+                <div class="stepper-meta">
+                    <span class="stepper-step-label">Etapa 3</span>
+                    <span class="stepper-step-title">Localização & Envio</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   {{ include('components/itilobject/mainform_open.html.twig') }}
+
+   {{ call_plugin_hook(constant('Glpi\\Plugin\\Hooks::PRE_ITEM_FORM'), {'item': item, 'options': params}) }}
+
+   <!-- =========================================================================
+        ETAPA 1: HERO - SELEÇÃO DE CATEGORIAS INTERATIVAS (PRESERVADA)
+        ========================================================================= -->
+   <div class="apple-wizard-step" id="step1Category">
+       <!-- Banner Dinâmico de Chamados em Resolução Agora (Anti-Duplicação) -->
+       <div id="glpiActiveIncidentsFeed" style="display: none;"></div>
+
+       <div class="apple-helpdesk-hero mb-4">
+           <div class="text-center mb-4">
+               <div class="apple-hero-pill-badge mb-2">
+                   <i class="fas fa-sparkles text-primary me-1"></i> Central de Suporte & Atendimento
+               </div>
+               <h1 class="apple-hero-title mb-2">Como podemos te ajudar hoje?</h1>
+               <p class="apple-hero-subtitle text-muted">
+                   Selecione a categoria do chamado para direcionarmos ao técnico especialista.
+               </p>
+
+               <!-- Apple Segmented Control: Incidente vs Requisição -->
+               <div class="d-flex justify-content-center mt-3">
+                   <div class="apple-segmented-control" id="appleTypeSegment">
+                       <button type="button" class="apple-segment-btn {{ params['type'] == 1 or params['type'] is empty ? 'active' : '' }}" data-type="1">
+                           <i class="fas fa-exclamation-circle me-1 text-danger"></i> Relatar Problema (Incidente)
+                       </button>
+                       <button type="button" class="apple-segment-btn {{ params['type'] == 2 ? 'active' : '' }}" data-type="2">
+                           <i class="fas fa-plus-circle me-1 text-primary"></i> Solicitar Serviço (Requisição)
+                       </button>
+                   </div>
+               </div>
+           </div>
+
+           <!-- Hidden native type dropdown (kept synced for form submission) -->
+           <div style="display: none !important;">
+               {{ fields.field(
+                  'type',
+                  item.dropdownType('type', {
+                     'value': params['type'] ?? 1,
+                     'width': '100%',
+                     'display': false,
+                  }|merge(right_field_options)),
+                  _n('Type', 'Types', 1),
+                  right_field_options
+               ) }}
+           </div>
+
+           <!-- Grid de Cards de Categorias Premium Apple HIG -->
+           <div class="apple-categories-grid mb-3">
+               <!-- Card 1: Sistemas / ERP -->
+               <div class="apple-category-card" data-category-id="1" data-keywords="winthor,erp,sistema,sistemas">
+                   <div class="apple-cat-icon-wrap icon-purple">
+                       <i class="fas fa-layer-group"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">Sistemas & ERP</h4>
+                       <p class="apple-cat-desc">Winthor, relatórios gerenciais, notas fiscais e módulos de gestão</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+
+               <!-- Card 2: Redes / Internet -->
+               <div class="apple-category-card" data-category-id="2" data-keywords="internet,rede,redes,wifi,vpn">
+                   <div class="apple-cat-icon-wrap icon-blue">
+                       <i class="fas fa-wifi"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">Redes & Internet</h4>
+                       <p class="apple-cat-desc">Quedas de conexão, lentidão de navegação, cabos de rede e VPN</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+
+               <!-- Card 3: Computadores / Hardware -->
+               <div class="apple-category-card" data-category-id="3" data-keywords="computador,computadores,hardware,notebook,pc">
+                   <div class="apple-cat-icon-wrap icon-cyan">
+                       <i class="fas fa-desktop"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">Computadores</h4>
+                       <p class="apple-cat-desc">Máquina travando ou lenta, monitor, teclado, mouse ou energia</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+
+               <!-- Card 4: Impressoras -->
+               <div class="apple-category-card" data-category-id="4" data-keywords="impressora,impressoras,impressao,toner">
+                   <div class="apple-cat-icon-wrap icon-amber">
+                       <i class="fas fa-print"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">Impressoras</h4>
+                       <p class="apple-cat-desc">Impressora travada, troca de toner, scanner ou etiquetadora</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+
+               <!-- Card 5: E-mail / Acessos -->
+               <div class="apple-category-card" data-category-id="5" data-keywords="email,e-mail,senha,acesso,acessos">
+                   <div class="apple-cat-icon-wrap icon-red">
+                       <i class="fas fa-key"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">E-mail & Acessos</h4>
+                       <p class="apple-cat-desc">Reset de senhas, desbloqueio de conta e criação de novos usuários</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+
+               <!-- Card 6: Dúvidas / Suporte -->
+               <div class="apple-category-card" data-category-id="6" data-keywords="duvida,duvidas,suporte,ajuda">
+                   <div class="apple-cat-icon-wrap icon-green">
+                       <i class="fas fa-headset"></i>
+                   </div>
+                   <div class="apple-cat-info">
+                       <h4 class="apple-cat-title">Dúvidas & Apoio</h4>
+                       <p class="apple-cat-desc">Orientações de uso, instalação de programas autorizados e suporte</p>
+                   </div>
+                   <div class="apple-cat-check">
+                       <i class="fas fa-check"></i>
+                   </div>
+               </div>
+           </div>
+
+           <!-- Seletor nativo GLPI de Categoria (integrado e expansível para qualquer categoria customizada) -->
+           <div class="text-center mt-2">
+               <button type="button" class="btn btn-sm btn-ghost-secondary apple-cat-toggle-btn" id="btnToggleOtherCategory">
+                   <i class="fas fa-list-ul me-1"></i> Ver todas as categorias / subcategorias do sistema
+               </button>
+               <div id="wrapperOtherCategory" class="apple-native-cat-box d-none mt-3 text-start">
+                   {% set condition = { 'is_helpdeskvisible': 1 } %}
+                   {{ fields.dropdownField(
+                      'ITILCategory',
+                      'itilcategories_id',
+                      params['itilcategories_id'],
+                      _n('Category', 'Categories', 1),
+                      right_field_options|merge({'condition': condition}),
+                   ) }}
+               </div>
+           </div>
+       </div>
+
+        <!-- Ação para Avançar da Etapa 1 -->
+        <div class="text-center mt-3 pt-2 border-top">
+           <button type="button" class="btn btn-primary apple-nav-btn apple-nav-btn-primary" id="btnNextToStep2">
+               <span>Continuar para Detalhes</span>
+               <i class="fas fa-arrow-right ms-2"></i>
+           </button>
+       </div>
+   </div>
+
+   <!-- =========================================================================
+        ETAPA 2: DETALHES DO CHAMADO (NOVO DESIGN PREMIUM APPLE HIG)
+        ========================================================================= -->
+   <div class="apple-wizard-step" id="step2Details" style="display: none;">
+       <div class="card apple-section-card mb-4" id="sectionDetails">
+           <div class="card-header apple-section-header">
+               <div class="d-flex align-items-center justify-content-between">
+                   <div class="d-flex align-items-center">
+                       <span class="apple-step-badge">2</span>
+                       <div>
+                           <h3 class="card-title mb-0">Detalhes do Chamado</h3>
+                           <span class="text-muted small">Defina o nível de urgência, dê um título e descreva a situação</span>
+                       </div>
+                   </div>
+                    <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-normal" style="font-size: 0.72rem;">Etapa 2 de 3</span>
+                </div>
+            </div>
+            <div class="card-body p-3">
+
+               <!-- 2.1 Seleção de Urgência Apple HIG V2 -->
+               <div class="mb-4">
+                   <label class="form-label fw-bold mb-3 d-flex align-items-center">
+                       <i class="fas fa-signal text-primary me-2"></i> Qual é o nível de urgência?
+                   </label>
+                   <div class="apple-urgency-grid-v2" id="appleUrgencyGridV2">
+                       <!-- Urgência Baixa -->
+                       <div class="apple-urgency-card-v2 urgency-card-low {{ params['urgency'] == 2 ? 'active' : '' }}" data-urgency="2" data-name="Baixa" data-color="#10B981">
+                           <div class="urgency-v2-top">
+                               <div class="urgency-v2-icon urgency-green">
+                                   <i class="fas fa-shield-alt"></i>
+                               </div>
+                               <div class="urgency-radio-ring">
+                                   <div class="urgency-radio-dot"></div>
+                               </div>
+                           </div>
+                           <div class="urgency-v2-title">Baixa</div>
+                           <p class="urgency-v2-desc">Não afeta meu trabalho diretamente</p>
+                       </div>
+
+                       <!-- Urgência Média -->
+                       <div class="apple-urgency-card-v2 urgency-card-medium {{ params['urgency'] == 3 or params['urgency'] is empty ? 'active' : '' }}" data-urgency="3" data-name="Média" data-color="#3B82F6">
+                           <div class="urgency-v2-top">
+                               <div class="urgency-v2-icon urgency-blue">
+                                   <i class="fas fa-clock"></i>
+                               </div>
+                               <div class="urgency-radio-ring">
+                                   <div class="urgency-radio-dot"></div>
+                               </div>
+                           </div>
+                           <div class="urgency-v2-title">Média</div>
+                           <p class="urgency-v2-desc">Dificulta a realização de algumas tarefas</p>
+                       </div>
+
+                       <!-- Urgência Alta -->
+                       <div class="apple-urgency-card-v2 urgency-card-high {{ params['urgency'] == 4 ? 'active' : '' }}" data-urgency="4" data-name="Alta" data-color="#F59E0B">
+                           <div class="urgency-v2-top">
+                               <div class="urgency-v2-icon urgency-amber">
+                                   <i class="fas fa-exclamation-triangle"></i>
+                               </div>
+                               <div class="urgency-radio-ring">
+                                   <div class="urgency-radio-dot"></div>
+                               </div>
+                           </div>
+                           <div class="urgency-v2-title">Alta</div>
+                           <p class="urgency-v2-desc">Impacto forte nas atividades de rotina</p>
+                       </div>
+
+                       <!-- Urgência Muito Alta -->
+                       <div class="apple-urgency-card-v2 urgency-card-urgent {{ params['urgency'] == 5 ? 'active' : '' }}" data-urgency="5" data-name="Muito Alta" data-color="#EF4444">
+                           <div class="urgency-v2-top">
+                               <div class="urgency-v2-icon urgency-red">
+                                   <i class="fas fa-fire-alt"></i>
+                               </div>
+                               <div class="urgency-radio-ring">
+                                   <div class="urgency-radio-dot"></div>
+                               </div>
+                           </div>
+                           <div class="urgency-v2-title">Muito Alta</div>
+                           <p class="urgency-v2-desc">Trabalho ou setor totalmente parado</p>
+                       </div>
+                   </div>
+
+                   <!-- Hidden native urgency dropdown (kept synced) -->
+                   <div style="display: none !important;">
+                       {{ fields.field(
+                          'urgency',
+                          item.dropdownUrgency({
+                             'value': params['urgency'] ?? 3,
+                             'width': '100%',
+                             'display': false,
+                          }),
+                          __('Urgency'),
+                          right_field_options
+                       ) }}
+                   </div>
+               </div>
+
+               <!-- 2.2 Título do Chamado Redesenhado -->
+               <div class="mb-4" id="titleInputGroup">
+                   <label class="form-label fw-bold d-flex justify-content-between align-items-center mb-2" for="ticketTitleInput">
+                       <span><i class="fas fa-heading text-primary me-1"></i> Título do Chamado <span class="text-danger">*</span></span>
+                       <span class="badge bg-light text-muted fw-normal" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 10px;">Resumo claro do problema</span>
+                   </label>
+                   {{ fields.textField(
+                      'name',
+                      params['name'],
+                      '',
+                      right_field_options|merge({
+                         'placeholder': 'Ex: Não consigo emitir nota fiscal no Winthor / Computador travando',
+                         'input_class': 'apple-modern-title-input w-100',
+                         'id': 'ticketTitleInput'
+                      })
+                   ) }}
+
+                    <!-- Feedback de Validação do Título -->
+                    <div id="titleRequiredAlert" class="apple-validation-message d-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle text-danger"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <span><strong>O título é obrigatório:</strong> Digite um título ou clique em uma das sugestões abaixo para continuar.</span>
+                    </div>
+
+                    <!-- Chips de Sugestão Rápida com Lucide Icons -->
+                    <div class="apple-quick-suggestions">
+                        <span class="suggestion-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles text-primary me-1"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                            Sugestões:
+                        </span>
+                        <button type="button" class="suggestion-chip" data-title="Lentidão / Travamento no Computador">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor text-primary"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                            <span>PC Travando</span>
+                        </button>
+                        <button type="button" class="suggestion-chip" data-title="Erro ao emitir Nota Fiscal no Winthor">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-receipt text-warning"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+                            <span>Erro de NF</span>
+                        </button>
+                        <button type="button" class="suggestion-chip" data-title="Sem acesso à Internet / Queda de Wi-Fi">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wifi text-info"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+                            <span>Wi-Fi / Rede</span>
+                        </button>
+                        <button type="button" class="suggestion-chip" data-title="Substituição de Toner / Impressora Travada">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer text-secondary"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+                            <span>Toner / Impressora</span>
+                        </button>
+                        <button type="button" class="suggestion-chip" data-title="Reset de Senha ou Desbloqueio de Usuário">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key-round text-success"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                            <span>Reset de Senha</span>
+                        </button>
+                    </div>
+               </div>
+
+               <!-- 2.3 Banner de Dicas e Descrição -->
+               <div class="apple-tip-banner mb-3">
+                   <div class="apple-tip-icon me-3">
+                       <i class="fas fa-lightbulb"></i>
+                   </div>
+                   <div>
+                       <strong>Dica importante:</strong> Descreva detalhes do que estava fazendo quando o erro ocorreu. Se tiver capturas de tela (prints), anexe ou cole com <code>Ctrl + V</code> na descrição para acelerar o atendimento!
+                   </div>
+               </div>
+
+               <div class="mb-2" id="descriptionInputGroup">
+                   {% set uploads = [] %}
+                   {% if params._content is defined %}
+                      {% set uploads = uploads|merge({'_content': params._content, '_tag_content': params._tag_content}) %}
+                   {% endif %}
+                   {% if params._filename is defined %}
+                      {% set uploads = uploads|merge({'_filename': params._filename, '_tag_filename': params._tag_filename}) %}
+                   {% endif %}
+
+                   {{ fields.textareaField(
+                      'content',
+                      params['content'],
+                      __('Description'),
+                      right_field_options|merge({
+                         'enable_richtext': true,
+                         'enable_fileupload': (itiltemplate.isHiddenField('_documents_id')) ? false : true,
+                         'uploads': uploads,
+                      })
+                   ) }}
+
+                    <!-- Feedback de Validação da Descrição -->
+                    <div id="descriptionRequiredAlert" class="apple-validation-message d-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle text-danger"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <span><strong>A descrição é obrigatória:</strong> Por favor, descreva a situação ou o problema ocorrido antes de prosseguir.</span>
+                    </div>
+               </div>
+           </div>
+
+            <!-- Rodapé de Navegação da Etapa 2 -->
+            <div class="card-footer bg-transparent border-top py-2 px-3">
+               <div class="d-flex justify-content-between align-items-center">
+                   <button type="button" class="btn apple-nav-btn apple-nav-btn-ghost" onclick="goToStep(1)">
+                       <i class="fas fa-arrow-left me-2"></i> Voltar para Categoria
+                   </button>
+                   <button type="button" class="btn btn-primary apple-nav-btn apple-nav-btn-primary" id="btnNextToStep3">
+                       <span>Continuar para Localização</span>
+                       <i class="fas fa-arrow-right ms-2"></i>
+                   </button>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- =========================================================================
+        ETAPA 3: LOCALIZAÇÃO & ENVIO
+        ========================================================================= -->
+   <div class="apple-wizard-step" id="step3Location" style="display: none;">
+       <!-- Resumo do Chamado (Ticket Preview) -->
+       <div class="apple-ticket-preview-box mb-4">
+           <div class="preview-header d-flex align-items-center justify-content-between mb-3">
+               <div class="d-flex align-items-center">
+                   <span class="preview-badge-icon"><i class="fas fa-receipt text-primary"></i></span>
+                   <div>
+                       <h5 class="mb-0 fw-bold">Resumo do seu Chamado</h5>
+                       <span class="text-muted small">Confira as informações antes de enviar</span>
+                   </div>
+               </div>
+               <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-semibold" id="previewTypeBadge">Incidente</span>
+           </div>
+           <div class="preview-grid">
+               <div class="preview-item">
+                   <span class="preview-label">Categoria</span>
+                   <span class="preview-val fw-semibold" id="previewCatVal">Sistemas & ERP</span>
+               </div>
+               <div class="preview-item">
+                   <span class="preview-label">Urgência</span>
+                   <span class="preview-val fw-semibold" id="previewUrgVal"><span class="urgency-dot-sm me-1" style="background-color: #3B82F6;"></span> Média</span>
+               </div>
+               <div class="preview-item preview-item-full">
+                   <span class="preview-label">Título</span>
+                   <span class="preview-val fw-semibold text-break" id="previewTitleVal">-</span>
+               </div>
+           </div>
+       </div>
+
+       <div class="card apple-section-card mb-4" id="sectionLocation">
+           <div class="card-header apple-section-header">
+               <div class="d-flex align-items-center justify-content-between">
+                   <div class="d-flex align-items-center">
+                       <span class="apple-step-badge">3</span>
+                       <div>
+                           <h3 class="card-title mb-0">Localização e Envio</h3>
+                           <span class="text-muted small">Informe onde o atendimento presencial ou suporte deve ocorrer</span>
+                       </div>
+                   </div>
+                    <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-normal" style="font-size: 0.72rem;">Etapa 3 de 3</span>
+                </div>
+            </div>
+            <div class="card-body p-3">
+               {{ fields.dropdownField(
+                  'Location',
+                  'locations_id',
+                  params['locations_id'],
+                  'Location'|itemtype_name,
+                  right_field_options|merge({
+                     'hide_if_no_elements': true
+                  })
+               ) }}
+
+               <!-- Informações de Delegação (se houver) -->
+               {% if delegating|length %}
+                   <div class="mt-4 pt-3 border-top">
+                       <div class="row">
+                           <div class="col-sm-8">
+                               {% set actor_add_form %}
+                                   <div id="delegate_other{{ rand }}" class="card mt-2 {{ delegation_is_enabled ? '' : 'd-none' }}">
+                                       <div class="card-body">
+                                           {% if delegation_is_enabled %}
+                                               {{ item.showActorAddFormOnCreate(
+                                                   constant('CommonITILActor::REQUESTER'),
+                                                   params
+                                               )|u.truncate(0) }}
+                                           {% endif %}
+                                       </div>
+                                   </div>
+                               {% endset %}
+
+                               {{ fields.dropdownYesNo(
+                                   'nodelegate',
+                                   params['nodelegate'],
+                                   __('This ticket concerns me'),
+                                   base_field_options|merge({
+                                       'add_field_html': actor_add_form
+                                   })
+                               ) }}
+                           </div>
+                       </div>
+                   </div>
+               {% endif %}
+           </div>
+           
+                      <div class="card-footer bg-transparent border-top py-2 px-3">
+               <div class="d-flex justify-content-between align-items-center">
+                   <button type="button" class="btn apple-nav-btn apple-nav-btn-ghost" onclick="goToStep(2)">
+                       <i class="fas fa-arrow-left me-2"></i> Voltar aos Detalhes
+                   </button>
+                   <input type="hidden" name="entities_id" value="{{ entities_id }}" />
+                   <button type="submit" class="btn btn-primary apple-submit-cta-btn" name="add" id="btnSubmitTicket">
+                       <i class="fas fa-paper-plane me-2"></i>
+                       <span>Confirmar e Abrir Chamado</span>
+                   </button>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   {% if not delegating|length %}
+       <input type="hidden" name="_users_id_requester" value="{{ session('glpiID') }}">
+   {% endif %}
+
+   <!-- Campos Ocultos Conforme Solicitado (Elementos Associados e Observadores) -->
+   <div style="display: none !important;">
+       {% if session('glpiactiveprofile')['helpdesk_hardware'] and session('glpiactiveprofile')['helpdesk_item_type']|length %}
+          <div id="collapse-items{{ rand }}">
+             {% do call('Item_Ticket::itemAddForm', [item, params|merge({
+                '_canupdate': has_profile_right('ticket', constant('CREATE')),
+                '_tickettemplate': itiltemplate,
+             })]) %}
+          </div>
+       {% endif %}
+   </div>
+
+   {{ call_plugin_hook(constant('Glpi\\Plugin\\Hooks::POST_ITEM_FORM'), {'item': item, 'options': params}) }}
+
+   {{ include('components/itilobject/mainform_close.html.twig') }}
+</div>
+
+<script type="text/javascript">
+var currentStep = 1;
+
+function updateStepperUI(step) {
+    for (var i = 1; i <= 3; i++) {
+        var $stepEl = $('#stepperStep' + i);
+        $stepEl.removeClass('active completed pending');
+        if (i < step) {
+            $stepEl.addClass('completed');
+        } else if (i === step) {
+            $stepEl.addClass('active');
+        } else {
+            $stepEl.addClass('pending');
+        }
+    }
+
+    if (step === 1) {
+        $('#trackFill1').css('width', '0%');
+        $('#trackFill2').css('width', '0%');
+    } else if (step === 2) {
+        $('#trackFill1').css('width', '100%');
+        $('#trackFill2').css('width', '0%');
+    } else if (step >= 3) {
+        $('#trackFill1').css('width', '100%');
+        $('#trackFill2').css('width', '100%');
+    }
+
+    if (step === 3) {
+        updateTicketPreview();
+    }
+}
+
+function updateTicketPreview() {
+    var isIncident = $('#appleTypeSegment .apple-segment-btn[data-type="1"]').hasClass('active');
+    $('#previewTypeBadge').text(isIncident ? 'Incidente (Problema)' : 'Requisição (Serviço)');
+    if (isIncident) {
+        $('#previewTypeBadge').removeClass('bg-primary-subtle text-primary').addClass('bg-danger-subtle text-danger');
+    } else {
+        $('#previewTypeBadge').removeClass('bg-danger-subtle text-danger').addClass('bg-primary-subtle text-primary');
+    }
+
+    var activeCatTitle = $('.apple-category-card.active .apple-cat-title').text();
+    if (!activeCatTitle) {
+        var nativeCatText = $('select[name="itilcategories_id"] option:selected').text();
+        activeCatTitle = (nativeCatText && nativeCatText.trim() !== '' && nativeCatText.indexOf('-----') === -1) ? nativeCatText : 'Não especificada';
+    }
+    $('#previewCatVal').text(activeCatTitle);
+
+    var $activeUrg = $('#appleUrgencyGridV2 .apple-urgency-card-v2.active');
+    var urgName = $activeUrg.data('name') || 'Média';
+    var urgColor = $activeUrg.data('color') || '#3B82F6';
+    $('#previewUrgVal').html('<span class="urgency-dot-sm me-1" style="background-color: ' + urgColor + ';"></span> ' + urgName);
+
+    var titleVal = $('input[name="name"]').val();
+    $('#previewTitleVal').text(titleVal && titleVal.trim() !== '' ? titleVal : '(Sem título informado)');
+}
+
+function hasDescriptionContent() {
+    var $textarea = $('textarea[name="content"]');
+    var rawText = $textarea.val() || '';
+
+    // Check TinyMCE if active
+    if (typeof tinymce !== 'undefined') {
+        var editorId = $textarea.attr('id');
+        var ed = (editorId && tinymce.get(editorId)) ? tinymce.get(editorId) : tinymce.activeEditor;
+        if (ed && !ed.isHidden()) {
+            var html = ed.getContent();
+            // If it has images, audio, video, attachments, or tables, it's not empty
+            if (/<(img|video|audio|table|figure|iframe|object|embed)/i.test(html) || html.indexOf('data:image') !== -1) {
+                return true;
+            }
+            var text = ed.getContent({format: 'text'}) || '';
+            text = text.replace(/[\s\u00a0\u200B]+/g, ' ').trim();
+            if (text.length > 0) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // Check plain textarea
+    var cleanText = rawText.replace(/[\s\u00a0\u200B]+/g, ' ').trim();
+    if (cleanText.length > 0) {
+        return true;
+    }
+
+    // Check if any files are attached in GLPI's file upload container in the description group
+    if ($('#descriptionInputGroup').find('.fileupload-item, .file-item, .uploaded-file, .upload-element').length > 0) {
+        return true;
+    }
+
+    return false;
+}
+
+function goToStep(targetStep) {
+    if (targetStep === currentStep) return;
+
+    if (targetStep > 1 && currentStep === 1) {
+        if (!$('.apple-category-card.active').length) {
+            $('.apple-category-card').first().addClass('active');
+        }
+    }
+
+    // Validação ao tentar avançar para a Etapa 3 (Localização e Envio)
+    if (targetStep === 3) {
+        var titleVal = $('input[name="name"]').val();
+        if (!titleVal || titleVal.trim() === '') {
+            if (currentStep !== 2) {
+                currentStep = 2;
+                $('.apple-wizard-step').hide();
+                $('#step2Details').fadeIn(240);
+                updateStepperUI(2);
+            }
+            $('#titleRequiredAlert').removeClass('d-none');
+            var $titleInput = $('input[name="name"]');
+            $titleInput.addClass('input-shake').focus();
+            setTimeout(function() {
+                $titleInput.removeClass('input-shake');
+            }, 500);
+            $('html, body').animate({
+                scrollTop: $('#titleInputGroup').offset().top - 20
+            }, 200);
+            return;
+        } else {
+            $('#titleRequiredAlert').addClass('d-none');
+        }
+
+        if (!hasDescriptionContent()) {
+            if (currentStep !== 2) {
+                currentStep = 2;
+                $('.apple-wizard-step').hide();
+                $('#step2Details').fadeIn(240);
+                updateStepperUI(2);
+            }
+            $('#descriptionRequiredAlert').removeClass('d-none');
+            var $textarea = $('textarea[name="content"]');
+            var editorId = $textarea.attr('id');
+            var $editorBox = $('#descriptionInputGroup .tox-tinymce');
+            if ($editorBox.length) {
+                $editorBox.addClass('input-shake');
+                setTimeout(function() {
+                    $editorBox.removeClass('input-shake');
+                }, 500);
+                if (typeof tinymce !== 'undefined') {
+                    var ed = (editorId && tinymce.get(editorId)) ? tinymce.get(editorId) : tinymce.activeEditor;
+                    if (ed) ed.focus();
+                }
+            } else {
+                $textarea.addClass('input-shake').focus();
+                setTimeout(function() {
+                    $textarea.removeClass('input-shake');
+                }, 500);
+            }
+            $('html, body').animate({
+                scrollTop: $('#descriptionInputGroup').offset().top - 30
+            }, 200);
+            return;
+        } else {
+            $('#descriptionRequiredAlert').addClass('d-none');
+        }
+    }
+
+    $('.apple-wizard-step').hide();
+    var targetContainerId = (targetStep === 1) ? '#step1Category' : ((targetStep === 2) ? '#step2Details' : '#step3Location');
+    $(targetContainerId).fadeIn(240);
+
+    currentStep = targetStep;
+    updateStepperUI(currentStep);
+
+    $('html, body').animate({
+        scrollTop: $('.apple-wizard-stepper-wrap').offset().top - 20
+    }, 280);
+}
+
+$(function () {
+    // 1. Alternância de Tipo (Incidente / Requisição)
+    $('#appleTypeSegment .apple-segment-btn').on('click', function(e) {
+        e.preventDefault();
+        $('#appleTypeSegment .apple-segment-btn').removeClass('active');
+        $(this).addClass('active');
+
+        var typeVal = $(this).data('type');
+        $('select[name="type"]').val(typeVal).trigger('change');
+    });
+
+    // 2. Seleção de Card de Categoria
+    $('.apple-category-card').on('click', function() {
+        $('.apple-category-card').removeClass('active');
+        $(this).addClass('active');
+
+        var catId = $(this).data('category-id');
+        var keywords = ($(this).data('keywords') || '').toLowerCase().split(',');
+
+        var $catSelect = $('select[name="itilcategories_id"]');
+        if ($catSelect.length) {
+            if ($catSelect.find('option[value="' + catId + '"]').length) {
+                $catSelect.val(catId);
+            } else {
+                $catSelect.find('option').each(function() {
+                    var text = $(this).text().toLowerCase();
+                    for (var i = 0; i < keywords.length; i++) {
+                        if (text.indexOf(keywords[i]) !== -1) {
+                            $catSelect.val($(this).val());
+                            return false;
+                        }
+                    }
+                });
+            }
+            $catSelect.trigger('change.select2').trigger('change');
+        }
+
+        // Feedback suave: Avança automaticamente para o passo 2
+        setTimeout(function() {
+            goToStep(2);
+        }, 220);
+    });
+
+    // Botão de Avanço Manual da Etapa 1
+    $('#btnNextToStep2').on('click', function() {
+        goToStep(2);
+    });
+
+    // Sincronizar card inicial caso já exista categoria selecionada
+    var currentCat = $('select[name="itilcategories_id"]').val();
+    if (currentCat && currentCat != '0') {
+        $('.apple-category-card[data-category-id="' + currentCat + '"]').addClass('active');
+    }
+
+    // Toggle para outras categorias
+    $('#btnToggleOtherCategory').on('click', function() {
+        $('#wrapperOtherCategory').toggleClass('d-none');
+    });
+
+    // 3. Seleção de Cards de Urgência V2
+    $('#appleUrgencyGridV2 .apple-urgency-card-v2').on('click', function() {
+        $('#appleUrgencyGridV2 .apple-urgency-card-v2').removeClass('active');
+        $(this).addClass('active');
+
+        var urgVal = $(this).data('urgency');
+        var $urgSelect = $('select[name="urgency"]');
+        if ($urgSelect.length) {
+            $urgSelect.val(urgVal).trigger('change.select2').trigger('change');
+        }
+    });
+
+    // 4. Chips de Sugestão Rápida para o Título
+    $('.suggestion-chip').on('click', function() {
+        var suggested = $(this).data('title');
+        var $input = $('input[name="name"]');
+        $input.val(suggested).trigger('input').trigger('change').focus();
+        $('#titleRequiredAlert').addClass('d-none');
+        $input.removeClass('input-shake');
+    });
+
+    // Limpeza de alerta de título em tempo real
+    $('input[name="name"]').on('input keyup change paste', function() {
+        if ($(this).val().trim() !== '') {
+            $('#titleRequiredAlert').addClass('d-none');
+            $(this).removeClass('input-shake');
+        }
+    });
+
+    // Limpeza de alerta de descrição em tempo real (Textarea nativo)
+    $('textarea[name="content"]').on('input keyup change paste', function() {
+        if (hasDescriptionContent()) {
+            $('#descriptionRequiredAlert').addClass('d-none');
+            $('#descriptionInputGroup .tox-tinymce, textarea[name="content"]').removeClass('input-shake');
+        }
+    });
+
+    // Limpeza de alerta de descrição em tempo real (TinyMCE)
+    if (typeof tinymce !== 'undefined') {
+        tinymce.on('AddEditor', function(e) {
+            e.editor.on('input keyup change NodeChange paste SetContent', function() {
+                if (hasDescriptionContent()) {
+                    $('#descriptionRequiredAlert').addClass('d-none');
+                    $('#descriptionInputGroup .tox-tinymce').removeClass('input-shake');
+                }
+            });
+        });
+        if (tinymce.editors && tinymce.editors.length) {
+            tinymce.editors.forEach(function(ed) {
+                ed.on('input keyup change NodeChange paste SetContent', function() {
+                    if (hasDescriptionContent()) {
+                        $('#descriptionRequiredAlert').addClass('d-none');
+                        $('#descriptionInputGroup .tox-tinymce').removeClass('input-shake');
+                    }
+                });
+            });
+        }
+    }
+
+    // Enter no campo de título avança para a etapa 3
+    $('input[name="name"]').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            goToStep(3);
+        }
+    });
+
+    // 5. Botão de Avanço da Etapa 2
+    $('#btnNextToStep3').on('click', function() {
+        goToStep(3);
+    });
+
+    // 6. Interceptador de Envio Final para Garantir Integridade
+    $('#btnSubmitTicket').closest('form').on('submit', function(e) {
+        var titleVal = $('input[name="name"]').val();
+        if (!titleVal || titleVal.trim() === '') {
+            e.preventDefault();
+            goToStep(2);
+            $('#titleRequiredAlert').removeClass('d-none');
+            var $titleInput = $('input[name="name"]');
+            $titleInput.addClass('input-shake').focus();
+            setTimeout(function() { $titleInput.removeClass('input-shake'); }, 500);
+            return false;
+        }
+        if (!hasDescriptionContent()) {
+            e.preventDefault();
+            goToStep(2);
+            $('#descriptionRequiredAlert').removeClass('d-none');
+            var $textarea = $('textarea[name="content"]');
+            var editorId = $textarea.attr('id');
+            var $editorBox = $('#descriptionInputGroup .tox-tinymce');
+            if ($editorBox.length) {
+                $editorBox.addClass('input-shake');
+                setTimeout(function() { $editorBox.removeClass('input-shake'); }, 500);
+                if (typeof tinymce !== 'undefined') {
+                    var ed = (editorId && tinymce.get(editorId)) ? tinymce.get(editorId) : tinymce.activeEditor;
+                    if (ed) ed.focus();
+                }
+            } else {
+                $textarea.addClass('input-shake').focus();
+                setTimeout(function() { $textarea.removeClass('input-shake'); }, 500);
+            }
+            return false;
+        }
+    });
+
+    // 7. Delegação
+    $('#dropdown_nodelegate{{ rand }}').on('change', function() {
+        var is_for_me = ($(this).val() == '1');
+        if (is_for_me) {
+            $('#delegate_other{{ rand }}').addClass("d-none");
+            $('#delegate_other{{ rand }} .card-body').html("");
+        } else {
+            $('#delegate_other{{ rand }} .card-body')
+                .html("")
+                .load('{{ path('ajax/dropdownDelegationUsers.php') }}', {
+                    'right': "delegate",
+                    'nodelegate': (is_for_me ? 1 : 0),
+                    '_users_id_requester': {{ params['_users_id_requester'] ?? 0 }},
+                    '_users_id_requester_notif': {{ params['_users_id_requester_notif']|json_encode()|raw }},
+                    'use_notification': {{ params['_users_id_requester_notif']['use_notification'] is defined ? (params['_users_id_requester_notif']['use_notification'] is array ? params['_users_id_requester_notif']['use_notification'][0] : params['_users_id_requester_notif']['use_notification']) : 1 }},
+                    'entity_restrict':  {{ session('glpiactive_entity') }}
+                }, () => {
+                    $('#delegate_other{{ rand }}').removeClass("d-none");
+                })
+            ;
+        }
+    });
+
+    if (typeof saveActorsToDom === 'function') {
+        saveActorsToDom();
+    }
+});
+</script>
+
