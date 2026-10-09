@@ -23,7 +23,7 @@ if (-not $xamppDir) { $xamppDir = "C:\xampp" }
 
 if (-not (Test-Path "$xamppDir\php\php.exe")) {
     Write-Host "[ERRO] PHP do XAMPP nao encontrado em $xamppDir\php\php.exe" -ForegroundColor Red
-    pause
+    Read-Host "Pressione ENTER para sair..."
     exit 1
 }
 
@@ -50,13 +50,14 @@ $tempZip = "$xamppDir\php82_temp.zip"
 $tempExtract = "$xamppDir\php82_temp_extract"
 
 Write-Host "2/5 Baixando PHP 8.2 Thread Safe oficial (32 MB)..." -ForegroundColor White
-Write-Host "    Aguarde alguns instantes..." -ForegroundColor Gray
+Write-Host "    Aguarde de 10 a 30 segundos dependendo da conexao..." -ForegroundColor Gray
+$ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -Uri $phpZipUrl -OutFile $tempZip
 
 if (-not (Test-Path $tempZip)) {
     Write-Host "[ERRO] Falha ao baixar o arquivo do PHP." -ForegroundColor Red
-    pause
+    Read-Host "Pressione ENTER para sair..."
     exit 1
 }
 
