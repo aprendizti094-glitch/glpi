@@ -148,8 +148,17 @@ echo   DICA: Para encerrar o tunel, pressione CTRL + C nesta janela.
 echo ===================================================================
 echo.
 
-:: Executa o ngrok com call para evitar que o batch feche
-call "%NGROK_BIN%" http 80
+:: Verifica se o Apache está escutando antes de abrir o túnel
+netstat -ano | findstr /r ":80 " >nul
+if errorlevel 1 (
+    echo.
+    echo [ALERTA] O Apache ainda nao esta escutando na porta 80!
+    echo Certifique-se de que o Apache esta verde (Start) no XAMPP Control Panel.
+    echo.
+)
+
+:: Executa o ngrok com IPv4 explicito para evitar erro de dial tcp [::1]:80
+call "%NGROK_BIN%" http 127.0.0.1:80
 
 :: Caso o ngrok feche ou ocorra erro, a janela nao fecha sozinha
 echo.
