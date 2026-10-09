@@ -511,7 +511,12 @@ class ErrorHandler
         $is_debug_mode = isset($_SESSION['glpi_use_mode']) && $_SESSION['glpi_use_mode'] == \Session::DEBUG_MODE;
         $is_console_context = $this->output_handler instanceof OutputInterface;
 
-        if ((!$force && !$is_debug_mode && !$is_console_context) || isAPI()) {
+        $is_critical_error = in_array($log_level, [LogLevel::EMERGENCY, LogLevel::ALERT, LogLevel::CRITICAL, LogLevel::ERROR])
+            || stripos($error_type, 'Twig') !== false
+            || stripos($error_type, 'Exception') !== false
+            || stripos($error_type, 'Fatal') !== false;
+
+        if ((!$force && !$is_debug_mode && !$is_console_context && !$is_critical_error) || isAPI()) {
             return;
         }
 

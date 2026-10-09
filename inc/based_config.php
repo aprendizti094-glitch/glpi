@@ -37,6 +37,10 @@ if (!defined('GLPI_ROOT')) {
     define('GLPI_ROOT', dirname(__FILE__, 2));
 }
 
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 // Notice problem  for date function :
 $tz = ini_get('date.timezone');
 if (!empty($tz)) {
