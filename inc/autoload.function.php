@@ -361,31 +361,6 @@ $needrun  = false;
 // composer dependencies
 $autoload = GLPI_ROOT . '/vendor/autoload.php';
 if (!file_exists($autoload)) {
-    $needrun = true;
-} elseif (file_exists(GLPI_ROOT . '/composer.lock')) {
-    if (!file_exists(GLPI_ROOT . '/.composer.hash')) {
-        /* First time */
-        $needrun = true;
-    } elseif (sha1_file(GLPI_ROOT . '/composer.lock') != file_get_contents(GLPI_ROOT . '/.composer.hash')) {
-        /* update */
-        $needrun = true;
-    }
-}
-
-// node dependencies
-if (!file_exists(GLPI_ROOT . '/public/lib')) {
-    $needrun = true;
-} elseif (file_exists(GLPI_ROOT . '/package-lock.json')) {
-    if (!file_exists(GLPI_ROOT . '/.package.hash')) {
-        /* First time */
-        $needrun = true;
-    } elseif (sha1_file(GLPI_ROOT . '/package-lock.json') != file_get_contents(GLPI_ROOT . '/.package.hash')) {
-        /* update */
-        $needrun = true;
-    }
-}
-
-if ($needrun) {
     $deps_install_msg = 'Application dependencies are not up to date.' . PHP_EOL
       . 'Run "php bin/console dependencies install" in the glpi tree to fix this.' . PHP_EOL;
     if (isCommandLine()) {
@@ -396,34 +371,6 @@ if ($needrun) {
     die(1);
 }
 
-// Check if locales are compiled.
-$need_mo_compile = false;
-$locales_files = scandir(GLPI_ROOT . '/locales');
-$po_files = preg_grep('/\.po$/', $locales_files);
-$mo_files = preg_grep('/\.mo$/', $locales_files);
-if (count($mo_files) < count($po_files)) {
-    $need_mo_compile = true;
-} elseif (file_exists(GLPI_ROOT . '/locales/glpi.pot')) {
-    // Assume that `locales/glpi.pot` file only exists when installation mode is GIT
-    foreach ($po_files as $po_file) {
-        $po_file = GLPI_ROOT . '/locales/' . $po_file;
-        $mo_file = preg_replace('/\.po$/', '.mo', $po_file);
-        if (!file_exists($mo_file) || filemtime($mo_file) < filemtime($po_file)) {
-            $need_mo_compile = true;
-            break; // No need to scan the whole dir
-        }
-    }
-}
-if ($need_mo_compile) {
-    $mo_compile_msg = 'Application locales have to be compiled.' . PHP_EOL
-      . 'Run "php bin/console locales:compile" in the glpi tree to fix this.' . PHP_EOL;
-    if (isCommandLine()) {
-        echo $mo_compile_msg;
-    } else {
-        echo nl2br($mo_compile_msg);
-    }
-    die(1);
-}
 
 require_once $autoload;
 
