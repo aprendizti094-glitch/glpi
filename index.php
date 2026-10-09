@@ -33,6 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
+// Ativar exibicao de erros para diagnostico
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 // Check PHP version not to have trouble
 // Need to be the very fist step before any include
 if (
