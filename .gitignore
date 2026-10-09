@@ -13,8 +13,8 @@
 /.idea/
 /tools/api/
 /tools/htmlcov/
-/vendor/*
-!/vendor/.htaccess
+# /vendor/*
+# !/vendor/.htaccess
 phpunit.xml
 /tests/config/
 /tests/coverage/
