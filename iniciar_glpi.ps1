@@ -10,6 +10,15 @@ Write-Host "           INICIANDO GLPI + CLOUDFLARE             " -ForegroundColo
 Write-Host "===================================================" -ForegroundColor Cyan
 Write-Host ""
 
+# 0. Integridade de pastas
+$xamppDir = "C:\xampp"
+if (-not (Test-Path "$xamppDir\htdocs")) {
+    New-Item -ItemType Directory -Path "$xamppDir\htdocs" -Force | Out-Null
+}
+if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
+    cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
+}
+
 # 1. Verificando Apache e MySQL
 Write-Host "1. Verificando servicos locais..." -ForegroundColor White
 
@@ -33,12 +42,29 @@ if (-not $mysql) {
     Write-Host "   - MySQL ja esta em execucao." -ForegroundColor Green
 }
 
+# 1. Detectar porta correta do Apache
+$targetPort = 80
+if (Test-Path "C:\xampp\apache\conf\httpd.conf") {
+    $listenMatches = Get-Content "C:\xampp\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
+    if ($listenMatches) {
+        $targetPort = [int]$listenMatches[0].Matches.Groups[1].Value
+    }
+}
+if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded) {
+    foreach ($p in @(8080, 80, 8088)) {
+        if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+            $targetPort = $p
+            break
+        }
+    }
+}
+
 # 2. Encerrando instancias antigas do cloudflared
 Get-Process -Name cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
 # 3. Iniciando Cloudflare Tunnel
 Write-Host ""
-Write-Host "2. Conectando a Cloudflare e gerando o Link Publico..." -ForegroundColor White
+Write-Host "2. Conectando a Cloudflare na porta $targetPort e gerando Link Publico..." -ForegroundColor White
 Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
 
 $logFile = "C:\xampp\cloudflared_quick.log"
@@ -51,7 +77,7 @@ if (-not (Test-Path $cloudflaredExe)) {
     exit 1
 }
 
-$tunnelProc = Start-Process -FilePath $cloudflaredExe -ArgumentList "tunnel", "--url", "http://127.0.0.1:80", "--logfile", $logFile -PassThru -WindowStyle Hidden
+$tunnelProc = Start-Process -FilePath $cloudflaredExe -ArgumentList "tunnel", "--url", "http://127.0.0.1:$targetPort", "--logfile", $logFile -PassThru -WindowStyle Hidden
 
 # Aguarda o link publico ser gerado no log (ate 30s)
 $publicUrl = $null
@@ -78,7 +104,7 @@ Write-Host ""
 
 if ($publicUrl) {
     $glpiPublicUrl = "$publicUrl/glpi/"
-    $glpiLocalUrl  = "http://localhost/glpi/"
+    $glpiLocalUrl  = "http://localhost:$targetPort/glpi/"
     
     # Copia o link publico para a area de transferencia
     try {
