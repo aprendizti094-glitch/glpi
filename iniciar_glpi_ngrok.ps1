@@ -38,29 +38,25 @@ if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
     cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
 }
 
-# 2. Detectar porta correta (priorizando 8088 que e a porta padrao usada no Cloudflare)
-$targetPort = 8088
+# 2. Detectar porta correta (lendo do httpd.conf do Apache ou testando portas)
+$targetPort = 80
 if ($Port -gt 0) {
     $targetPort = $Port
 } else {
-    # Testa se alguma porta ja esta ativa
-    $candidatas = @(8088, 80, 8080)
-    $portaAtiva = $null
-    foreach ($p in $candidatas) {
-        if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
-            $portaAtiva = $p
-            break
+    # 1. Tenta ler a porta real configurada no httpd.conf
+    if (Test-Path "$xamppDir\apache\conf\httpd.conf") {
+        $listenMatches = Get-Content "$xamppDir\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
+        if ($listenMatches) {
+            $targetPort = [int]$listenMatches[0].Matches.Groups[1].Value
         }
     }
     
-    if ($portaAtiva) {
-        $targetPort = $portaAtiva
-    } else {
-        # Se nenhuma estiver ativa ainda, tenta ler do httpd.conf do Apache
-        if (Test-Path "$xamppDir\apache\conf\httpd.conf") {
-            $listenMatches = Get-Content "$xamppDir\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
-            if ($listenMatches) {
-                $targetPort = [int]$listenMatches[0].Matches.Groups[1].Value
+    # 2. Se a porta detectada nao estiver ativa, testa 80 e 8088
+    if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded) {
+        foreach ($p in @(80, 8088, 8080)) {
+            if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+                $targetPort = $p
+                break
             }
         }
     }
@@ -205,8 +201,12 @@ for ($i = 0; $i -lt 25; $i++) {
 Write-Host ""
 
 if ($publicUrl) {
-    $glpiPublicUrl = "$publicUrl/glpi/public/"
-    $glpiLocalUrl  = "http://localhost:$targetPort/glpi/public/"
+    $subPath = "glpi/"
+    if ((Test-Path "$xamppDir\htdocs\glpi\public\index.php") -and (-not (Test-Path "$xamppDir\htdocs\glpi\index.php"))) {
+        $subPath = "glpi/public/"
+    }
+    $glpiPublicUrl = "$publicUrl/$subPath"
+    $glpiLocalUrl  = "http://localhost:$targetPort/$subPath"
 
     # Copia link para a area de transferencia
     try {
