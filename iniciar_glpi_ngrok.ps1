@@ -35,14 +35,23 @@ if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
     cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
 }
 
-# 2. Iniciar Apache e MySQL em segundo plano (sem precisar abrir XAMPP manual)
+# Detecta a porta configurada no Apache (padrao 80 ou 8080)
+$apachePort = 80
+if (Test-Path "$xamppDir\apache\conf\httpd.conf") {
+    $listenMatches = Get-Content "$xamppDir\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
+    if ($listenMatches) {
+        $apachePort = [int]$listenMatches[0].Matches.Groups[1].Value
+    }
+}
+
+# 2. Iniciar Apache e MySQL em segundo plano
 Write-Host ""
-Write-Host "2. Inicializando servicos do servidor (Apache e MySQL)..." -ForegroundColor White
+Write-Host "2. Inicializando servicos do servidor (Apache na porta $apachePort e MySQL)..." -ForegroundColor White
 
 # MySQL
 $mysql = Get-Process -Name mysqld -ErrorAction SilentlyContinue
 if (-not $mysql) {
-    Write-Host "   - Iniciando MySQL do XAMPP em segundo plano..." -ForegroundColor Yellow
+    Write-Host "   - Iniciando MySQL do XAMPP..." -ForegroundColor Yellow
     if (Test-Path "$xamppDir\mysql\bin\mysqld.exe") {
         Start-Process -FilePath "$xamppDir\mysql\bin\mysqld.exe" -WorkingDirectory "$xamppDir\mysql" -ArgumentList "--defaults-file=`"$xamppDir\mysql\bin\my.ini`"", "--standalone" -WindowStyle Hidden
     }
@@ -52,15 +61,37 @@ if (-not $mysql) {
 }
 
 # Apache
-$apache = Get-Process -Name httpd -ErrorAction SilentlyContinue
-if (-not $apache) {
-    Write-Host "   - Iniciando Apache do XAMPP em segundo plano..." -ForegroundColor Yellow
-    if (Test-Path "$xamppDir\apache\bin\httpd.exe") {
+$apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+if (-not $apacheRunning) {
+    Write-Host "   - Iniciando Apache do XAMPP na porta $apachePort..." -ForegroundColor Yellow
+    
+    # Tenta como servico primeiro se existir
+    Start-Service -Name "Apache2.4" -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+
+    # Se ainda nao estiver rodando, sobe pelo executavel
+    if (-not $apacheRunning -and (Test-Path "$xamppDir\apache\bin\httpd.exe")) {
         Start-Process -FilePath "$xamppDir\apache\bin\httpd.exe" -WorkingDirectory "$xamppDir\apache" -WindowStyle Hidden
+        for ($i = 0; $i -lt 5; $i++) {
+            Start-Sleep -Seconds 1
+            $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+            if ($apacheRunning) { break }
+        }
     }
-    Start-Sleep -Seconds 2
+}
+
+if ($apacheRunning) {
+    Write-Host "   - Apache ativo e respondendo na porta $apachePort." -ForegroundColor Green
 } else {
-    Write-Host "   - Apache ja esta ativo." -ForegroundColor Green
+    Write-Host "   [AVISO] Apache ainda nao respondeu na porta $apachePort." -ForegroundColor Yellow
+    Write-Host "   Verificando diagnostico do Apache..." -ForegroundColor Gray
+    try {
+        $diag = & "$xamppDir\apache\bin\httpd.exe" -t 2>&1 | Out-String
+        if ($diag -and $diag.Trim() -ne "") {
+            Write-Host "   Diagnostico do Apache: $diag" -ForegroundColor Red
+        }
+    } catch {}
 }
 
 # 3. Localizar ou baixar o executavel do Ngrok
@@ -114,12 +145,12 @@ if (-not $hasToken) {
 # 5. Encerrar instancias antigas do Ngrok
 Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
-# 6. Iniciar Ngrok em segundo plano
+# 6. Iniciar Ngrok em segundo plano apontando para a porta do Apache
 Write-Host ""
 Write-Host "4. Conectando ao Ngrok e gerando o Link Publico..." -ForegroundColor White
 Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
 
-$ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:80" -PassThru -WindowStyle Hidden
+$ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$apachePort" -PassThru -WindowStyle Hidden
 
 # 7. Obter Link Publico da API local do Ngrok (porta 4040)
 $publicUrl = $null
@@ -149,7 +180,7 @@ Write-Host ""
 
 if ($publicUrl) {
     $glpiPublicUrl = "$publicUrl/glpi/"
-    $glpiLocalUrl  = "http://localhost/glpi/"
+    $glpiLocalUrl  = "http://localhost:$apachePort/glpi/"
 
     # Copia link para a area de transferencia
     try {
@@ -201,8 +232,8 @@ if ($publicUrl) {
     Write-Host ""
     Write-Host "[ERRO] Nao foi possivel obter o link publico do Ngrok." -ForegroundColor Red
     Write-Host "Verifique se o seu Authtoken e valido ou se o Apache esta respondendo." -ForegroundColor Yellow
-    Write-Host "Tentando abrir localmente: http://localhost/glpi/" -ForegroundColor Gray
-    Start-Process "http://localhost/glpi/"
+    Write-Host "Tentando abrir localmente: http://localhost:$apachePort/glpi/" -ForegroundColor Gray
+    Start-Process "http://localhost:$apachePort/glpi/"
     Write-Host "`nPressione ENTER para sair..." -ForegroundColor Gray
     Read-Host
 }
