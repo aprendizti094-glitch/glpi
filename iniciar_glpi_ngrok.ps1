@@ -205,8 +205,8 @@ for ($i = 0; $i -lt 25; $i++) {
 Write-Host ""
 
 if ($publicUrl) {
-    $glpiPublicUrl = "$publicUrl/glpi/"
-    $glpiLocalUrl  = "http://localhost:$targetPort/glpi/"
+    $glpiPublicUrl = "$publicUrl/glpi/public/"
+    $glpiLocalUrl  = "http://localhost:$targetPort/glpi/public/"
 
     # Copia link para a area de transferencia
     try {
