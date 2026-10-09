@@ -66,6 +66,22 @@ if ($Port -gt 0) {
     }
 }
 
+# 2.1 Verificar se o PHP do XAMPP precisa ser atualizado para o PHP 8.2
+if (Test-Path "$xamppDir\php\php.exe") {
+    $phpVer = (& "$xamppDir\php\php.exe" -r "echo PHP_VERSION;" 2>$null)
+    if ($phpVer -and [version]$phpVer -lt [version]"8.2.0") {
+        Write-Host ""
+        Write-Host "===================================================================" -ForegroundColor Yellow
+        Write-Host " [ATENCAO] PHP $phpVer detectado no XAMPP." -ForegroundColor Yellow
+        Write-Host " O GLPI requer PHP 8.2+ para evitar erros de sintaxe (como enum)." -ForegroundColor Yellow
+        Write-Host " Atualizando PHP do XAMPP para versao 8.2 automaticamente..." -ForegroundColor Cyan
+        Write-Host "===================================================================" -ForegroundColor Yellow
+        if (Test-Path "$PSScriptRoot\atualizar_php_xampp.ps1") {
+            & "$PSScriptRoot\atualizar_php_xampp.ps1"
+        }
+    }
+}
+
 # 3. Iniciar Apache e MySQL em segundo plano
 Write-Host ""
 Write-Host "2. Inicializando servicos do servidor (Porta: $targetPort)..." -ForegroundColor White
