@@ -797,8 +797,6 @@ class Session
             // Locale class may be missing if intl extension is not installed.
             // In this case, we may still want to be able to load translations (for instance for requirements checks).
             \Locale::setDefault($trytoload);
-        } else {
-            trigger_error('Missing required intl PHP extension', E_USER_WARNING);
         }
 
         $TRANSLATE->addTranslationFile('gettext', GLPI_I18N_DIR . $newfile, 'glpi', $trytoload);

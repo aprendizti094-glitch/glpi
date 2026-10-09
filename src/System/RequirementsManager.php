@@ -102,12 +102,12 @@ class RequirementsManager
         );
         $requirements[] = new Extension(
             'gd',
-            false,
+            true,
             __('Required for images handling.')
         );
         $requirements[] = new Extension(
             'intl',
-            false,
+            true,
             __('Required for internationalization.')
         );
         $requirements[] = new Extension(
