@@ -2,11 +2,22 @@
 # Script para habilitar extensoes do PHP (GD, INTL, LDAP, EXIF) no XAMPP
 # ===================================================================
 
+# Auto-elevar para Administrador se necessario para ter permissao de salvar em C:\xampp\php\php.ini
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Host "[INFO] Solicitando permissao de Administrador para modificar o php.ini..." -ForegroundColor Yellow
+    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
 $iniPath = "C:\xampp\php\php.ini"
 if (-not (Test-Path $iniPath)) {
     Write-Host "[ERRO] Arquivo php.ini nao encontrado em $iniPath" -ForegroundColor Red
     exit 1
 }
+
+# Remover atributo Somente Leitura se houver
+Set-ItemProperty -Path $iniPath -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
 
 # 1. Backup de seguranca
 $backup = "$iniPath.bak_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
@@ -40,9 +51,15 @@ if ($content -match "session.cookie_httponly\s*=") {
 Write-Host "   - Diretiva session.cookie_httponly ativada." -ForegroundColor Green
 
 # 5. Salvar php.ini
-Set-Content -Path $iniPath -Value $content -Encoding UTF8 -NoNewline
-Write-Host ""
-Write-Host "[SUCESSO] php.ini atualizado com sucesso!" -ForegroundColor Green
+try {
+    [System.IO.File]::WriteAllText($iniPath, $content, [System.Text.Encoding]::UTF8)
+    Write-Host ""
+    Write-Host "[SUCESSO] php.ini atualizado com sucesso!" -ForegroundColor Green
+} catch {
+    Write-Host ""
+    Write-Host "[ERRO ao salvar]: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
 Write-Host ""
 Write-Host "=====================================================================" -ForegroundColor Yellow
 Write-Host " IMPORTANTE: Para o PHP carregar as novas extensoes:" -ForegroundColor Yellow
