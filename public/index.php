@@ -39,8 +39,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 // Check PHP version not to have trouble
 // Need to be the very fist step before any include
-if (version_compare(PHP_VERSION, '8.2.0', '<') || version_compare(PHP_VERSION, '8.5.999', '>')) {
-    exit('PHP version must be between 8.2 and 8.5.');
+if (version_compare(PHP_VERSION, '8.0.0', '<') || version_compare(PHP_VERSION, '8.5.999', '>')) {
+    exit('PHP version must be between 8.0 and 8.5. Current: ' . PHP_VERSION);
 }
 
 // Capture the PHP errors that occurred during the request startup (e.g. `max_input_vars` overflow).
