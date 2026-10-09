@@ -1,6 +1,9 @@
 # ===================================================================
 #           INICIALIZADOR DO GLPI + TUNEL NGROK (ALTA PERFORMANCE)
 # ===================================================================
+param(
+    [int]$Port = 0
+)
 
 $Host.UI.RawUI.WindowTitle = "GLPI - Tunel Ngrok (Alta Performance)"
 Clear-Host
@@ -35,18 +38,37 @@ if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
     cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
 }
 
-# Detecta a porta configurada no Apache (padrao 80 ou 8080)
-$apachePort = 80
-if (Test-Path "$xamppDir\apache\conf\httpd.conf") {
-    $listenMatches = Get-Content "$xamppDir\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
-    if ($listenMatches) {
-        $apachePort = [int]$listenMatches[0].Matches.Groups[1].Value
+# 2. Detectar porta correta (priorizando 8088 que e a porta padrao usada no Cloudflare)
+$targetPort = 8088
+if ($Port -gt 0) {
+    $targetPort = $Port
+} else {
+    # Testa se alguma porta ja esta ativa
+    $candidatas = @(8088, 80, 8080)
+    $portaAtiva = $null
+    foreach ($p in $candidatas) {
+        if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+            $portaAtiva = $p
+            break
+        }
+    }
+    
+    if ($portaAtiva) {
+        $targetPort = $portaAtiva
+    } else {
+        # Se nenhuma estiver ativa ainda, tenta ler do httpd.conf do Apache
+        if (Test-Path "$xamppDir\apache\conf\httpd.conf") {
+            $listenMatches = Get-Content "$xamppDir\apache\conf\httpd.conf" -ErrorAction SilentlyContinue | Select-String "^Listen\s+(\d+)"
+            if ($listenMatches) {
+                $targetPort = [int]$listenMatches[0].Matches.Groups[1].Value
+            }
+        }
     }
 }
 
-# 2. Iniciar Apache e MySQL em segundo plano
+# 3. Iniciar Apache e MySQL em segundo plano
 Write-Host ""
-Write-Host "2. Inicializando servicos do servidor (Apache na porta $apachePort e MySQL)..." -ForegroundColor White
+Write-Host "2. Inicializando servicos do servidor (Porta: $targetPort)..." -ForegroundColor White
 
 # MySQL
 $mysql = Get-Process -Name mysqld -ErrorAction SilentlyContinue
@@ -61,40 +83,45 @@ if (-not $mysql) {
 }
 
 # Apache
-$apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+$apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
 if (-not $apacheRunning) {
-    Write-Host "   - Iniciando Apache do XAMPP na porta $apachePort..." -ForegroundColor Yellow
+    Write-Host "   - Iniciando Apache do XAMPP..." -ForegroundColor Yellow
     
     # Tenta como servico primeiro se existir
     Start-Service -Name "Apache2.4" -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
-    $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+    $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
 
     # Se ainda nao estiver rodando, sobe pelo executavel
     if (-not $apacheRunning -and (Test-Path "$xamppDir\apache\bin\httpd.exe")) {
         Start-Process -FilePath "$xamppDir\apache\bin\httpd.exe" -WorkingDirectory "$xamppDir\apache" -WindowStyle Hidden
         for ($i = 0; $i -lt 5; $i++) {
             Start-Sleep -Seconds 1
-            $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $apachePort -WarningAction SilentlyContinue).TcpTestSucceeded
+            $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
             if ($apacheRunning) { break }
         }
     }
 }
 
-if ($apacheRunning) {
-    Write-Host "   - Apache ativo e respondendo na porta $apachePort." -ForegroundColor Green
-} else {
-    Write-Host "   [AVISO] Apache ainda nao respondeu na porta $apachePort." -ForegroundColor Yellow
-    Write-Host "   Verificando diagnostico do Apache..." -ForegroundColor Gray
-    try {
-        $diag = & "$xamppDir\apache\bin\httpd.exe" -t 2>&1 | Out-String
-        if ($diag -and $diag.Trim() -ne "") {
-            Write-Host "   Diagnostico do Apache: $diag" -ForegroundColor Red
+# Re-checa se alguma outra porta comum subiu caso targetPort nao tenha respondido
+if (-not $apacheRunning) {
+    foreach ($p in @(8088, 80, 8080)) {
+        if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+            $targetPort = $p
+            $apacheRunning = $true
+            break
         }
-    } catch {}
+    }
 }
 
-# 3. Localizar ou baixar o executavel do Ngrok
+if ($apacheRunning) {
+    Write-Host "   - Servidor web ativo e respondendo na porta $targetPort." -ForegroundColor Green
+} else {
+    Write-Host "   [AVISO] Servidor web ainda nao respondeu na porta $targetPort." -ForegroundColor Yellow
+    Write-Host "   (O Ngrok continuara conectando na porta $targetPort)" -ForegroundColor Gray
+}
+
+# 4. Localizar ou baixar o executavel do Ngrok
 Write-Host ""
 Write-Host "3. Verificando executavel do Ngrok..." -ForegroundColor White
 
@@ -119,7 +146,7 @@ if (-not (Test-Path $ngrokExe)) {
     Write-Host "   [OK] Ngrok baixado com sucesso!" -ForegroundColor Green
 }
 
-# 4. Verificar Authtoken do Ngrok
+# 5. Verificar Authtoken do Ngrok
 $hasToken = $false
 $ngrokConfig1 = "$env:LOCALAPPDATA\ngrok\ngrok.yml"
 $ngrokConfig2 = "$env:USERPROFILE\.ngrok2\ngrok.yml"
@@ -142,17 +169,17 @@ if (-not $hasToken) {
     }
 }
 
-# 5. Encerrar instancias antigas do Ngrok
+# 6. Encerrar instancias antigas do Ngrok
 Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
-# 6. Iniciar Ngrok em segundo plano apontando para a porta do Apache
+# 7. Iniciar Ngrok apontando para a porta 127.0.0.1:$targetPort
 Write-Host ""
-Write-Host "4. Conectando ao Ngrok e gerando o Link Publico..." -ForegroundColor White
+Write-Host "4. Conectando Ngrok a porta $targetPort e gerando Link Publico..." -ForegroundColor White
 Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
 
-$ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$apachePort" -PassThru -WindowStyle Hidden
+$ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$targetPort" -PassThru -WindowStyle Hidden
 
-# 7. Obter Link Publico da API local do Ngrok (porta 4040)
+# 8. Obter Link Publico da API local do Ngrok (porta 4040)
 $publicUrl = $null
 for ($i = 0; $i -lt 25; $i++) {
     Start-Sleep -Seconds 1
@@ -161,7 +188,6 @@ for ($i = 0; $i -lt 25; $i++) {
     try {
         $res = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
         if ($res.tunnels -and $res.tunnels.Count -gt 0) {
-            # Prioriza url https
             $httpsTunnel = $res.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
             if ($httpsTunnel) {
                 $publicUrl = $httpsTunnel.public_url
@@ -180,7 +206,7 @@ Write-Host ""
 
 if ($publicUrl) {
     $glpiPublicUrl = "$publicUrl/glpi/"
-    $glpiLocalUrl  = "http://localhost:$apachePort/glpi/"
+    $glpiLocalUrl  = "http://localhost:$targetPort/glpi/"
 
     # Copia link para a area de transferencia
     try {
@@ -211,7 +237,6 @@ if ($publicUrl) {
     Write-Host ""
 
     Start-Sleep -Seconds 1
-    # Abre automaticamente no navegador padrao
     Start-Process $glpiPublicUrl
 
     try {
@@ -231,9 +256,9 @@ if ($publicUrl) {
 } else {
     Write-Host ""
     Write-Host "[ERRO] Nao foi possivel obter o link publico do Ngrok." -ForegroundColor Red
-    Write-Host "Verifique se o seu Authtoken e valido ou se o Apache esta respondendo." -ForegroundColor Yellow
-    Write-Host "Tentando abrir localmente: http://localhost:$apachePort/glpi/" -ForegroundColor Gray
-    Start-Process "http://localhost:$apachePort/glpi/"
+    Write-Host "Verifique se o seu Authtoken e valido ou se o servidor web esta respondendo na porta $targetPort." -ForegroundColor Yellow
+    Write-Host "Tentando abrir localmente: http://localhost:$targetPort/glpi/" -ForegroundColor Gray
+    Start-Process "http://localhost:$targetPort/glpi/"
     Write-Host "`nPressione ENTER para sair..." -ForegroundColor Gray
     Read-Host
 }

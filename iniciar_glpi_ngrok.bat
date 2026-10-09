@@ -6,7 +6,7 @@ setlocal
 set "SCRIPT=%~dp0iniciar_glpi_ngrok.ps1"
 
 if exist "%SCRIPT%" (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" %*
 ) else (
     echo.
     echo ===================================================
