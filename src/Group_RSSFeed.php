@@ -38,9 +38,9 @@
 class Group_RSSFeed extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = RSSFeed::class;
+    public static $itemtype_1          = 'RSSFeed';
     public static $items_id_1          = 'rssfeeds_id';
-    public static $itemtype_2 = Group::class;
+    public static $itemtype_2          = 'Group';
     public static $items_id_2          = 'groups_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Group_RSSFeed extends CommonDBRelation
     /**
      * Get groups for a rssfeed
      *
-     * @param int $rssfeeds_id ID of the rssfeed
+     * @param integer $rssfeeds_id ID of the rssfeed
      *
      * @return array of groups linked to a rssfeed
      **/
     public static function getGroups($rssfeeds_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $groups = [];

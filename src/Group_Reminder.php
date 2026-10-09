@@ -38,9 +38,9 @@
 class Group_Reminder extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = Reminder::class;
+    public static $itemtype_1          = 'Reminder';
     public static $items_id_1          = 'reminders_id';
-    public static $itemtype_2 = Group::class;
+    public static $itemtype_2          = 'Group';
     public static $items_id_2          = 'groups_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Group_Reminder extends CommonDBRelation
     /**
      * Get groups for a reminder
      *
-     * @param int $reminders_id ID of the reminder
+     * @param integer $reminders_id ID of the reminder
      *
      * @return array of groups linked to a reminder
      **/
     public static function getGroups($reminders_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $groups = [];

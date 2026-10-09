@@ -33,8 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-header("Content-Type: text/html; charset=UTF-8");
-Html::header_nocache();
+if (strpos($_SERVER['PHP_SELF'], "dropdownValuesBlacklist.php")) {
+    include('../inc/includes.php');
+    header("Content-Type: text/html; charset=UTF-8");
+    Html::header_nocache();
+}
 
 Session::checkRight("config", UPDATE);
 if (

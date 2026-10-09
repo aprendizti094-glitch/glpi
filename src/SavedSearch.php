@@ -33,16 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
+use Glpi\Application\ErrorHandler;
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryParam;
-use Glpi\Error\ErrorHandler;
 use Glpi\Features\Clonable;
 use Glpi\Toolbox\ArrayNormalizer;
-use Safe\DateTime;
-
-use function Safe\parse_url;
-use function Safe\preg_replace;
+use Glpi\Toolbox\Sanitizer;
 
 /**
  * Saved searches class
@@ -51,7 +46,6 @@ use function Safe\preg_replace;
  **/
 class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
 {
-    /** @use Clonable<static> */
     use Clonable;
 
     public static $rightname               = 'bookmark_public';
@@ -64,6 +58,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
     public const COUNT_YES = 1;
     public const COUNT_AUTO = 2;
 
+
     public static function getForbiddenActionsForMenu()
     {
         return ['add'];
@@ -74,15 +69,10 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return _n('Saved search', 'Saved searches', $nb);
     }
 
-    public static function getSectorizedDetails(): array
+    public function canUpdateItem()
     {
-        return ['tools', self::class];
-    }
-
-    public function canUpdateItem(): bool
-    {
-        return Session::haveRight(self::$rightname, UPDATE)
-            || $this->fields["users_id"] === Session::getLoginUserID();
+        return Session::haveRight(self::$rightname, UPDATE) ||
+            $this->fields["users_id"] === Session::getLoginUserID();
     }
 
     public function getForbiddenStandardMassiveAction()
@@ -93,25 +83,24 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $forbidden;
     }
 
+
     public function getSpecificMassiveActions($checkitem = null)
     {
         $actions = parent::getSpecificMassiveActions($checkitem);
 
-        $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'unset_default']
-                     = "<i class='ti ti-star'></i>" . __s('Unset as default');
-        $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_count_method']
-                     = "<i class='ti ti-adjustments-alt'></i>" . __s('Change count method');
-        if (Session::haveRight(self::$rightname, UPDATE)) {
-            // Everyone can create/update a private search but only users with permission to update can change visibility to public
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_visibility']
-                = "<i class='ti ti-eye-search'></i>" . __s('Change visibility');
-        }
+        $actions[get_called_class() . MassiveAction::CLASS_ACTION_SEPARATOR . 'unset_default']
+                     = __('Unset as default');
+        $actions[get_called_class() . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_count_method']
+                     = __('Change count method');
+        $actions[get_called_class() . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_visibility']
+                     = __('Change visibility');
         if (Session::haveRight('transfer', READ)) {
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_entity']
-                     = "<i class='ti ti-corner-right-up'></i>" . __s('Change entity');
+            $actions[get_called_class() . MassiveAction::CLASS_ACTION_SEPARATOR . 'change_entity']
+                     = __('Change entity');
         }
         return $actions;
     }
+
 
     public static function showMassiveActionsSubForm(MassiveAction $ma)
     {
@@ -131,12 +120,12 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                     'name'   => 'entities_id',
                 ]);
                 echo '<br/>';
-                echo __s('Child entities');
+                echo __('Child entities');
                 Dropdown::showYesNo('is_recursive');
                 echo '<br/>';
                 break;
             case 'change_visibility':
-                echo __s('Visibility');
+                echo __('Visibility');
                 Dropdown::showFromArray(
                     'is_private',
                     [
@@ -148,6 +137,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         }
         return parent::showMassiveActionsSubForm($ma);
     }
+
 
     public static function processMassiveActionsForOneItemtype(
         MassiveAction $ma,
@@ -179,7 +169,6 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                     }
                 }
                 break;
-
             case 'change_count_method':
                 foreach ($ids as $id) {
                     $saved_search = new SavedSearch();
@@ -237,8 +226,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                 foreach ($ids as $id) {
                     $saved_search = new SavedSearch();
                     if ($saved_search->getFromDB($id)) {
-                        // The right is checked directly because everyone can update their own private search but only users with UPDATE right should be able to change visibility to public
-                        if (Session::haveRight(self::$rightname, UPDATE) && $saved_search->can($id, UPDATE)) {
+                        if ($saved_search->can($id, UPDATE)) {
                             $success = $saved_search->update([
                                 'id' => $id,
                                 'is_private' => $input['is_private'],
@@ -263,7 +251,8 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
     }
 
-    public function canCreateItem(): bool
+
+    public function canCreateItem()
     {
 
         if ($this->fields['is_private'] == 1) {
@@ -273,14 +262,10 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return parent::canCreateItem();
     }
 
-    public static function canView(): bool
-    {
-        // Always allow access, as user should always be able to see its private searches.
-        return true;
-    }
 
-    public function canViewItem(): bool
+    public function canViewItem()
     {
+
         if ($this->fields['is_private'] == 1) {
             return (Session::haveRight('config', READ)
                  || $this->fields['users_id'] == Session::getLoginUserID());
@@ -288,13 +273,16 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return parent::canViewItem();
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong)
-           ->addStandardTab(SavedSearch_Alert::class, $ong, $options);
+           ->addStandardTab('SavedSearch_Alert', $ong, $options);
         return $ong;
     }
+
 
     public function rawSearchOptions()
     {
@@ -358,7 +346,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
             'massiveaction' => false,
             'joinparams'    => [
                 'jointype'  => 'child',
-                'condition' => ['NEWTABLE.users_id' => Session::getLoginUserID()],
+                'condition' => "AND NEWTABLE.users_id = " . Session::getLoginUserID(),
             ],
             'datatype'      => 'specific',
             'searchtype'    => [
@@ -403,7 +391,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
      */
     public function prepareSearchUrlForDB(array $input): array
     {
-        $taburl = parse_url($input['url']);
+        $taburl = parse_url(Sanitizer::unsanitize($input['url']));
 
         $query_tab = [];
 
@@ -420,9 +408,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
 
     public function prepareInputForAdd($input)
     {
-        if (isset($input['is_private']) && (int) $input['is_private'] === 0 && !Session::haveRight(self::$rightname, UPDATE)) {
-            return false;
-        }
+
         if (!isset($input['url']) || !isset($input['type'])) {
             return false;
         }
@@ -433,9 +419,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
 
     public function prepareInputForUpdate($input)
     {
-        if (isset($input['is_private']) && (int) $input['is_private'] === 0 && !Session::haveRight(self::$rightname, UPDATE)) {
-            return false;
-        }
+
         if (isset($input['url']) && $input['type']) {
             $input = $this->prepareSearchUrlForDB($input);
         }
@@ -456,16 +440,20 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         }
     }
 
+
     public function post_getEmpty()
     {
+
         $this->fields["users_id"]     = Session::getLoginUserID();
         $this->fields["is_private"]   = 1;
         $this->fields["is_recursive"] = 1;
         $this->fields["entities_id"]  = Session::getActiveEntity();
     }
 
+
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 SavedSearch_Alert::class,
@@ -474,38 +462,144 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         );
     }
 
+
     public function showForm($ID, array $options = [])
     {
-        if (empty($this->fields) && $ID > 0) {
-            $this->getFromDB($ID);
+
+        // Try to load id from fields if not specified
+        if ($ID == 0) {
+            $ID = $this->getID();
         }
+
+        $this->initForm($ID, $options);
+        $options['formtitle'] = false;
+        $this->showFormHeader($options);
+
+        if (isset($options['itemtype'])) {
+            echo Html::hidden('itemtype', ['value' => $options['itemtype']]);
+        }
+
+        if (isset($options['type']) && ($options['type'] != 0)) {
+            echo Html::hidden('type', ['value' => $options['type']]);
+        }
+
+        if (isset($options['url'])) {
+            echo Html::hidden('url', ['value' => $options['url']]);
+        }
+
+        echo "<tr><th colspan='4'>";
+        if ($ID > 0) {
+            // TRANS: %1$s is the Itemtype name and $2$d the ID of the item
+            printf(__('%1$s - ID %2$d'), $this->getTypeName(1), $ID);
+        } else {
+            echo __('New saved search');
+        }
+
+        echo "</th></tr>";
+
+        echo "<tr><td class='tab_bg_1'>" . __('Name') . "</td>";
+        echo "<td class='tab_bg_1'>";
+        echo Html::input('name', ['value' => $this->fields['name']]);
+        echo "</td>";
+        if (Session::haveRight("config", UPDATE)) {
+            echo "<td class='tab_bg_1'>" . __('Do count') . "</td>" .
+              "<td class='tab_bg_1'>";
+            $values = [self::COUNT_AUTO  => __('Auto'),
+                self::COUNT_YES   => __('Yes'),
+                self::COUNT_NO    => __('No'),
+            ];
+            Dropdown::showFromArray('do_count', $values, ['value' => $this->getField('do_count')]);
+        } else {
+            echo "<td colspan='2'>";
+        }
+        echo "</td></tr>";
+
+        $rand = mt_rand();
+        echo "<tr class='tab_bg_2'><td><label for='dropdown_is_private$rand'>" . __('Visibility') . "</label></td>";
+        if ($this->canCreate()) {
+            echo "<td colspan='3'>";
+            Dropdown::showFromArray(
+                'is_private',
+                [
+                    1  => __('Private'),
+                    0  => __('Public'),
+                ],
+                [
+                    'value'  => $this->fields['is_private'],
+                    'rand'   => $rand,
+                ]
+            );
+            echo "</td></tr>";
+            echo "<tr class='tab_bg_2'><td>" . Entity::getTypeName(1) . "</td>";
+            echo "</td><td>";
+            Entity::dropdown(['value' => $this->fields["entities_id"]]);
+            echo "</td><td>" . __('Child entities') . "</td><td>";
+            Dropdown::showYesNo('is_recursive', $this->fields["is_recursive"]);
+        } else {
+            echo "<td colspan='3'>";
+            if ($this->fields["is_private"]) {
+                echo __('Private');
+            } else {
+                echo __('Public');
+            }
+        }
+        if ($ID <= 0) { // add
+            echo Html::hidden('users_id', ['value' => $this->fields['users_id']]);
+            if (!self::canCreate()) {
+                echo Html::hidden('is_private', ['value' => 1]);
+            }
+        } else {
+            echo Html::hidden('id', ['value' => $ID]);
+        }
+        echo "</td></tr>";
+
+        if (isset($options['ajax'])) {
+            $js = "$(function() {
+            $('form[name=form_save_query]').submit(function (e) {
+               e.preventDefault();
+               var _this = $(this);
+               $.ajax({
+                  url: _this.attr('action').replace(/\/front\//, '/ajax/').replace(/\.form/, ''),
+                  method: 'POST',
+                  data: _this.serialize(),
+                  success: function(res) {
+                     if (res.success == true) {
+                        glpi_close_all_dialogs();
+                     }
+                     displayAjaxMessageAfterRedirect();
+                  }
+               });
+            });
+         });";
+            echo Html::scriptBlock($js);
+        }
+
         // If this form is used to edit a saved search from the search screen
         $is_ajax = $options['ajax'] ?? false;
-        if ($is_ajax && $this->getID() > 0) {
+        if ($is_ajax && $ID > 0) {
             // Allow an extra option to save as a new search instead of editing the current one
             $options['addbuttons'] = ["add" => __("Save as a new search")];
+
             // Do not allow delete from this modal
             $options['candel'] = false;
         }
 
-        TemplateRenderer::getInstance()->display('pages/tools/savedsearch/form.html.twig', [
-            'item' => $this,
-            'can_create' => self::canCreate(),
-            'params' => $options,
-        ]);
+        $this->showFormButtons($options);
         return true;
     }
+
 
     /**
      * Prepare query to store depending on the type
      *
-     * @param int $type      Saved search type (self::SEARCH, self::URI or self::ALERT)
+     * @param integer $type      Saved search type (self::SEARCH, self::URI or self::ALERT)
      * @param array   $query_tab Parameters
      *
      * @return array clean query array
      **/
     protected function prepareQueryToStore($type, $query_tab)
     {
+
         switch ($type) {
             case self::SEARCH:
             case self::ALERT:
@@ -526,10 +620,117 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $query_tab;
     }
 
+
+    /**
+     * Prepare query to use depending of the type
+     *
+     * @param integer $type      Saved search type (see SavedSearch constants)
+     * @param array   $query_tab Parameters array
+     * @param bool    $enable_partial_warnings display warning messages about partial loading
+     *
+     * @return array prepared query array
+     **/
+    public function prepareQueryToUse($type, $query_tab, $enable_partial_warnings = true)
+    {
+
+        switch ($type) {
+            case self::SEARCH:
+            case self::ALERT:
+                // Check if all data are valid
+                $query_tab_save = $query_tab;
+                $partial_load   = false;
+                // Standard search
+                if (isset($query_tab_save['criteria']) && count($query_tab_save['criteria'])) {
+                    unset($query_tab['criteria']);
+
+                    $itemtype_so = [
+                        $this->fields['itemtype'] => Search::getCleanedOptions($this->fields['itemtype']),
+                    ];
+                    $available_meta = Search::getMetaItemtypeAvailable($this->fields['itemtype']);
+
+                    $new_key = 0;
+                    foreach ($query_tab_save['criteria'] as $val) {
+                        // Get itemtype search options for current criterion
+                        $opt = [];
+                        if (!isset($val['meta'])) {
+                            $opt = $itemtype_so[$this->fields['itemtype']];
+                        } elseif (isset($val['itemtype'])) {
+                            if (!array_key_exists($val['itemtype'], $itemtype_so)) {
+                                $itemtype_so[$val['itemtype']] = Search::getCleanedOptions($val['itemtype']);
+                            }
+                            $opt = $itemtype_so[$val['itemtype']];
+                        }
+
+                        if (
+                            (
+                                // Check if search option is still available
+                                isset($val['field'])
+                                && $val['field'] != 'view'
+                                && $val['field'] != 'all'
+                                && (
+                                    !isset($opt[$val['field']])
+                                    || (isset($opt[$val['field']]['nosearch']) && $opt[$val['field']]['nosearch'])
+                                )
+                            )
+                            || (
+                                // Check if meta itemtype is still available
+                                isset($val['meta'])
+                                && (!isset($val['itemtype']) || !in_array($val['itemtype'], $available_meta))
+                            )
+                        ) {
+                            $partial_load = true;
+                        } else {
+                            $query_tab['criteria'][$new_key] = $val;
+                            $new_key++;
+                        }
+                    }
+                }
+                // Meta search
+                if (isset($query_tab_save['metacriteria']) && count($query_tab_save['metacriteria'])) {
+                    $meta_ok = Search::getMetaItemtypeAvailable($query_tab['itemtype']);
+                    unset($query_tab['metacriteria']);
+                    $new_key = 0;
+                    foreach ($query_tab_save['metacriteria'] as $val) {
+                        $opt = [];
+                        if (isset($val['itemtype'])) {
+                            $opt = Search::getCleanedOptions($val['itemtype']);
+                        }
+                        // Use if meta type is valid and option available
+                        if (
+                            !isset($val['itemtype']) || !in_array($val['itemtype'], $meta_ok)
+                            || !isset($opt[$val['field']])
+                        ) {
+                            $partial_load = true;
+                        } else {
+                            $query_tab['metacriteria'][$new_key] = $val;
+                            $new_key++;
+                        }
+                    }
+                }
+                // Display message
+                if (
+                    $enable_partial_warnings
+                    && $partial_load
+                    && Session::getCurrentInterface() != "helpdesk"
+                ) {
+                    Session::addMessageAfterRedirect(
+                        sprintf(__('Partial load of the saved search: %s'), $this->getName()),
+                        false,
+                        ERROR
+                    );
+                }
+                // add reset value
+                $query_tab['reset'] = 'reset';
+                break;
+        }
+        return $query_tab;
+    }
+
+
     /**
      * Load a saved search
      *
-     * @param int $ID ID of the saved search
+     * @param integer $ID ID of the saved search
      *
      * @return void
      **/
@@ -557,15 +758,17 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         Html::redirect($url);
     }
 
+
     /**
      * Get saved search parameters
      *
-     * @param int $ID ID of the saved search
+     * @param integer $ID ID of the saved search
      *
      * @return array|false
      **/
     public function getParameters($ID)
     {
+
         if ($this->getFromDB($ID) === false) {
             return false;
         }
@@ -576,19 +779,20 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         $query_tab = [];
         parse_str($this->fields["query"], $query_tab);
         $query_tab['savedsearches_id'] = $ID;
-        $query_tab['reset'] = 'reset';
-        return $query_tab;
+        return $this->prepareQueryToUse($this->fields["type"], $query_tab);
     }
+
 
     /**
      * Mark saved search as default view for the currect user
      *
-     * @param int $ID ID of the saved search
+     * @param integer $ID ID of the saved search
      *
      * @return void
      **/
     public function markDefault($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (
@@ -623,15 +827,17 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         }
     }
 
+
     /**
      * Unmark savedsearch as default view for the current user
      *
-     * @param int $ID ID of the saved search
+     * @param integer $ID ID of the saved search
      *
      * @return void
      **/
     public function unmarkDefault($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (
@@ -658,15 +864,17 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         }
     }
 
+
     /**
      * Unmark savedsearch as default view
      *
      * @param array $ids IDs of the saved searches
      *
-     * @return bool
+     * @return boolean
      **/
     public function unmarkDefaults(array $ids)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (Session::haveRight('config', UPDATE)) {
@@ -681,16 +889,19 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return false;
     }
 
+
     /**
      * return an array of saved searches for a given itemtype
      *
      * @param string $itemtype if given filter saved search by only this one
      * @param bool   $inverse if true, the `itemtype` params filter by "not" criteria
+     * @param bool   $enable_partial_warnings display warning messages about partial loading
      *
      * @return array
      */
-    public function getMine(?string $itemtype = null, bool $inverse = false): array
+    public function getMine(?string $itemtype = null, bool $inverse = false, bool $enable_partial_warnings = true): array
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $searches = [];
@@ -700,7 +911,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         $criteria = [
             'SELECT'    => [
                 "$table.*",
-                new QueryExpression(
+                new \QueryExpression(
                     "IF($utable.users_id = " . Session::getLoginUserID() . ", $utable.id, NULL) AS is_default"
                 ),
             ],
@@ -740,10 +951,9 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                 $count = null;
                 $search_data = null;
                 try {
-                    $search_data = $this->execute();
-                } catch (Throwable $e) {
-                    ErrorHandler::logCaughtException($e);
-                    ErrorHandler::displayCaughtExceptionMessage($e);
+                    $search_data = $this->execute(false, $enable_partial_warnings);
+                } catch (\Throwable $e) {
+                    ErrorHandler::getInstance()->handleException($e);
                     $error = true;
                 }
 
@@ -801,25 +1011,27 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
     /**
      * return Html list of saved searches for a given itemtype
      *
-     * @param string|null $itemtype
+     * @param string $itemtype
      * @param bool   $inverse
+     * @param bool   $enable_partial_warnings display warning messages about partial loading
      *
      * @return void
      */
-    public function displayMine(?string $itemtype = null, bool $inverse = false)
+    public function displayMine(?string $itemtype = null, bool $inverse = false, bool $enable_partial_warnings = true)
     {
         TemplateRenderer::getInstance()->display('layout/parts/saved_searches_list.html.twig', [
             'active'         => $_SESSION['glpi_loaded_savedsearch'] ?? "",
-            'saved_searches' => $this->getMine($itemtype, $inverse),
+            'saved_searches' => $this->getMine($itemtype, $inverse, $enable_partial_warnings),
         ]);
     }
+
 
     /**
      * Save order
      *
      * @param array $items Ordered ids
      *
-     * @return bool
+     * @return boolean
      */
     public function saveOrder(array $items)
     {
@@ -839,6 +1051,40 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
     }
 
     /**
+     * Display buttons
+     *
+     * @param integer        $type     SavedSearch type to use
+     * @param integer|string $itemtype Device type of item where is the bookmark (default 0)
+     * @param bool           $active   Should the icon be displayed as active ?
+     *
+     * @return void
+     **/
+    public static function showSaveButton($type, $itemtype = 0, bool $active = false)
+    {
+        echo "<a href='#' class='btn btn-ghost-secondary btn-icon btn-sm me-1 bookmark_record save'
+             title='" . __s('Save current search') . "'>";
+        echo "<i class='ti ti-star " . ($active ? 'active' : '') . "'></i>";
+        echo "</a>";
+
+        $params = [
+            'action'   => "create",
+            'itemtype' => $itemtype,
+            'type'     => $type,
+        ];
+
+        // If we are on a saved search, add the search id in the query so we can
+        // update it if needed
+        if (isset($_GET['savedsearches_id'])) {
+            $params['id'] = $_GET['savedsearches_id'];
+        }
+
+        $json_params = htmlspecialchars(json_encode($params), ENT_QUOTES);
+
+        echo "<div id='savedsearch-modal' class='modal' data-params='$json_params'></div>";
+    }
+
+
+    /**
      * Get personal order field name
      *
      * @return string
@@ -848,6 +1094,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return 'privatebookmarkorder';
     }
 
+
     /**
      * Get all itemtypes used
      *
@@ -855,6 +1102,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
      **/
     public static function getUsedItemtypes()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $types = [];
@@ -869,16 +1117,18 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $types;
     }
 
+
     /**
      * Update bookmark execution time after it has been loaded
      *
-     * @param int $id   Saved search ID
-     * @param int $time Execution time, in milliseconds
+     * @param integer $id   Saved search ID
+     * @param integer $time Execution time, in milliseconds
      *
      * @return void
      **/
     public static function updateExecutionTime($id, $time)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if ($_SESSION['glpishow_count_on_tabs']) {
@@ -887,7 +1137,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                 [
                     'last_execution_time'   => $time,
                     'last_execution_date'   => date('Y-m-d H:i:s'),
-                    'counter'               => new QueryExpression($DB->quoteName('counter') . ' + 1'),
+                    'counter'               => new \QueryExpression($DB->quoteName('counter') . ' + 1'),
                 ],
                 [
                     'id' => $id,
@@ -896,8 +1146,10 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         }
     }
 
+
     public static function getSpecificValueToDisplay($field, $values, array $options = [])
     {
+
         if (!is_array($values)) {
             $values = [$field => $values];
         }
@@ -905,21 +1157,23 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
             case 'do_count':
                 switch ($values[$field]) {
                     case SavedSearch::COUNT_NO:
-                        return __s('No');
+                        return __('No');
 
                     case SavedSearch::COUNT_YES:
-                        return __s('Yes');
+                        return __('Yes');
 
                     case SavedSearch::COUNT_AUTO:
-                        return __s('Auto');
+                        return ('Auto');
                 }
                 break;
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }
 
+
     public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
     {
+
         if (!is_array($values)) {
             $values = [$field => $values];
         }
@@ -934,6 +1188,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return parent::getSpecificValueToSelect($field, $name, $values, $options);
     }
 
+
     /**
      * Dropdown of do_count possible values
      *
@@ -946,6 +1201,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
      **/
     public static function dropdownDoCount(array $options = [])
     {
+
         $p['name']      = 'do_count';
         $p['value']     = self::COUNT_AUTO;
         $p['display']   = true;
@@ -964,16 +1220,18 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return Dropdown::showFromArray($p['name'], $tab, $p);
     }
 
+
     /**
      * Set do_count from massive actions
      *
      * @param array   $ids      Items IDs
-     * @param int $do_count One of self::COUNT_*
+     * @param integer $do_count One of self::COUNT_*
      *
-     * @return bool
+     * @return boolean
      */
     public function setDoCount(array $ids, $do_count)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $result = $DB->update(
@@ -988,17 +1246,19 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $result;
     }
 
+
     /**
      * Set entity and recursivity from massive actions
      *
      * @param array   $ids   Items IDs
-     * @param int $eid   Entityy ID
-     * @param bool $recur Recursivity
+     * @param integer $eid   Entityy ID
+     * @param boolean $recur Recursivity
      *
-     * @return bool
+     * @return boolean
      */
     public function setEntityRecur(array $ids, $eid, $recur)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $result = $DB->update(
@@ -1014,13 +1274,9 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $result;
     }
 
-    /**
-     * @param string $name
-     *
-     * @return array
-     */
     public static function cronInfo($name)
     {
+
         switch ($name) {
             case 'countAll':
                 return ['description' => __('Update all bookmarks execution time')];
@@ -1028,22 +1284,27 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return [];
     }
 
+
     /**
      * Update all bookmarks execution time
      *
      * @param CronTask $task CronTask instance
      *
-     * @return int
+     * @return integer
      **/
     public static function croncountAll($task)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $cron_status = 0;
 
         if ($CFG_GLPI['show_count_on_tabs'] != -1) {
-            $lastdate = new DateTime($task->getField('lastrun'));
-            $lastdate->sub(new DateInterval('P7D'));
+            $lastdate = new \DateTime($task->getField('lastrun'));
+            $lastdate->sub(new \DateInterval('P7D'));
 
             $iterator = $DB->request(['FROM'   => self::getTable(),
                 'FIELDS' => ['id', 'query', 'itemtype', 'type'],
@@ -1077,31 +1338,28 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                     $_SESSION['glpigroups'] = [];
                 }
 
-                $DB->beginTransaction();
-
+                $in_transaction = $DB->inTransaction();
+                if (!$in_transaction) {
+                    $DB->beginTransaction();
+                }
                 foreach ($iterator as $row) {
                     try {
                         $self->fields = $row;
                         if ($data = $self->execute(true)) {
                             $execution_time = $data['data']['execution_time'];
 
-                            $DB->executeStatement(
-                                $stmt,
-                                [
-                                    $execution_time,
-                                    $now,
-                                    $row['id'],
-                                ]
-                            );
+                            $stmt->bind_param('sss', $execution_time, $now, $row['id']);
+                            $DB->executeStatement($stmt);
                         }
-                    } catch (Throwable $e) {
-                        ErrorHandler::logCaughtException($e);
-                        ErrorHandler::displayCaughtExceptionMessage($e);
+                    } catch (\Throwable $e) {
+                        ErrorHandler::getInstance()->handleException($e);
                     }
                 }
 
                 $stmt->close();
-                $DB->commit();
+                if (!$in_transaction) {
+                    $DB->commit();
+                }
 
                 $cron_status = 1;
             }
@@ -1112,25 +1370,28 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return $cron_status;
     }
 
+
     /**
      * Execute current saved search and return results
      *
-     * @param bool $force Force query execution even if it should not be executed
+     * @param boolean $force Force query execution even if it should not be executed
      *                       (default false)
+     * @param boolean $enable_partial_warnings display warning messages about partial loading
      *
      * @throws RuntimeException
      *
      * @return array|null
      **/
-    public function execute($force = false)
+    public function execute($force = false, bool $enable_partial_warnings = true)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (
             ($force === true)
             || (($this->fields['do_count'] == self::COUNT_YES)
               || ($this->fields['do_count'] == self::COUNT_AUTO)
-              && ($this->fields['last_execution_time'] !== null && $this->fields['last_execution_time'] !== '')
+              && ($this->getField('last_execution_time') != null)
               && ($this->fields['last_execution_time'] <= $CFG_GLPI['max_time_for_count']))
         ) {
             $search = new Search();
@@ -1138,12 +1399,18 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
             $query_tab = [];
             parse_str($this->getField('query'), $query_tab);
 
-            $params = class_exists($this->getField('itemtype')) ? $query_tab : null;
+            $params = null;
+            if (class_exists($this->getField('itemtype'))) {
+                $params = $this->prepareQueryToUse(
+                    $this->getField('type'),
+                    $query_tab,
+                    $enable_partial_warnings
+                );
+            }
 
             if (!$params) {
-                throw new RuntimeException('Saved search #' . $this->getID() . ' seems to be broken!');
+                throw new \RuntimeException('Saved search #' . $this->getID() . ' seems to be broken!');
             } else {
-                $params['silent_validation'] = true;
                 $data                   = $search->prepareDatasForSearch(
                     $this->getField('itemtype'),
                     $params
@@ -1160,6 +1427,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return null;
     }
 
+
     /**
      * Create specific notification for a public saved search
      *
@@ -1167,12 +1435,13 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
      */
     public function createNotif()
     {
+
         $notif = new Notification();
         $notif->getFromDBByCrit(['event' => 'alert_' . $this->getID()]);
 
         if ($notif->isNewItem()) {
             $notif->check(-1, CREATE);
-            $notif->add(['name'            => SavedSearch::getTypeName(1) . ' ' . $this->getName(),
+            $notif->add(['name'            => SavedSearch::getTypeName(1) . ' ' . addslashes($this->getName()),
                 'entities_id'     => $_SESSION["glpidefault_entity"],
                 'itemtype'        => SavedSearch_Alert::getType(),
                 'event'           => 'alert_' . $this->getID(),
@@ -1180,7 +1449,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
                 'date_creation' => date('Y-m-d H:i:s'),
             ]);
 
-            Session::addMessageAfterRedirect(__s('Notification has been created!'), false, INFO);
+            Session::addMessageAfterRedirect(__('Notification has been created!'), INFO);
         }
     }
 
@@ -1192,6 +1461,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
     public static function addVisibilityRestrict()
     {
         //not deprecated because used in Search
+
         if (Session::haveRight('config', UPDATE)) {
             return '';
         }
@@ -1201,7 +1471,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         unset($criteria['LEFT JOIN']);
         $criteria['FROM'] = self::getTable();
 
-        $it = new DBmysqlIterator(null);
+        $it = new \DBmysqlIterator(null);
         $it->buildQuery($criteria);
         $sql = $it->getSql();
         $sql = preg_replace('/.*WHERE /', '', $sql);
@@ -1235,7 +1505,7 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
      *
      * @since 9.4
      *
-     * @param bool $forceall force all joins (false by default)
+     * @param boolean $forceall force all joins (false by default)
      *
      * @return array
      */
@@ -1248,20 +1518,10 @@ class SavedSearch extends CommonDBTM implements ExtraVisibilityCriteria
         return self::getVisibilityCriteriaForMine();
     }
 
+
     public static function getIcon()
     {
         return "ti ti-bookmarks";
-    }
-
-    public static function getPostFormAction(string $form_action, bool $action_success): ?string
-    {
-        // For simplified interface users, always redirect back to the search page
-        if ($form_action === 'add' && $action_success && Session::getCurrentInterface() === 'helpdesk') {
-            return 'back';
-        }
-
-        // Use parent behavior for all other cases
-        return parent::getPostFormAction($form_action, $action_success);
     }
 
     public function getCloneRelations(): array

@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-
 /**
  * Class IPAddress_IPNetwork : Connection between IPAddress and IPNetwork
  *
@@ -43,10 +41,10 @@ use Glpi\DBAL\QueryExpression;
 class IPAddress_IPNetwork extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = IPAddress::class;
+    public static $itemtype_1 = 'IPAddress';
     public static $items_id_1 = 'ipaddresses_id';
 
-    public static $itemtype_2 = IPNetwork::class;
+    public static $itemtype_2 = 'IPNetwork';
     public static $items_id_2 = 'ipnetworks_id';
 
 
@@ -54,11 +52,10 @@ class IPAddress_IPNetwork extends CommonDBRelation
      * Update IPNetwork's dependency
      *
      * @param $network IPNetwork object
-     *
-     * @return void
-     */
+     **/
     public static function linkIPAddressFromIPNetwork(IPNetwork $network)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $linkObject    = new self();
@@ -78,7 +75,7 @@ class IPAddress_IPNetwork extends CommonDBRelation
         // Then, look each IP address contained inside current Network
         $iterator = $DB->request([
             'SELECT' => [
-                new QueryExpression($DB->quoteValue($ipnetworks_id) . ' AS ' . $DB->quoteName('ipnetworks_id')),
+                new \QueryExpression($DB->quoteValue($ipnetworks_id) . ' AS ' . $DB->quoteName('ipnetworks_id')),
                 'id AS ipaddresses_id',
             ],
             'FROM'   => 'glpi_ipaddresses',
@@ -93,9 +90,7 @@ class IPAddress_IPNetwork extends CommonDBRelation
 
     /**
      * @param $ipaddress IPAddress object
-     *
-     * @return void
-     */
+     **/
     public static function addIPAddress(IPAddress $ipaddress)
     {
 

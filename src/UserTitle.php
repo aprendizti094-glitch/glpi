@@ -43,6 +43,6 @@ class UserTitle extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-user-star";
+        return "fas fa-user-tie";
     }
 }

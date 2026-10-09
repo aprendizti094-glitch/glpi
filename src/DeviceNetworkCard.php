@@ -45,6 +45,7 @@ class DeviceNetworkCard extends CommonDevice
         return _n('Network card', 'Network cards', $nb);
     }
 
+
     /**
      * Criteria used for import function
      *
@@ -52,40 +53,45 @@ class DeviceNetworkCard extends CommonDevice
      **/
     public function getImportCriteria()
     {
+
         return [
             'designation' => 'equal',
             'bandwidth' => 'equal',
         ];
     }
 
+
     public function getAdditionalFields()
     {
+
         return array_merge(
             parent::getAdditionalFields(),
-            [
-                [
-                    'name'  => 'mac_default',
-                    'label' => __('MAC address by default'),
-                    'type'  => 'text',
-                ],
-                [
-                    'name'  => 'bandwidth',
+            [['name'  => 'mac_default',
+                'label' => __('MAC address by default'),
+                'type'  => 'text',
+            ],
+                ['name'  => 'bandwidth',
                     'label' => __('Flow'),
                     'type'  => 'text',
                 ],
-                [
-                    'name'  => 'devicenetworkcardmodels_id',
+                ['name'  => 'devicenetworkcardmodels_id',
                     'label' => _n('Model', 'Models', 1),
                     'type'  => 'dropdownValue',
                 ],
-                [
-                    'name'  => 'none',
-                    'label' => RegisteredID::getTypeName(Session::getPluralNumber()),
+                ['name'  => 'none',
+                    'label' => RegisteredID::getTypeName(Session::getPluralNumber()) .
+                                        RegisteredID::showAddChildButtonForItemForm(
+                                            $this,
+                                            '_registeredID',
+                                            null,
+                                            false
+                                        ),
                     'type'  => 'registeredIDChooser',
                 ],
             ]
         );
     }
+
 
     public function rawSearchOptions()
     {
@@ -93,7 +99,7 @@ class DeviceNetworkCard extends CommonDevice
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'mac_default',
             'name'               => __('MAC address by default'),
             'datatype'           => 'mac',
@@ -101,7 +107,7 @@ class DeviceNetworkCard extends CommonDevice
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'bandwidth',
             'name'               => __('Flow'),
             'datatype'           => 'string',
@@ -118,6 +124,7 @@ class DeviceNetworkCard extends CommonDevice
         return $tab;
     }
 
+
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -126,31 +133,25 @@ class DeviceNetworkCard extends CommonDevice
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        if (in_array($itemtype, NetworkPort::getNetworkPortInstantiations(), true)) {
-            $base->addHeader($column_name, __s('Interface'), $super, $father);
+        if (in_array($itemtype, NetworkPort::getNetworkPortInstantiations())) {
+            $base->addHeader($column_name, __('Interface'), $super, $father);
         } else {
             $column = parent::getHTMLTableHeader($itemtype, $base, $super, $father, $options);
             if ($column == $father) {
                 return $father;
             }
-            Manufacturer::getHTMLTableHeader(self::class, $base, $super, $father, $options);
-            $base->addHeader('devicenetworkcard_bandwidth', __s('Flow'), $super, $father);
+            Manufacturer::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
+            $base->addHeader('devicenetworkcard_bandwidth', __('Flow'), $super, $father);
         }
     }
 
-    /**
-     * @param HTMLTableRow|null $row
-     * @param CommonDBTM|null $item
-     * @param HTMLTableCell|null $father
-     * @param array $options
-     * @return void
-     */
+
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
@@ -158,23 +159,20 @@ class DeviceNetworkCard extends CommonDevice
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        if ($item === null) {
-            if ($father === null) {
+        if (empty($item)) {
+            if (empty($father)) {
                 return;
             }
             $item = $father->getItem();
-            if ($item === false) {
-                return;
-            }
         }
 
-        if (in_array($item::class, NetworkPort::getNetworkPortInstantiations())) {
+        if (in_array($item->getType(), NetworkPort::getNetworkPortInstantiations())) {
             $link = new Item_DeviceNetworkCard();
             if ($link->getFromDB($item->fields['items_devicenetworkcards_id'])) {
                 $device = $link->getOnePeer(1);
@@ -185,39 +183,34 @@ class DeviceNetworkCard extends CommonDevice
         }
     }
 
+
     public function getHTMLTableCellForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
+
         $column = parent::getHTMLTableCellForItem($row, $item, $father, $options);
 
         if ($column == $father) {
             return $father;
         }
 
-        $cell = null;
-        switch ($item::class) {
-            case Computer::class:
+        switch ($item->getType()) {
+            case 'Computer':
                 Manufacturer::getHTMLTableCellsForItem($row, $this, null, $options);
                 if ($this->fields["bandwidth"]) {
-                    $cell = $row->addCell(
+                    $row->addCell(
                         $row->getHeaderByName('devicenetworkcard_bandwidth'),
-                        htmlescape($this->fields["bandwidth"]),
+                        $this->fields["bandwidth"],
                         $father
                     );
                 }
                 break;
         }
-        return $cell;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param array $main_joinparams
-     * @return array
-     */
     public static function rawSearchOptionsToAdd($itemtype, $main_joinparams)
     {
         $tab = [];
@@ -249,36 +242,12 @@ class DeviceNetworkCard extends CommonDevice
             'joinparams'         => $main_joinparams,
         ];
 
-        $tab[] = [
-            'id'                 => '1330',
-            'table'              => 'glpi_items_devicenetworkcards',
-            'field'              => 'serial',
-            'name'               => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Serial Number')),
-            'forcegroupby'       => true,
-            'usehaving'          => true,
-            'datatype'           => 'string',
-            'massiveaction'      => false,
-            'joinparams'         => $main_joinparams,
-        ];
-
-        $tab[] = [
-            'id'                 => '1331',
-            'table'              => 'glpi_items_devicemotherboards',
-            'field'              => 'otherserial',
-            'name'               => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Inventory number')),
-            'forcegroupby'       => true,
-            'usehaving'          => true,
-            'datatype'           => 'string',
-            'massiveaction'      => false,
-            'joinparams'         => $main_joinparams,
-        ];
-
         return $tab;
     }
 
 
     public static function getIcon()
     {
-        return NetworkPort::getIcon();
+        return "fas fa-network-wired";
     }
 }

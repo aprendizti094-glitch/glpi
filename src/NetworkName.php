@@ -34,7 +34,6 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QueryExpression;
 
 /**
  * NetworkName Class
@@ -70,47 +69,55 @@ class NetworkName extends FQDNLabel
         return _n('Network name', 'Network names', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['config', CommonDropdown::class, self::class];
-    }
-
     public function useDeletedToLockIfDynamic()
     {
         return false;
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong  = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(NetworkAlias::class, $ong, $options);
-        $this->addStandardTab(Lock::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('NetworkAlias', $ong, $options);
+        $this->addStandardTab('Lock', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
+    /**
+     * Print the network name form
+     *
+     * @param $ID        integer ID of the item
+     * @param $options   array
+     *     - target for the Form
+     *     - withtemplate template or basic computer
+     *
+     *@return void
+     **/
     public function showForm($ID, array $options = [])
     {
         $this->initForm($ID, $options);
 
         $recursiveItems = $this->recursivelyGetItems();
-        if (count($recursiveItems) !== 0) {
+        if (count($recursiveItems) != 0) {
             $lastItem               = $recursiveItems[count($recursiveItems) - 1];
             $options['entities_id'] = $lastItem->getField('entities_id');
         }
 
         $recursive_items_type_data = _n('Associated element', 'Associated elements', Session::getPluralNumber());
         if (count($recursiveItems) > 0) {
-            $recursive_items_type_data = static::displayRecursiveItems($recursiveItems, 'Type', false);
+            $recursive_items_type_data = $this->displayRecursiveItems($recursiveItems, 'Type', false);
         }
 
-        $display_recursive_items_link = static::displayRecursiveItems($recursiveItems, 'Link', false);
+        $display_recursive_items_link = $this->displayRecursiveItems($recursiveItems, 'Link', false);
         $display_dissociate_btn = false;
-        if ((count($recursiveItems) > 0) && static::canUpdate()) {
+        if ((count($recursiveItems) > 0) && $this->canUpdate()) {
             $display_dissociate_btn = true;
         }
+
 
         TemplateRenderer::getInstance()->display('components/form/networkname.html.twig', [
             'ID'                            => $ID,
@@ -123,6 +130,7 @@ class NetworkName extends FQDNLabel
 
         return true;
     }
+
 
     public function rawSearchOptions()
     {
@@ -151,7 +159,7 @@ class NetworkName extends FQDNLabel
 
         $tab[] = [
             'id'                 => '20',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'itemtype',
             'name'               => _n('Type', 'Types', 1),
             'datatype'           => 'itemtypename',
@@ -160,7 +168,7 @@ class NetworkName extends FQDNLabel
 
         $tab[] = [
             'id'                 => '21',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'items_id',
             'name'               => __('ID'),
             'datatype'           => 'integer',
@@ -170,11 +178,10 @@ class NetworkName extends FQDNLabel
         return $tab;
     }
 
+
     /**
-     * @param array $tab the array to fill
-     * @param array $joinparams
-     *
-     * @return void
+     * @param $tab          array   the array to fill
+     * @param $joinparams   array
      **/
     public static function rawSearchOptionsToAdd(array &$tab, array $joinparams)
     {
@@ -221,21 +228,19 @@ class NetworkName extends FQDNLabel
         ];
     }
 
+
     /**
-     * Update IPAddress database
-     *
+     * \brief Update IPAddress database
      * Update IPAddress database to remove old IPs and add new ones.
-     *
-     * @return void
      **/
     public function post_workOnItem()
     {
+
         if (
             (isset($this->input['_ipaddresses']))
             && (is_array($this->input['_ipaddresses']))
         ) {
-            $input = [
-                'itemtype' => NetworkName::class,
+            $input = ['itemtype' => 'NetworkName',
                 'items_id' => $this->getID(),
             ];
             foreach ($this->input['_ipaddresses'] as $id => $ip) {
@@ -258,37 +263,39 @@ class NetworkName extends FQDNLabel
         }
     }
 
+
     public function post_addItem()
     {
+
         $this->post_workOnItem();
         parent::post_addItem();
     }
 
+
     public function post_updateItem($history = true)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $this->post_workOnItem();
         if (count($this->updates)) {
             // Update Ticket Tco
             if (
-                in_array("itemtype", $this->updates, true)
-                || in_array("items_id", $this->updates, true)
+                in_array("itemtype", $this->updates)
+                || in_array("items_id", $this->updates)
             ) {
                 $ip = new IPAddress();
                 // Update IPAddress
                 foreach (
-                    $DB->request([
-                        'FROM' => 'glpi_ipaddresses',
-                        'WHERE' => [
-                            'itemtype' => NetworkName::class,
+                    $DB->request(
+                        'glpi_ipaddresses',
+                        ['itemtype' => 'NetworkName',
                             'items_id' => $this->getID(),
-                        ],
-                    ]) as $data
+                        ]
+                    ) as $data
                 ) {
-                    $ip->update([
-                        'id'       => $data['id'],
-                        'itemtype' => NetworkName::class,
+                    $ip->update(['id'       => $data['id'],
+                        'itemtype' => 'NetworkName',
                         'items_id' => $this->getID(),
                     ]);
                 }
@@ -297,8 +304,10 @@ class NetworkName extends FQDNLabel
         parent::post_updateItem($history);
     }
 
+
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 IPAddress::class,
@@ -307,18 +316,18 @@ class NetworkName extends FQDNLabel
         );
     }
 
+
     /**
-     * Detach an address from an item
+     * \brief dettach an address from an item
      *
      * The address can be unaffected, and remain "free"
      *
-     * @param int $items_id  the id of the item
+     * @param integer $items_id  the id of the item
      * @param string  $itemtype  the type of the item
-     *
-     * @return void
      **/
     public static function unaffectAddressesOfItem($items_id, $itemtype)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -335,55 +344,77 @@ class NetworkName extends FQDNLabel
         }
     }
 
+
     /**
-     * Detach an address from an item
+     * \brief dettach an address from an item
      *
      * The address can be unaffected, and remain "free"
      *
-     * @param int $networkNameID the id of the NetworkName
-     *
-     * @return bool
+     * @param integer $networkNameID the id of the NetworkName
      **/
     public static function unaffectAddressByID($networkNameID)
     {
         return self::affectAddress($networkNameID, 0, '');
     }
 
+
     /**
-     * @param int $networkNameID
-     * @param int $items_id
-     * @param string $itemtype
-     * @return bool
-     */
+     * @param $networkNameID
+     * @param $items_id
+     * @param $itemtype
+     **/
     public static function affectAddress($networkNameID, $items_id, $itemtype)
     {
         $networkName = new self();
-        return $networkName->update([
-            'id'       => $networkNameID,
+        return $networkName->update(['id'       => $networkNameID,
             'items_id' => $items_id,
             'itemtype' => $itemtype,
         ]);
     }
 
+
     /**
-     * @param int $networkPortID
-     * @used-by templates/pages/assets/networkport/form.html.twig
+     * Get the full name (internet name) of a NetworkName
      *
-     * @return void
-     */
+     * @param integer $ID  ID of the NetworkName
+     *
+     * @return string  its internet name, or empty string if invalid NetworkName
+     **/
+    public static function getInternetNameFromID($ID)
+    {
+
+        $networkName = new self();
+
+        if ($networkName->can($ID, READ)) {
+            return FQDNLabel::getInternetNameFromLabelAndDomainID(
+                $networkName->fields["name"],
+                $networkName->fields["fqdns_id"]
+            );
+        }
+        return "";
+    }
+
+
+    /**
+     * @param $networkPortID
+     **/
     public static function showFormForNetworkPort($networkPortID)
     {
-        global $DB;
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
+        global $CFG_GLPI, $DB;
 
-        $name = new self();
-        $name->getEmpty();
+        $name         = new self();
+        $number_names = 0;
 
         if ($networkPortID > 0) {
             $iterator = $DB->request([
                 'SELECT' => 'id',
-                'FROM'   => self::getTable(),
+                'FROM'   => $name->getTable(),
                 'WHERE'  => [
-                    'itemtype'     => NetworkPort::class,
+                    'itemtype'     => 'NetworkPort',
                     'items_id'     => $networkPortID,
                     'is_deleted'   => 0,
                 ],
@@ -391,43 +422,91 @@ class NetworkName extends FQDNLabel
             $numrows = count($iterator);
 
             if ($numrows > 1) {
-                // language=Twig
-                echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                    {% import 'components/form/fields_macros.html.twig' as fields %}
-                    {% set alert %}
-                        <div class="alert alert-warning">{{ alert }}</div>
-                    {% endset %}
-                    {{ field.htmlField('', alert, 'NetworkName'|itemtype_name) }}
-TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Name' to manage them.")]);
-            } elseif ($numrows === 1) {
-                $result = $iterator->current();
-                $name->getFromDB($result['id']);
+                echo "<tr class='tab_bg_1'><th colspan='4'>" .
+                 __("Several network names available! Go to the tab 'Network Name' to manage them.") .
+                 "</th></tr>\n";
+                return;
             }
+
+            switch ($numrows) {
+                case 1:
+                    $result = $iterator->current();
+                    $name->getFromDB($result['id']);
+                    break;
+
+                case 0:
+                    $name->getEmpty();
+                    break;
+            }
+        } else {
+            $name->getEmpty();
         }
 
+        echo "<tr class='tab_bg_1'><th colspan='4'>";
+        // If the networkname is defined, we must be able to edit it. So we make a link
+        if ($name->getID() > 0) {
+            echo "<a href='" . $name->getLinkURL() . "'>" . self::getTypeName(1) . "</a>";
+            echo "<input type='hidden' name='NetworkName_id' value='" . $name->getID() . "'>&nbsp;\n";
+            Html::showSimpleForm(
+                $name->getFormURL(),
+                'unaffect',
+                _sx('button', 'Dissociate'),
+                ['id' => $name->getID()],
+                $CFG_GLPI["root_doc"] . '/pics/sub_dropdown.png'
+            );
+        } else {
+            echo self::getTypeName(1);
+        }
+        echo "</th>\n";
+
+        echo "</tr><tr class='tab_bg_1'>";
+
+        echo "<td>" . self::getTypeName(1) . "</td><td>\n";
+        echo Html::input('NetworkName_name', ['value' => $name->fields['name']]);
+        echo "</td>\n";
+
+        echo "<td>" . FQDN::getTypeName(1) . "</td><td>";
+        Dropdown::show(
+            getItemTypeForTable(getTableNameForForeignKeyField("fqdns_id")),
+            ['value'       => $name->fields["fqdns_id"],
+                'name'        => 'NetworkName_fqdns_id',
+                'entity'      => $name->getEntityID(),
+                'displaywith' => ['view'],
+            ]
+        );
+        echo "</td>\n";
+
+        echo "</tr>";
+
         if ($name->isNewItem()) {
-            $canedit = $name::canCreate();
+            $canedit = $name->canCreate();
         } else {
             $canedit = $name->can($name->getID(), UPDATE);
         }
 
-        TemplateRenderer::getInstance()->display('pages/assets/networkport/networkname_short.html.twig', [
-            'item' => $name,
-            'canedit' => $canedit,
-        ]);
+        if ($canedit) {
+            echo "<tr class='tab_bg_1'>\n";
+            echo "<td>" . IPAddress::getTypeName(Session::getPluralNumber());
+            IPAddress::showAddChildButtonForItemForm($name, 'NetworkName__ipaddresses', $canedit);
+            echo "</td>";
+            echo "<td>";
+            IPAddress::showChildsForItemForm($name, 'NetworkName__ipaddresses', $canedit);
+            echo "</td>";
+            echo "<td colspan='2'>&nbsp;</td>";
+            echo "</tr>\n";
+        }
     }
 
+
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param HTMLTableBase $base
-     * @param HTMLTableSuperHeader|null $super
-     * @param HTMLTableHeader|null $father
-     * @param array $options
-     * @throws Exception
      * @since 0.84
      *
-     * @return void
-     */
+     * @param $itemtype
+     * @param $base            HTMLTableBase object
+     * @param $super           HTMLTableSuperHeader object (default NULL
+     * @param $father          HTMLTableHeader object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -436,25 +515,24 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
         if (
             isset($options['massiveactionnetworkname'])
             && $options['massiveactionnetworkname']
         ) {
             $delete_all_column = $base->addHeader(
                 'delete',
-                Html::getCheckAllAsCheckbox('mass' . self::class . $options['rand']),
+                Html::getCheckAllAsCheckbox('mass' . __CLASS__ .
+                                                                            $options['rand']),
                 $super,
                 $father
             );
             $delete_all_column->setHTMLClass('center');
         }
         if (!isset($options['dont_display'][$column_name])) {
-            $content = htmlescape(self::getTypeName());
+            $content = self::getTypeName();
             if (isset($options['column_links'][$column_name])) {
-                $content = '<a href="' . htmlescape($options['column_links'][$column_name]) . '">'
-                    . $content
-                    . '</a>';
+                $content = "<a href='" . $options['column_links'][$column_name] . "'>$content</a>";
             }
             $father = $base->addHeader($column_name, $content, $super, $father);
             $father->setItemType('NetworkName');
@@ -462,46 +540,42 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
             if (isset($options['display_isDynamic']) && ($options['display_isDynamic'])) {
                 $father = $base->addHeader(
                     $column_name . '_dynamic',
-                    __s('Automatic inventory'),
+                    __('Automatic inventory'),
                     $super,
                     $father
                 );
             }
         }
 
-        NetworkAlias::getHTMLTableHeader(self::class, $base, $super, $father, $options);
-        IPAddress::getHTMLTableHeader(self::class, $base, $super, $father, $options);
+        NetworkAlias::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
+        IPAddress::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
     }
 
+
     /**
-     * @param HTMLTableRow|null $row
-     * @param CommonDBTM|null $item
-     * @param HTMLTableCell|null $father
-     * @param array $options
-     * @throws Exception
      * @since 0.84
      *
-     * @return void
-     */
+     * @param $row             HTMLTableRow object (default NULL)
+     * @param $item            CommonDBTM object (default NULL)
+     * @param $father          HTMLTableCell object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
-        if ($item === null) {
-            if ($father === null) {
+        if (empty($item)) {
+            if (empty($father)) {
                 return;
             }
             $item = $father->getItem();
-            if ($item === false) {
-                return;
-            }
-
         }
 
         $table = static::getTable();
@@ -513,8 +587,8 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
             'WHERE'  => [],
         ];
 
-        switch ($item::class) {
-            case FQDN::class:
+        switch ($item->getType()) {
+            case 'FQDN':
                 $criteria['ORDERBY'] = "$table.name";
 
                 if (isset($options['order'])) {
@@ -528,14 +602,14 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                                     'glpi_ipaddresses'   => 'items_id',
                                     $table               => 'id', [
                                         'AND' => [
-                                            'glpi_ipaddresses.itemtype'   => self::class,
+                                            'glpi_ipaddresses.itemtype'   => self::getType(),
                                             'glpi_ipaddresses.is_deleted' => 0,
                                         ],
                                     ],
                                 ],
                             ];
                             $criteria['ORDERBY'] = [
-                                new QueryExpression("ISNULL (" . $DB::quoteName('glpi_ipaddresses.id') . ")"),
+                                new QueryExpression("ISNULL (" . $DB->quoteName('glpi_ipaddresses.id') . ")"),
                                 'glpi_ipaddresses.binary_3',
                                 'glpi_ipaddresses.binary_2',
                                 'glpi_ipaddresses.binary_1',
@@ -553,7 +627,7 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                                 ],
                             ];
                             $criteria['ORDERBY'] = [
-                                new QueryExpression("ISNULL (" . $DB::quoteName('glpi_networkaliases.name') . ")"),
+                                new QueryExpression("ISNULL (" . $DB->quoteName('glpi_networkaliases.name') . ")"),
                                 'glpi_networkaliases.name',
                             ];
                             break;
@@ -566,15 +640,15 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                 ];
                 break;
 
-            case NetworkPort::class:
+            case 'NetworkPort':
                 $criteria['WHERE'] = [
-                    'itemtype'     => NetworkPort::class,
+                    'itemtype'     => $item->getType(),
                     'items_id'     => $item->getID(),
                     'is_deleted'   => 0,
                 ];
                 break;
 
-            case NetworkEquipment::class:
+            case 'NetworkEquipment':
                 $criteria['INNER JOIN'] = [
                     'glpi_networkports'  => [
                         'ON'  => [
@@ -589,7 +663,7 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                     ],
                 ];
                 $criteria['WHERE'] = [
-                    'glpi_networkports.itemtype'  => NetworkEquipment::class,
+                    'glpi_networkports.itemtype'  => $item->getType(),
                     'glpi_networkports.items_id'  => $item->getID(),
                 ];
                 break;
@@ -599,6 +673,7 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
             $criteria = array_merge($criteria, $options['SQL_options']);
         }
 
+        $canedit              = (isset($options['canedit']) && $options['canedit']);
         $createRow            = (isset($options['createRow']) && $options['createRow']);
         $options['createRow'] = false;
         $address              = new self();
@@ -615,7 +690,7 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                     && $options['massiveactionnetworkname']
                 ) {
                     $header      = $row->getGroup()->getHeaderByName('Internet', 'delete');
-                    $cell_value  = Html::getMassiveActionCheckBox(self::class, $line["id"]);
+                    $cell_value  = Html::getMassiveActionCheckBox(__CLASS__, $line["id"]);
                     $row->addCell($header, $cell_value, $father);
                 }
 
@@ -623,11 +698,9 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                 if (empty($internetName)) {
                     $internetName = "(" . $line["id"] . ")";
                 }
-                $content  = htmlescape($internetName);
+                $content  = $internetName;
                 if (Session::haveRight('internet', READ)) {
-                    $content  = '<a href="' . htmlescape($address->getLinkURL()) . '">'
-                        . htmlescape($internetName)
-                        . '</a>';
+                    $content  = "<a href='" . $address->getLinkURL() . "'>" . $internetName . "</a>";
                 }
 
                 if (!isset($options['dont_display'][$column_name])) {
@@ -640,7 +713,7 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
                         );
                         $dynamic_cell = $row->addCell(
                             $dyn_header,
-                            htmlescape(Dropdown::getYesNo($address->fields['is_dynamic'])),
+                            Dropdown::getYesNo($address->fields['is_dynamic']),
                             $name_cell
                         );
                         $father_for_children = $dynamic_cell;
@@ -657,18 +730,16 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
         }
     }
 
+
     /**
-     * Show names for an item from its form
-     *
+     * \brief Show names for an item from its form
      * Beware that the rendering can be different if readden from direct item form (ie : add new
      * NetworkName, remove, ...) or if readden from item of the item (for instance from the computer
      * form through NetworkPort::ShowForItem).
      *
-     * @param CommonDBTM $item
-     * @param int $withtemplate
-     * @return false|void
-     * @throws Exception
-     */
+     * @param $item                     CommonGLPI object
+     * @param $withtemplate   integer   withtemplate param (default 0)
+     **/
     public static function showForItem(CommonDBTM $item, $withtemplate = 0)
     {
         $ID = $item->getID();
@@ -679,51 +750,50 @@ TWIG, ['alert' => __("Several network names available! Go to the tab 'Network Na
         $rand = mt_rand();
 
         if (
-            ($item::class === NetworkPort::class)
+            ($item->getType() == 'NetworkPort')
             && Session::haveRight('internet', UPDATE)
             && $item->canUpdateItem()
         ) {
-            $twig_params = [
-                'item' => $item,
-                'btn_label' => _x('button', 'Associate'),
-                'create_label' => __('Create a new network name'),
-                'can_create' => static::canCreate(),
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                {% import 'components/form/fields_macros.html.twig' as fields %}
-                <div class="mb-3">
-                    <form method="post" action="{{ 'NetworkName'|itemtype_form_path }}">
-                        <div class="d-flex">
-                            <input type="hidden" name="items_id" value="{{ item.getID() }}">
-                            <input type="hidden" name="itemtype" value="{{ get_class(item) }}">
-                            <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-                            {{ fields.dropdownField('NetworkName', 'addressID', 0, null, {
-                                no_label: true,
-                                condition: {
-                                    items_id: 0
-                                }
-                            }) }}
-                        </div>
-                        <div class="d-flex flex-row-reverse">
-                            <button type="submit" name="assign_address" class="btn btn-primary mx-1">{{ btn_label }}</button>
-                            {% if can_create %}
-                                <a class="btn btn-outline-secondary mx-1" role="button" href="{{ 'NetworkName'|itemtype_form_path }}?items_id={{ item.getID() }}&amp;itemtype={{ get_class(item) }}">
-                                    {{ create_label }}
-                                </a>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
-TWIG, $twig_params);
+            $items_id = $item->getID();
+            $itemtype = $item->getType();
+
+            echo "<div class='firstbloc'>\n";
+            echo "<form method='post' action='" . static::getFormURL() . "'>\n";
+            echo "<table class='tab_cadre_fixe'>\n";
+            echo "<tr><th colspan='4'>" . __('Add a network name') . "</th></tr>";
+
+            echo "<tr class='tab_bg_1'><td class='right'>";
+            echo "<input type='hidden' name='items_id' value='$items_id'>\n";
+            echo "<input type='hidden' name='itemtype' value='$itemtype'>\n";
+            echo __('Not associated');
+            echo "</td><td class='left'>";
+            self::dropdown([
+                'name'      => 'addressID',
+                'condition' => ['items_id' => 0],
+            ]);
+            echo "</td><td class='left'>";
+            echo "<input type='submit' name='assign_address' value='" . _sx('button', 'Associate') .
+                "' class='btn btn-primary'>";
+            echo "</td>";
+            if (static::canCreate()) {
+                echo "<td class='right' width='30%'>";
+                echo "<a href=\"" . static::getFormURL() . "?items_id=$items_id&amp;itemtype=$itemtype\">";
+                echo __('Create a new network name') . "</a>";
+                echo "</td>";
+            }
+            echo "</tr>\n";
+
+            echo "</table>\n";
+            Html::closeForm();
+            echo "</div>\n";
         }
 
         $table_options = ['createRow' => true];
         $start = 0;
 
         if (
-            ($item::class === FQDN::class)
-            || ($item::class === NetworkEquipment::class)
+            ($item->getType() == 'FQDN')
+            || ($item->getType() == 'NetworkEquipment')
         ) {
             if (isset($_GET["start"])) {
                 $start = $_GET["start"];
@@ -735,11 +805,13 @@ TWIG, $twig_params);
                 $table_options['order'] = 'name';
             }
 
-            if ($item::class === FQDN::class) {
-                $table_options['column_links'] = [
-                    'NetworkName' => 'javascript:reloadTab("order=name");',
-                    'NetworkAlias' => 'javascript:reloadTab("order=alias");',
-                    'IPAddress' => 'javascript:reloadTab("order=ip");',
+            if ($item->getType() == 'FQDN') {
+                $table_options['column_links'] = ['NetworkName'
+                                                         => 'javascript:reloadTab("order=name");',
+                    'NetworkAlias'
+                                                         => 'javascript:reloadTab("order=alias");',
+                    'IPAddress'
+                                                         => 'javascript:reloadTab("order=ip");',
                 ];
             }
 
@@ -759,11 +831,11 @@ TWIG, $twig_params);
         $table                                     = new HTMLTableMain();
         $column                                    = $table->addHeader(
             'Internet',
-            htmlescape(self::getTypeName(Session::getPluralNumber()))
+            self::getTypeName(Session::getPluralNumber())
         );
         $t_group                                   = $table->createGroup('Main', '');
 
-        self::getHTMLTableHeader(self::class, $t_group, $column, null, $table_options);
+        self::getHTMLTableHeader(__CLASS__, $t_group, $column, null, $table_options);
 
         $t_row   = $t_group->createRow();
 
@@ -773,26 +845,24 @@ TWIG, $twig_params);
             $number = min($_SESSION['glpilist_limit'], $table->getNumberOfRows());
             Html::printAjaxPager(self::getTypeName(Session::getPluralNumber()), $start, self::countForItem($item));
             Session::initNavigateListItems(
-                self::class,
+                __CLASS__,
                 //TRANS : %1$s is the itemtype name,
                 //        %2$s is the name of the item (used for headings of a list)
                 sprintf(
                     __('%1$s = %2$s'),
-                    $item::getTypeName(1),
+                    $item->getTypeName(1),
                     $item->getName()
                 )
             );
             if ($canedit && $number) {
-                Html::openMassiveActionsForm('mass' . self::class . $rand);
-                $massiveactionparams = [
-                    'num_displayed'    => min($_SESSION['glpilist_limit'], $number),
-                    'container'        => 'mass' . self::class . $rand,
+                Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+                $massiveactionparams = ['num_displayed'    => min($_SESSION['glpilist_limit'], $number),
+                    'container'        => 'mass' . __CLASS__ . $rand,
                 ];
                 Html::showMassiveActions($massiveactionparams);
             }
 
-            $table->display([
-                'display_title_for_each_group'          => false,
+            $table->display(['display_title_for_each_group'          => false,
                 'display_thead'                         => false,
                 'display_tfoot'                         => false,
                 'display_header_on_foot_for_each_group' => true,
@@ -806,33 +876,36 @@ TWIG, $twig_params);
 
             Html::printAjaxPager(self::getTypeName(Session::getPluralNumber()), $start, self::countForItem($item));
         } else {
-            echo "<table class='tab_cadre_fixe'><tr><th>" . __s('No network name found') . "</th></tr>";
+            echo "<table class='tab_cadre_fixe'><tr><th>" . __('No network name found') . "</th></tr>";
             echo "</table>";
         }
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        switch ($item::class) {
-            case NetworkPort::class:
-            case FQDN::class:
-            case NetworkEquipment::class:
+
+        switch ($item->getType()) {
+            case 'NetworkPort':
+            case 'FQDN':
+            case 'NetworkEquipment':
                 self::showForItem($item, $withtemplate);
                 break;
         }
         return true;
     }
 
+
     /**
-     * @param CommonDBTM $item
-     * @return int
-     */
-    public static function countForItem(CommonDBTM $item): int
+     * @param $item      CommonDBTM object
+     **/
+    public static function countForItem(CommonDBTM $item)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        switch ($item::class) {
-            case FQDN::class:
+        switch ($item->getType()) {
+            case 'FQDN':
                 return countElementsInTable(
                     'glpi_networknames',
                     ['fqdns_id'   => $item->fields["id"],
@@ -840,7 +913,7 @@ TWIG, $twig_params);
                     ]
                 );
 
-            case NetworkPort::class:
+            case 'NetworkPort':
                 return countElementsInTable(
                     'glpi_networknames',
                     ['itemtype'   => $item->getType(),
@@ -849,7 +922,7 @@ TWIG, $twig_params);
                     ]
                 );
 
-            case NetworkEquipment::class:
+            case 'NetworkEquipment':
                 $result = $DB->request([
                     'SELECT'          => ['COUNT DISTINCT' => 'glpi_networknames.id AS cpt'],
                     'FROM'            => 'glpi_networknames',
@@ -875,11 +948,12 @@ TWIG, $twig_params);
 
                 return (int) $result['cpt'];
         }
-        return 0;
     }
+
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         if (
             ($item instanceof CommonDBTM)
             && $item->getID()
@@ -889,17 +963,8 @@ TWIG, $twig_params);
             if ($_SESSION['glpishow_count_on_tabs']) {
                 $nb = self::countForItem($item);
             }
-            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
         }
         return '';
-    }
-
-    public function getRights($interface = 'central')
-    {
-        $rights = parent::getRights($interface);
-        // Rename READ and UPDATE right labels to match other assets
-        $rights[READ] = __('View all');
-        $rights[UPDATE] = __('Update all');
-        return $rights;
     }
 }

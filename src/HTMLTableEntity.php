@@ -42,14 +42,12 @@
  **/
 abstract class HTMLTableEntity
 {
-    /** @var string */
     private $html_id    = '';
-    /** @var string[] */
     private $html_style = [];
-    /** @var string[] */
     private $html_class = [];
-    /** @var string|string[] */
+
     private $content;
+
 
     /**
      * Constructor of an entity
@@ -60,43 +58,39 @@ abstract class HTMLTableEntity
      *    of direct display function (for instance: Dropdown::showNumber). A function
      *    call is an array containing two elements : 'function', the name the function
      *    and 'parameters', an array of the parameters given to the function.
-     *
-     * @psalm-taint-sink html $content (content will be sent to output without being escaped)
-     */
+     **/
     public function __construct($content)
     {
         $this->content = $content;
     }
 
+
     /**
-     * @param HTMLTableEntity $origin
-     *
-     * @return void
-     */
+     * @param $origin
+     **/
     public function copyAttributsFrom(HTMLTableEntity $origin)
     {
+
         $this->html_id    = $origin->html_id;
         $this->html_style = $origin->html_style;
         $this->html_class = $origin->html_class;
     }
 
+
     /**
-     * @param string $html_id
-     *
-     * @return void
-     */
+     * @param $html_id
+     **/
     public function setHTMLID($html_id)
     {
         $this->html_id = $html_id;
     }
 
+
     /**
      * userfull ? function never called
      *
-     * @param string[]|string $html_style
-     *
-     * @return void
-     */
+     * @param $html_style
+     **/
     public function setHTMLStyle($html_style)
     {
         if (is_array($html_style)) {
@@ -106,11 +100,10 @@ abstract class HTMLTableEntity
         }
     }
 
+
     /**
-     * @param string[]|string $html_class
-     *
-     * @return void
-     */
+     * @param $html_class
+     **/
     public function setHTMLClass($html_class)
     {
         if (is_array($html_class)) {
@@ -120,16 +113,19 @@ abstract class HTMLTableEntity
         }
     }
 
+
     /**
-     * @param array $options
-     *
-     * @return void
-     */
+     * @param $options   array
+     **/
     public function displayEntityAttributs(array $options = [])
     {
-        $id = $options['id'] ?? $this->html_id;
+
+        $id = $this->html_id;
+        if (isset($options['id'])) {
+            $id = $options['id'];
+        }
         if (!empty($id)) {
-            echo ' id="' . htmlescape($id) . '"';
+            echo " id='$id'";
         }
 
         $style = $this->html_style;
@@ -141,7 +137,7 @@ abstract class HTMLTableEntity
             }
         }
         if (count($style) > 0) {
-            echo " style='" . htmlescape(implode(';', $style)) . "'";
+            echo " style='" . implode(';', $style) . "'";
         }
 
         $class = $this->html_class;
@@ -153,43 +149,42 @@ abstract class HTMLTableEntity
             }
         }
         if (count($class) > 0) {
-            echo " class='" . htmlescape(implode(' ', $class)) . "'";
+            echo " class='" . implode(' ', $class) . "'";
         }
     }
 
+
     /**
-     * @param string|string[] $content
-     *
-     * @return void
-     *
-     * @psalm-taint-specialize (to report each unsafe usage as a distinct error)
-     * @psalm-taint-sink html $content (string will be added to HTML source)
-     */
+     * @param $content
+     **/
     public function setContent($content)
     {
         $this->content = $content;
     }
 
-    /**
-     * @return void
-     */
+
     public function displayContent()
     {
+
         if (is_array($this->content)) {
             foreach ($this->content as $content) {
                 if (is_string($content)) {
                     // Manage __RAND__ to be computed on display
-                    $content = str_replace('__RAND__', (string) mt_rand(), $content);
+                    $content = str_replace('__RAND__', mt_rand(), $content);
                     echo $content;
                 } elseif (isset($content['function'])) {
-                    $parameters = $content['parameters'] ?? [];
+                    if (isset($content['parameters'])) {
+                        $parameters = $content['parameters'];
+                    } else {
+                        $parameters = [];
+                    }
                     call_user_func_array($content['function'], $parameters);
                 }
             }
         } else {
             // Manage __RAND__ to be computed on display
-            $content = $this->content;
-            $content = str_replace('__RAND__', (string) mt_rand(), $content);
+            $content = $this->content ?? '';
+            $content = str_replace('__RAND__', mt_rand(), $content);
             echo $content;
         }
     }

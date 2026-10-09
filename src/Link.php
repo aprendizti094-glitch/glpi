@@ -33,64 +33,45 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-use Glpi\ContentTemplates\TemplateManager;
-use Glpi\DBAL\QueryExpression;
-use Glpi\Features\AssignableItem;
+use Glpi\Toolbox\Sanitizer;
 use Glpi\Toolbox\URL;
 
-use function Safe\preg_match;
-
-/**
- * External link class
- */
+/** Link Class
+ **/
 class Link extends CommonDBTM
 {
     // From CommonDBTM
     public $dohistory                   = true;
 
     public static $rightname = 'link';
-    /** @var string[] */
-    public static $tags      = ['LOGIN', 'ID', 'NAME', 'LOCATION', 'LOCATIONID', 'IP',
-        'MAC', 'NETWORK', 'DOMAIN', 'SERIAL', 'OTHERSERIAL',
-        'USER', 'GROUP', 'REALNAME', 'FIRSTNAME', 'MODEL',
+    public static $tags      = ['[LOGIN]', '[ID]', '[NAME]', '[LOCATION]', '[LOCATIONID]', '[IP]',
+        '[MAC]', '[NETWORK]', '[DOMAIN]', '[SERIAL]', '[OTHERSERIAL]',
+        '[USER]', '[GROUP]', '[REALNAME]', '[FIRSTNAME]', '[MODEL]',
     ];
+
 
     public static function getTypeName($nb = 0)
     {
         return _n('External link', 'External links', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['config', self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'setup';
-    }
 
     /**
      * For plugins, add a tag to the links tags
      *
-     * @param string  $tag class name
-     *
-     * @return void
-     */
+     * @param $tag    string    class name
+     **/
     public static function registerTag($tag)
     {
+
         if (!in_array($tag, self::$tags)) {
-            if (preg_match('/\[.+\]/', $tag)) {
-                Toolbox::deprecated('Links tags should now correspond to a valid Twig variable identifier.');
-                $tag = trim($tag, '[]');
-            }
             self::$tags[] = $tag;
         }
     }
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         if (self::canView()) {
             $nb = 0;
             if ($_SESSION['glpishow_count_on_tabs']) {
@@ -104,42 +85,47 @@ class Link extends CommonDBTM
                 $nb = countElementsInTable(
                     ['glpi_links_itemtypes','glpi_links'],
                     [
-                        'glpi_links_itemtypes.links_id'  => new QueryExpression(DBmysql::quoteName('glpi_links.id')),
+                        'glpi_links_itemtypes.links_id'  => new \QueryExpression(DBmysql::quoteName('glpi_links.id')),
                         'glpi_links_itemtypes.itemtype'  => $item->getType(),
                     ] + $entity_criteria
                 );
             }
-            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::getType());
+            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
         }
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if (!$item instanceof CommonDBTM) {
-            return false;
-        }
-        self::showAllLinksForItem($item, self::class);
+
+        self::showForItem($item);
         return true;
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('Link_Itemtype', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
+
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 Link_Itemtype::class,
             ]
         );
     }
+
 
     public function getEmpty()
     {
@@ -152,76 +138,62 @@ class Link extends CommonDBTM
         return true;
     }
 
-    public function getLinkedItemtypes(): array
-    {
-        global $DB;
-        return array_column(iterator_to_array($DB->request([
-            'SELECT' => ['itemtype'],
-            'FROM' => 'glpi_links_itemtypes',
-            'WHERE' => ['links_id' => $this->getID()],
-        ])), 'itemtype');
-    }
 
     /**
-     * Return tags completion for the monaco editor.
+     * Print the link form
      *
-     * @return array
-     * @phpstan-return array<int, array{name: string, type: string}>
-     */
-    private function getTagCompletions(): array
-    {
-        global $DB, $CFG_GLPI;
-
-        static $completions = null;
-
-        if ($completions === null) {
-            $tags = self::$tags;
-            $completions = [];
-            foreach ($tags as $tag) {
-                $completions[] = [
-                    'name' => $tag,
-                    'type' => 'Variable',
-                ];
-            }
-            if ($this->isNewItem()) {
-                $itemtypes = $CFG_GLPI['link_types'];
-            } else {
-                $itemtypes = $this->getLinkedItemtypes();
-            }
-            $itemtype_fields = [];
-            foreach ($itemtypes as $itemtype) {
-                if (!is_a($itemtype, CommonDBTM::class, true)) {
-                    continue;
-                }
-                $itemtype_fields[$itemtype] = array_diff(
-                    array_column($DB->listFields($itemtype::getTable()), 'Field'),
-                    $itemtype::$undisclosedFields
-                );
-            }
-            // Get all fields that exist for every itemtype
-            if (count($itemtype_fields) > 0) {
-                $common_fields = array_intersect(...array_values($itemtype_fields));
-
-                foreach ($common_fields as $field) {
-                    $completions[] = [
-                        'name' => "item.$field",
-                        'type' => 'Variable',
-                    ];
-                }
-            }
-        }
-        return $completions;
-    }
-
+     * @param $ID      integer ID of the item
+     * @param $options array
+     *     - target filename : where to go when done.
+     *
+     * @return void
+     **/
     public function showForm($ID, array $options = [])
     {
-        TemplateRenderer::getInstance()->display('pages/setup/externallink.html.twig', [
-            'item' => $this,
-            'tag_options' => $this->getTagCompletions(),
-            'params' => $options,
-        ]);
+
+        $this->initForm($ID, $options);
+        $this->showFormHeader($options);
+
+        echo "<tr class='tab_bg_1'><td height='23'>" . __('Valid tags') . "</td>";
+        echo "<td colspan='3'>";
+
+        $count = count(self::$tags);
+        $i     = 0;
+        foreach (self::$tags as $tag) {
+            echo $tag;
+            echo "&nbsp;";
+            $i++;
+            if (($i % 8 == 0) && ($count > 1)) {
+                echo "<br>";
+            }
+        }
+        echo "<br>" . __('or') . "<br>[FIELD:<i>" . __('field name in DB') . "</i>] (" . __('Example:') . " [FIELD:name], [FIELD:content], ...)";
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('Name') . "</td>";
+        echo "<td colspan='3'>";
+        echo Html::input('name', ['value' => $this->fields['name']]);
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('Link or filename') . "</td>";
+        echo "<td colspan='3'>";
+        echo Html::input('link', ['value' => $this->fields['link'], 'size' => 84]);
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('Open in a new window') . "</td><td>";
+        Dropdown::showYesNo('open_window', $this->fields['open_window']);
+        echo "</td><td colspan='2'>&nbsp;</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('File content') . "</td>";
+        echo "<td colspan='3'>";
+        echo "<textarea name='data' rows='10' cols='96'>" . $this->fields["data"] . "</textarea>";
+        echo "</td></tr>";
+
+        $this->showFormButtons($options);
+
         return true;
     }
+
 
     public function rawSearchOptions()
     {
@@ -234,7 +206,7 @@ class Link extends CommonDBTM
 
         $tab[] = [
             'id'                 => '1',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'name',
             'name'               => __('Name'),
             'datatype'           => 'itemlink',
@@ -243,7 +215,7 @@ class Link extends CommonDBTM
 
         $tab[] = [
             'id'                 => '2',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'id',
             'name'               => __('ID'),
             'massiveaction'      => false,
@@ -252,7 +224,7 @@ class Link extends CommonDBTM
 
         $tab[] = [
             'id'                 => '3',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'link',
             'name'               => __('Link or filename'),
             'datatype'           => 'string',
@@ -260,7 +232,7 @@ class Link extends CommonDBTM
 
         $tab[] = [
             'id'                 => '19',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_mod',
             'name'               => __('Last update'),
             'datatype'           => 'datetime',
@@ -269,7 +241,7 @@ class Link extends CommonDBTM
 
         $tab[] = [
             'id'                 => '121',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_creation',
             'name'               => __('Creation date'),
             'datatype'           => 'datetime',
@@ -288,14 +260,180 @@ class Link extends CommonDBTM
         return $tab;
     }
 
-    private static function getIPAndMACForItem(CommonDBTM $item, bool $get_ip = false, bool $get_mac = false): array
+
+    /**
+     * Generate link(s).
+     *
+     * @param string        $link       original string content
+     * @param CommonDBTM    $item       item used to make replacements
+     *
+     * @return array of link contents (may have several when item have several IP / MAC cases)
+     */
+    public static function generateLinkContents($link, CommonDBTM $item)
     {
-        global $DB;
+        $safe_url = func_num_args() === 3 ? func_get_arg(2) : true;
+
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
+        global $CFG_GLPI, $DB;
+
+        // Replace [FIELD:<field name>]
+        $matches = [];
+        if (preg_match_all('/\[FIELD:(\w+)\]/', $link, $matches)) {
+            foreach ($matches[1] as $key => $field) {
+                $item::unsetUndisclosedFields($item->fields);
+                if ($item->isField($field)) {
+                    $link = str_replace($matches[0][$key], $item->getField($field), $link);
+                }
+            }
+        }
+
+        if (strstr($link, "[ID]")) {
+            $link = str_replace("[ID]", $item->fields['id'], $link);
+        }
+        if (
+            strstr($link, "[LOGIN]")
+            && isset($_SESSION["glpiname"])
+        ) {
+            $link = str_replace("[LOGIN]", $_SESSION["glpiname"], $link);
+        }
+
+        if (strstr($link, "[NAME]")) {
+            $link = str_replace("[NAME]", $item->getName(), $link);
+        }
+        if (
+            strstr($link, "[SERIAL]")
+            && $item->isField('serial')
+        ) {
+            $link = str_replace("[SERIAL]", $item->getField('serial'), $link);
+        }
+        if (
+            strstr($link, "[MODEL]")
+            && ($model_class = $item->getModelClass()) !== null
+        ) {
+            $link = str_replace(
+                "[MODEL]",
+                Dropdown::getDropdownName($model_class::getTable(), $item->getField($model_class::getForeignKeyField())),
+                $link
+            );
+        }
+        if (
+            strstr($link, "[OTHERSERIAL]")
+            && $item->isField('otherserial')
+        ) {
+            $link = str_replace("[OTHERSERIAL]", $item->getField('otherserial'), $link);
+        }
+        if (
+            strstr($link, "[LOCATIONID]")
+            && $item->isField('locations_id')
+        ) {
+            $link = str_replace("[LOCATIONID]", $item->getField('locations_id'), $link);
+        }
+        if (
+            strstr($link, "[LOCATION]")
+            && $item->isField('locations_id')
+        ) {
+            $link = str_replace(
+                "[LOCATION]",
+                Dropdown::getDropdownName(
+                    "glpi_locations",
+                    $item->getField('locations_id')
+                ),
+                $link
+            );
+        }
+        if (
+            strstr($link, "[DOMAIN]")
+            && in_array($item->getType(), $CFG_GLPI['domain_types'], true)
+        ) {
+            $domain_table = Domain::getTable();
+            $domain_item_table = Domain_Item::getTable();
+            $iterator = $DB->request([
+                'SELECT'    => ['name'],
+                'FROM'      => $domain_table,
+                'LEFT JOIN' => [
+                    $domain_item_table => [
+                        'FKEY'   => [
+                            $domain_table        => 'id',
+                            $domain_item_table   => 'domains_id',
+                        ],
+                        'AND'    => ['itemtype' => $item->getType()],
+                    ],
+                ],
+                'WHERE'     => ['items_id' => $item->getID()],
+            ]);
+            if ($iterator->count()) {
+                $link = str_replace("[DOMAIN]", $iterator->current()['name'], $link);
+            }
+        }
+        if (
+            strstr($link, "[NETWORK]")
+            && $item->isField('networks_id')
+        ) {
+            $link = str_replace(
+                "[NETWORK]",
+                Dropdown::getDropdownName(
+                    "glpi_networks",
+                    $item->getField('networks_id')
+                ),
+                $link
+            );
+        }
+        if (
+            strstr($link, "[USER]")
+            && $item->isField('users_id')
+        ) {
+            $link = str_replace(
+                "[USER]",
+                Dropdown::getDropdownName(
+                    "glpi_users",
+                    $item->getField('users_id')
+                ),
+                $link
+            );
+        }
+        if (
+            strstr($link, "[GROUP]")
+            && $item->isField('groups_id')
+        ) {
+            $link = str_replace(
+                "[GROUP]",
+                Dropdown::getDropdownName(
+                    "glpi_groups",
+                    $item->getField('groups_id')
+                ),
+                $link
+            );
+        }
+        if (
+            strstr($link, "[REALNAME]")
+            && $item->isField('realname')
+        ) {
+            $link = str_replace("[REALNAME]", $item->getField('realname'), $link);
+        }
+        if (
+            strstr($link, "[FIRSTNAME]")
+            && $item->isField('firstname')
+        ) {
+            $link = str_replace("[FIRSTNAME]", $item->getField('firstname'), $link);
+        }
+
+        $replace_IP  = strstr($link, "[IP]");
+        $replace_MAC = strstr($link, "[MAC]");
+
+        if (!$replace_IP && !$replace_MAC) {
+            if ($safe_url) {
+                $link = URL::sanitizeURL($link) ?: '#';
+            }
+            return [$link];
+        }
+        // Return several links id several IP / MAC
 
         $ipmac = [];
-
-        if ($item::class === NetworkEquipment::class) {
-            if ($get_ip) {
+        if (get_class($item) == 'NetworkEquipment') {
+            if ($replace_IP) {
                 $iterator = $DB->request([
                     'SELECT' => [
                         'glpi_ipaddresses.id',
@@ -325,14 +463,16 @@ class Link extends CommonDBTM
                 }
             }
 
-            // If there is no entry, then, we must at least define the mac of the item ...
-            if ($get_mac && count($ipmac) === 0) {
-                $ipmac['mac0']['ip']    = '';
-                $ipmac['mac0']['mac']   = $item->getField('mac');
+            if ($replace_MAC) {
+                // If there is no entry, then, we must at least define the mac of the item ...
+                if (count($ipmac) == 0) {
+                    $ipmac['mac0']['ip']    = '';
+                    $ipmac['mac0']['mac']   = $item->getField('mac');
+                }
             }
         }
 
-        if ($get_ip) {
+        if ($replace_IP) {
             $iterator = $DB->request([
                 'SELECT' => [
                     'glpi_ipaddresses.id',
@@ -364,7 +504,7 @@ class Link extends CommonDBTM
                 ],
                 'WHERE'        => [
                     'glpi_networkports.items_id'  => $item->getID(),
-                    'glpi_networkports.itemtype'  => $item::class,
+                    'glpi_networkports.itemtype'  => $item->getType(),
                 ],
             ]);
             foreach ($iterator as $data2) {
@@ -373,7 +513,7 @@ class Link extends CommonDBTM
             }
         }
 
-        if ($get_mac) {
+        if ($replace_MAC) {
             $criteria = [
                 'SELECT' => [
                     'glpi_networkports.id',
@@ -382,12 +522,12 @@ class Link extends CommonDBTM
                 'FROM'   => 'glpi_networkports',
                 'WHERE'  => [
                     'glpi_networkports.items_id'  => $item->getID(),
-                    'glpi_networkports.itemtype'  => $item::class,
+                    'glpi_networkports.itemtype'  => $item->getType(),
                 ],
                 'GROUP' => 'glpi_networkports.mac',
             ];
 
-            if ($get_ip) {
+            if ($replace_IP) {
                 $criteria['LEFT JOIN'] = [
                     'glpi_networknames' => [
                         'ON' => [
@@ -410,239 +550,92 @@ class Link extends CommonDBTM
             }
         }
 
-        return $ipmac;
-    }
+        $links = [];
+        if (count($ipmac) > 0) {
+            foreach ($ipmac as $key => $val) {
+                $tmplink = $link;
+                $disp    = 1;
+                if (strstr($link, "[IP]")) {
+                    if (empty($val['ip'])) {
+                        $disp = 0;
+                    } else {
+                        $tmplink = str_replace("[IP]", $val['ip'], $tmplink);
+                    }
+                }
+                if (strstr($link, "[MAC]")) {
+                    if (empty($val['mac'])) {
+                        $disp = 0;
+                    } else {
+                        $tmplink = str_replace("[MAC]", $val['mac'], $tmplink);
+                    }
+                }
 
-    /**
-     * Generate link(s).
-     *
-     * @param string        $link           original string content
-     * @param CommonDBTM    $item           item used to make replacements
-     * @param bool          $safe_url       indicates whether URL should be sanitized or not
-     * @param array         $custom_vars    custom variables that will be passed to link template renderer
-     *
-     * @return array of link contents (may have several when item have several IP / MAC cases)
-     */
-    public static function generateLinkContents($link, CommonDBTM $item, bool $safe_url = true, array $custom_vars = [])
-    {
-        global $CFG_GLPI, $DB;
-
-        $vars = [
-            'ID' => $item->getID(),
-            'LOGIN' => $_SESSION["glpiname"] ?? '',
-            'NAME' => $item->getName(),
-            'SERIAL' => $item->isField('serial') ? $item->getField('serial') : '',
-            'OTHERSERIAL' => $item->isField('otherserial') ? $item->getField('otherserial') : '',
-            'LOCATIONID' => $item->isField('locations_id') ? $item->getField('locations_id') : '',
-            'DOMAIN' => '',
-            'NETWORK' => $item->isField('networks_id') ? Dropdown::getDropdownName('glpi_networks', $item->getField('networks_id')) : '',
-            'USER' => $item->isField('users_id') ? Dropdown::getDropdownName('glpi_users', $item->getField('users_id')) : '',
-            'REALNAME' => $item->isField('realname') ? $item->getField('realname') : '',
-            'FIRSTNAME' => $item->isField('firstname') ? $item->getField('firstname') : '',
-            'MODEL' => '',
-        ];
-
-        if (Toolbox::hasTrait($item::class, AssignableItem::class)) {
-            $group_names = array_map(static fn($group_id) => Dropdown::getDropdownName('glpi_groups', $group_id), $item->fields['groups_id']);
-            $vars['GROUPS'] = $group_names;
-            // GROUP - BC for < GLPI 11
-            $vars['GROUP'] = count($group_names) > 0 ? array_shift($group_names) : '';
-        } else {
-            $vars['GROUPS'] = [];
-            // GROUP - BC for < GLPI 11
-            $vars['GROUP'] = $item->isField('groups_id') ? Dropdown::getDropdownName('glpi_groups', $item->getField('groups_id')) : '';
-        }
-
-        $item_fields = $item->fields;
-        $item::unsetUndisclosedFields($item_fields);
-        if (count($item_fields)) {
-            foreach ($item_fields as $k => $v) {
-                $vars['item'][$k] = $v;
-            }
-        }
-
-        if (($model_class = $item->getModelClass()) !== null) {
-            $vars['MODEL'] = Dropdown::getDropdownName(
-                $model_class::getTable(),
-                $item->getField($model_class::getForeignKeyField())
-            );
-        }
-
-        $vars['LOCATION'] = $item->isField('locations_id')
-            ? Dropdown::getDropdownName('glpi_locations', $item->getField('locations_id')) : '';
-
-        if (in_array($item::class, $CFG_GLPI['domain_types'], true)) {
-            $domain_table = Domain::getTable();
-            $domain_item_table = Domain_Item::getTable();
-            $iterator = $DB->request([
-                'SELECT'    => ['name'],
-                'FROM'      => $domain_table,
-                'LEFT JOIN' => [
-                    $domain_item_table => [
-                        'FKEY'   => [
-                            $domain_table        => 'id',
-                            $domain_item_table   => 'domains_id',
-                        ],
-                    ],
-                ],
-                'WHERE'     => [
-                    'itemtype' => $item::class,
-                    'items_id' => $item->getID(),
-                ],
-            ]);
-            if ($iterator->count()) {
-                $vars['DOMAIN'] = $iterator->current()['name'];
-            }
-            $vars['DOMAINS'] = array_column(iterator_to_array($iterator), 'name');
-        }
-
-        $vars = array_merge($vars, $custom_vars);
-
-        // Render the common parts of the link (we will handle the IP and MAC later which could make several links)
-        // We will replace the IP and MAC by twig placeholders again to preserve them
-        $vars['IP'] = '{{ IP }}';
-        $vars['MAC'] = '{{ MAC }}';
-        $common_link = TemplateManager::render($link, $vars, expect_html: false);
-
-        $replace_IP  = strstr($common_link, "{{ IP }}");
-        $replace_MAC = strstr($common_link, "{{ MAC }}");
-
-        if ($replace_IP || $replace_MAC) {
-            $ipmac = self::getIPAndMACForItem($item, $replace_IP, $replace_MAC);
-
-            $links = [];
-            // If IP or MAC tags present but there is no info, no links will be generated
-            if (count($ipmac)) {
-                foreach ($ipmac as $key => $val) {
-                    $links[$key] = TemplateManager::render(
-                        $common_link,
-                        [
-                            'IP' => $val['ip'] ?? '',
-                            'MAC' => $val['mac'] ?? '',
-                        ],
-                        expect_html: false
-                    );
+                if ($disp) {
+                    if ($safe_url) {
+                        $tmplink = URL::sanitizeURL($tmplink) ?: '#';
+                    }
+                    $links[$key] = $tmplink;
                 }
             }
-        } else {
-            // IP and MAC not requested at all, so we only have one link
-            $links = [$common_link];
         }
 
+        if (count($links)) {
+            return $links;
+        }
         if ($safe_url) {
-            $links = array_map(static fn($l) => URL::sanitizeURL($l) ?: '#', $links);
+            $link = URL::sanitizeURL($link) ?: '#';
         }
-
-        return $links;
+        return [$link];
     }
 
+
     /**
-     * Show all external and manual links for an item
-     * @param CommonDBTM $item
-     * @param 'ManualLink'|'Link'|null $restrict_type Restrict to a specific type of link
-     * @return void
-     */
-    public static function showAllLinksForItem(CommonDBTM $item, ?string $restrict_type = null)
+     * Show Links for an item
+     *
+     * @param $item                     CommonDBTM object
+     * @param $withtemplate    integer  withtemplate param (default 0)
+     **/
+    public static function showForItem(CommonDBTM $item, $withtemplate = 0)
     {
+        /** @var \DBmysql $DB */
+        global $DB;
+
+        if (!self::canView()) {
+            return false;
+        }
+
         if ($item->isNewID($item->getID())) {
-            return;
+            return false;
         }
 
-        if ($item->can($item->getID(), UPDATE)) {
-            $buttons_params = [
-                'item' => $item,
-                'add_msg' => _x('button', 'Add'),
-                'configure_msg' => sprintf(__('Configure %s links'), $item::getTypeName(1)),
-                'show_add' => ManualLink::canCreate() && ($restrict_type === null || $restrict_type === ManualLink::class),
-                'show_configure' => self::canUpdate() && ($restrict_type === null || $restrict_type === self::class),
-            ];
+        $iterator = self::getLinksDataForItem($item);
 
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                <div class="firstbloc">
-                    {% if show_add %}
-                        <a class="btn btn-primary ms-1" href="{{ 'ManualLink'|itemtype_form_path ~ '?itemtype=' ~ item.getType() ~ '&items_id=' ~ item.fields[item.getIndexName()] }}">
-                            <i class="ti ti-link"></i>
-                            <span>{{ add_msg }}</span>
-                        </a>
-                    {% endif %}
-                    {% if show_configure %}
-                        <a class="btn btn-primary ms-1" href="{{ 'Link'|itemtype_search_path }}">
-                            <i class="ti ti-settings"></i>
-                            <span>{{ configure_msg }}</span>
-                        </a>
-                    {% endif %}
-                </div>
-TWIG, $buttons_params);
+        echo "<div class='spaced'><table class='tab_cadrehov'>";
+
+        echo "<tr class='tab_bg_2'>";
+        echo "<th>" . self::getTypeName(Session::getPluralNumber()) . "</th>";
+        echo "<th class='right'>";
+        if (self::canUpdate()) {
+            echo '<a class="btn btn-primary" href="' . self::getSearchURL() . '">';
+            echo '<i class="fas fa-cog"></i>&nbsp;';
+            echo __('Configure');
+            echo '</a>';
         }
-
-        $entries = [];
-
-        if (($restrict_type === null || $restrict_type === ManualLink::class) && ManualLink::canView()) {
-            $manuallink = new ManualLink();
-
-            $manual_links = ManualLink::getForItem($item);
-            foreach ($manual_links as $row) {
-                $manuallink->getFromResultSet($row);
-
-                $entry = [
-                    'itemtype' => ManualLink::class,
-                    'id' => $row['id'],
-                    'name' => $row['name'],
-                    'link' => ManualLink::getLinkHtml($row),
-                    'comment' => $row['comment'],
-                    'type' => _n('Item', 'Items', 1),
-                ];
-                $actions = '';
-
-                if ($manuallink->canUpdateItem()) {
-                    $actions .= '<a href="' . htmlescape(ManualLink::getFormURLWithID($row[$item->getIndexName()])) . '" title="' . _sx('button', 'Update') . '">';
-                    $actions .= '<i class="ti ti-edit"></i>';
-                    $actions .= '<span class="sr-only">' . _sx('button', 'Update') . '</span>';
-                    $actions .= '</a>';
-                }
-                $entry['actions'] = $actions;
-                $entries[] = $entry;
-            }
-        }
-
-        if (($restrict_type === null || $restrict_type === self::class) && self::canView()) {
-            $ext_links = self::getLinksDataForItem($item);
-            foreach ($ext_links as $data) {
+        echo "</th>";
+        echo "</tr>";
+        if (count($iterator)) {
+            foreach ($iterator as $data) {
                 $links = self::getAllLinksFor($item, $data);
 
                 foreach ($links as $link) {
-                    $entries[] = [
-                        'itemtype' => self::class,
-                        'id' => $data['id'],
-                        'name' => $link,
-                        'link' => $link,
-                        'type' => $item::getTypeName(Session::getPluralNumber()),
-                        'comment' => '',
-                    ];
+                    echo "<tr class='tab_bg_2'>";
+                    echo "<td colspan='2'>$link</td></tr>";
                 }
             }
+        } else {
+            echo "<tr class='tab_bg_2'><td>" . __('No link defined') . "</td></tr>";
         }
-
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'superheader' => '',
-            'columns' => [
-                'type' => __('Linked to'),
-                'link' => _n('Link', 'Links', 1),
-                'comment' => _n('Comment', 'Comments', 1),
-                'actions' => _n('Action', 'Actions', Session::getPluralNumber()),
-            ],
-            'formatters' => [
-                'link' => 'raw_html',
-                'actions' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => false,
-        ]);
+        echo "</table></div>";
     }
 
     /**
@@ -650,13 +643,12 @@ TWIG, $buttons_params);
      *
      * @since 0.85
      *
-     * @param CommonDBTM $item The item
-     * @param array{id: int, name: string, link: string, data: string, open_window: ?bool} $params
-     *
-     * @return array
-     */
-    public static function getAllLinksFor($item, $params)
+     * @param $item                        CommonDBTM object
+     * @param $params    array of params : must contain id / name / link / data
+     **/
+    public static function getAllLinksFor($item, $params = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $computedlinks = [];
@@ -682,17 +674,19 @@ TWIG, $buttons_params);
 
         if (empty($file)) {
             // Generate links
-            $links = $item->generateLinkContents($params['link'], $item, true);
+            $link_pattern = Sanitizer::unsanitize($params['link']); // generate links from raw pattern
+            $links = $item->generateLinkContents($link_pattern, $item, true);
             $i     = 1;
             foreach ($links as $key => $val) {
+                $val     = htmlspecialchars($val); // encode special chars as value was generated from a raw pattern
                 $name    = ($names[$key] ?? reset($names));
-                $newlink = '<a href="' . htmlescape($val) . '"';
+                $newlink = '<a href="' . $val . '"';
                 if ($params['open_window']) {
                     $newlink .= " target='_blank'";
                 }
                 $newlink          .= ">";
-                $linkname          = htmlescape(sprintf(__('%1$s #%2$s'), $name, $i));
-                $newlink          .= htmlescape(sprintf(__('%1$s: %2$s'), $linkname, $val));
+                $linkname          = sprintf(__('%1$s #%2$s'), $name, $i);
+                $newlink          .= sprintf(__('%1$s: %2$s'), $linkname, $val);
                 $newlink          .= "</a>";
                 $computedlinks[]   = $newlink;
                 $i++;
@@ -711,13 +705,13 @@ TWIG, $buttons_params);
                     // same name for all files, ex name = foo.txt
                     $file = reset($files);
                 }
-                $url             = $CFG_GLPI["root_doc"] . "/front/link.send.php?lID=" . $params['id']
-                                 . "&itemtype=" . $item::class
-                                 . "&id=" . $item->getID() . "&rank=$key";
-                $newlink         = '<a href="' . htmlescape($url) . '" target="_blank">';
-                $newlink        .= "<i class='fs-2 ti ti-link me-2'></i>";
-                $linkname        = htmlescape(sprintf(__('%1$s #%2$s'), $name, $i));
-                $newlink        .= htmlescape(sprintf(__('%1$s: %2$s'), $linkname, $val));
+                $url             = $CFG_GLPI["root_doc"] . "/front/link.send.php?lID=" . $params['id'] .
+                                 "&itemtype=" . $item->getType() .
+                                 "&id=" . $item->getID() . "&rank=$key";
+                $newlink         = '<a href="' . htmlspecialchars($url) . '" target="_blank">';
+                $newlink        .= "<i class='fa-lg fa-fw fas fa-link'></i>&nbsp;";
+                $linkname        = sprintf(__('%1$s #%2$s'), $name, $i);
+                $newlink        .= sprintf(__('%1$s: %2$s'), $linkname, $val);
                 $newlink        .= "</a>";
                 $computedlinks[] = $newlink;
                 $i++;
@@ -727,11 +721,6 @@ TWIG, $buttons_params);
         return $computedlinks;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     *
-     * @return array
-     */
     public static function rawSearchOptionsToAdd($itemtype = null)
     {
         $tab = [];
@@ -761,11 +750,6 @@ TWIG, $buttons_params);
         return $tab;
     }
 
-    /**
-     * @param CommonGLPI $item
-     *
-     * @return array|int|string
-     */
     public static function getEntityRestrictForItem(CommonGLPI $item)
     {
         if (!$item instanceof CommonDBTM) {
@@ -773,20 +757,16 @@ TWIG, $buttons_params);
         }
 
         $restrict = $item->getEntityID();
-        if ($item::class === User::class) {
+        if ($item->getType() == 'User') {
             $restrict = Profile_User::getEntitiesForUser($item->getID());
         }
 
         return $restrict;
     }
 
-    /**
-     * @param CommonDBTM $item
-     *
-     * @return DBmysqlIterator
-     */
     public static function getLinksDataForItem(CommonDBTM $item)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $restrict = self::getEntityRestrictForItem($item);
@@ -809,7 +789,7 @@ TWIG, $buttons_params);
                 ],
             ],
             'WHERE'        => [
-                'glpi_links_itemtypes.itemtype'  => $item::class,
+                'glpi_links_itemtypes.itemtype'  => $item->getType(),
             ] + getEntitiesRestrictCriteria('glpi_links', 'entities_id', $restrict, true),
             'ORDERBY'      => 'name',
         ]);
@@ -818,87 +798,5 @@ TWIG, $buttons_params);
     public static function getIcon()
     {
         return "ti ti-link";
-    }
-
-    public function prepareInputForAdd($input)
-    {
-        if (!$this->validateTemplateFields($input)) {
-            return false;
-        }
-
-        return parent::prepareInputForAdd($input);
-    }
-
-    public function prepareInputForUpdate($input)
-    {
-        if (!$this->validateTemplateFields($input)) {
-            return false;
-        }
-
-        return parent::prepareInputForUpdate($input);
-    }
-
-    /**
-     * Validate template fields.
-     *
-     * @param array $input
-     * @return bool
-     */
-    private function validateTemplateFields(array $input): bool
-    {
-        $err_msg = null;
-        if (
-            (isset($input['link']) && !TemplateManager::validate($input['link'], $err_msg))
-            || (isset($input['data']) && !TemplateManager::validate($input['data'], $err_msg))
-        ) {
-            if ($err_msg !== null) {
-                Session::addMessageAfterRedirect(htmlescape($err_msg), false, ERROR);
-            }
-            return false;
-        }
-
-        return true;
-    }
-
-    public function post_addItem()
-    {
-        parent::post_addItem();
-
-        if (isset($this->input['itemtypes'])) {
-            $link_itemtype = new Link_Itemtype();
-            foreach ($this->input['itemtypes'] as $itemtype) {
-                $link_itemtype->add([
-                    'links_id' => $this->getID(),
-                    'itemtype' => $itemtype,
-                ]);
-            }
-        }
-    }
-
-    public function post_updateItem($history = true)
-    {
-        global $DB;
-
-        parent::post_updateItem($history);
-        if (isset($this->input['itemtypes'])) {
-            $existing_itemtypes = iterator_to_array($DB->request([
-                'FROM' => 'glpi_links_itemtypes',
-                'WHERE' => ['links_id' => $this->getID()],
-            ]));
-            $link_itemtype = new Link_Itemtype();
-            foreach ($existing_itemtypes as $existing_itemtype) {
-                if (!in_array($existing_itemtype['itemtype'], $this->input['itemtypes'], true)) {
-                    $link_itemtype->delete(['id' => $existing_itemtype['id']]);
-                }
-            }
-            foreach ($this->input['itemtypes'] as $itemtype) {
-                if (!in_array($itemtype, array_column($existing_itemtypes, 'itemtype'), true)) {
-                    $link_itemtype->add([
-                        'links_id' => $this->getID(),
-                        'itemtype' => $itemtype,
-                    ]);
-                }
-            }
-        }
     }
 }

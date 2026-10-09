@@ -103,7 +103,7 @@ abstract class AbstractITILChildTemplate extends CommonDropdown
         $err_msg = null;
         if (!TemplateManager::validate($input['content'], $err_msg)) {
             Session::addMessageAfterRedirect(
-                htmlescape(sprintf('%s: %s', __('Content'), $err_msg)),
+                sprintf('%s: %s', __('Content'), $err_msg),
                 false,
                 ERROR
             );
@@ -128,13 +128,15 @@ abstract class AbstractITILChildTemplate extends CommonDropdown
         }
 
         $content = $this->fields['content'];
-        $content = DropdownTranslation::getTranslatedValue(
-            $this->getID(),
-            $this->getType(),
-            'content',
-            $_SESSION['glpilanguage'],
-            $content
-        );
+        if (DropdownTranslation::isDropdownTranslationActive()) {
+            $content = DropdownTranslation::getTranslatedValue(
+                $this->getID(),
+                $this->getType(),
+                'content',
+                $_SESSION['glpilanguage'],
+                $content
+            );
+        }
 
         $html = TemplateManager::renderContentForCommonITIL(
             $itil_item,

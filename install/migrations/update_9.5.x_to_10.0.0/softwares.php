@@ -33,17 +33,20 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 // CleanSoftwareCron cron task
-$migration->addCrontask(
+CronTask::register(
     'CleanSoftwareCron',
     'cleansoftware',
     MONTH_TIMESTAMP,
-    param: 1000,
-    options: [
-        'state' => 0, // CronTask::STATE_DISABLE
+    [
+        'state'         => 0,
+        'param'         => 1000,
+        'mode'          => 2,
+        'allowmode'     => 3,
         'logs_lifetime' => 300,
     ]
 );

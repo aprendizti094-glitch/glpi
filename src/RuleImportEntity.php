@@ -40,6 +40,7 @@ class RuleImportEntity extends Rule
 {
     // From Rule
     public static $rightname = 'rule_import';
+    public $can_sort  = true;
 
     public function getTitle()
     {
@@ -48,6 +49,7 @@ class RuleImportEntity extends Rule
 
     public function executeActions($output, $params, array $input = [])
     {
+
         if (count($this->actions)) {
             foreach ($this->actions as $action) {
                 switch ($action->fields["action_type"]) {
@@ -57,7 +59,7 @@ class RuleImportEntity extends Rule
 
                     case "regex_result":
                         //Assign entity using the regex's result
-                        if ($action->fields["field"] === "_affect_entity_by_tag") {
+                        if ($action->fields["field"] == "_affect_entity_by_tag") {
                             //Get the TAG from the regex's results
                             if (isset($this->regex_results[0])) {
                                 $res = RuleAction::getRegexResultById(
@@ -67,9 +69,9 @@ class RuleImportEntity extends Rule
                             } else {
                                 $res = $action->fields["value"];
                             }
-                            if ($res !== null) {
-                                // Get the entity associated with the TAG
-                                $target_entity = Entity::getEntityIDByTag($res);
+                            if ($res != null) {
+                                //Get the entity associated with the TAG
+                                $target_entity = Entity::getEntityIDByTag(addslashes($res));
                                 if ($target_entity != '') {
                                     $output["entities_id"] = $target_entity;
                                 }
@@ -82,8 +84,10 @@ class RuleImportEntity extends Rule
         return $output;
     }
 
+
     public function getCriterias()
     {
+
         return [
             'tag' => [
                 'field' => 'name',
@@ -115,7 +119,7 @@ class RuleImportEntity extends Rule
             ],
             'oscomment' => [
                 'field' => 'name',
-                'name' => sprintf('%s > %s', OperatingSystem::getTypeName(1), _n('Comment', 'Comments', Session::getPluralNumber())),
+                'name' => sprintf('%s > %s', OperatingSystem::getTypeName(1), __('Comments')),
             ],
             '_source' => [
                 'table' => '',
@@ -126,13 +130,23 @@ class RuleImportEntity extends Rule
         ];
     }
 
+
+    /**
+     * @since 0.84
+     *
+     * @see Rule::displayAdditionalRuleCondition()
+     **/
     public function displayAdditionalRuleCondition($condition, $criteria, $name, $value, $test = false)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var array $PLUGIN_HOOKS
+         */
         global $CFG_GLPI, $PLUGIN_HOOKS;
 
-        if (($criteria['field'] ?? '') === '_source') {
+        if ($criteria['field'] == '_source') {
             $tab = ['GLPI' => __('GLPI'), 'NATIVE_INVENTORY' => AutoUpdateSystem::getLabelFor(AutoUpdateSystem::NATIVE_INVENTORY)];
-            foreach (array_keys($PLUGIN_HOOKS[Hooks::IMPORT_ITEM] ?? []) as $plug) {
+            foreach ($PLUGIN_HOOKS[Hooks::IMPORT_ITEM] ?? [] as $plug => $types) {
                 if (!Plugin::isPluginActive($plug)) {
                     continue;
                 }
@@ -142,7 +156,7 @@ class RuleImportEntity extends Rule
             return true;
         }
 
-        if (($criteria['field'] ?? '') === 'itemtype') {
+        if ($criteria['field'] == 'itemtype') {
             Dropdown::showItemTypes($name, $CFG_GLPI['asset_types'], ['value' => $value]);
             return true;
         }
@@ -150,24 +164,31 @@ class RuleImportEntity extends Rule
         switch ($condition) {
             case Rule::PATTERN_FIND:
                 return false;
+
             case Rule::PATTERN_IS_EMPTY:
                 Dropdown::showYesNo($name, 0, 0);
                 return true;
-            case Rule::PATTERN_DOES_NOT_EXISTS:
+
             case Rule::PATTERN_EXISTS:
+                Dropdown::showYesNo($name, 1, 0);
+                return true;
+
+            case Rule::PATTERN_DOES_NOT_EXISTS:
                 Dropdown::showYesNo($name, 1, 0);
                 return true;
         }
         return false;
     }
 
+
     public function getAdditionalCriteriaDisplayPattern($ID, $condition, $pattern)
     {
+
         $crit = $this->getCriteria($ID);
-        if (count($crit) && $crit['field'] === '_source') {
-            if ($pattern === 'GLPI') {
+        if (count($crit) && $crit['field'] == '_source') {
+            if ($pattern == 'GLPI') {
                 $name = $pattern;
-            } elseif ($pattern === 'NATIVE_INVENTORY') {
+            } elseif ($pattern == 'NATIVE_INVENTORY') {
                 $name = AutoUpdateSystem::getLabelFor(AutoUpdateSystem::NATIVE_INVENTORY);
             } else {
                 $name = Plugin::getInfo($pattern, 'name');
@@ -180,8 +201,10 @@ class RuleImportEntity extends Rule
         return false;
     }
 
+
     public function process(&$input, &$output, &$params, &$options = [])
     {
+
         if ($this->validateCriterias($options)) {
             $this->regex_results     = [];
             $this->criterias_results = [];
@@ -193,8 +216,8 @@ class RuleImportEntity extends Rule
                 $output = $this->executeActions($output, $params);
                 if (!isset($output['pass_rule'])) {
                     $this->updateOnlyCriteria($options, $refoutput, $output);
-                    // Hook
-                    $hook_params["sub_type"] = static::class;
+                    //Hook
+                    $hook_params["sub_type"] = $this->getType();
                     $hook_params["ruleid"]   = $this->fields["id"];
                     $hook_params["input"]    = $input;
                     $hook_params["output"]   = $output;
@@ -204,6 +227,7 @@ class RuleImportEntity extends Rule
             }
         }
     }
+
 
     public function getActions()
     {
@@ -245,6 +269,7 @@ class RuleImportEntity extends Rule
 
         return $actions;
     }
+
 
     public static function getIcon()
     {

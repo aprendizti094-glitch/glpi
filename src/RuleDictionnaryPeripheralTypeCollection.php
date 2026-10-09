@@ -38,6 +38,9 @@ class RuleDictionnaryPeripheralTypeCollection extends RuleDictionnaryDropdownCol
     public $item_table  = "glpi_peripheraltypes";
     public $menu_option = "type.peripheral";
 
+    /**
+     * @see RuleCollection::getTitle()
+     **/
     public function getTitle()
     {
         return __('Dictionary of device types');

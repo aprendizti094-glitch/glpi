@@ -33,14 +33,17 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
+$migration->displayMessage("Adding recurrent changes");
+
 $default_charset = DBConnection::getDefaultCharset();
 $default_collation = DBConnection::getDefaultCollation();
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
 
-$DB->update(
+$DB->updateOrDie(
     'glpi_crontasks',
     [
         'itemtype' => 'CommonITILRecurrentCron',
@@ -49,12 +52,13 @@ $DB->update(
     [
         'itemtype' => 'TicketRecurrent',
         'name'     => 'ticketrecurrent',
-    ]
+    ],
+    "CommonITILReccurent crontask"
 );
 
 $recurrent_change_table = 'glpi_recurrentchanges';
 if (!$DB->tableExists($recurrent_change_table)) {
-    $DB->doQuery("CREATE TABLE `$recurrent_change_table` (
+    $DB->doQueryOrDie("CREATE TABLE `$recurrent_change_table` (
          `id` int {$default_key_sign} NOT NULL AUTO_INCREMENT,
          `name` varchar(255) DEFAULT NULL,
          `comment` text,

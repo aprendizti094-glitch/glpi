@@ -32,9 +32,6 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\preg_match;
-use function Safe\scandir;
-
 /**
  * Update from 10.0.24 to 10.0.25
  *
@@ -43,8 +40,8 @@ use function Safe\scandir;
 function update10024to10025()
 {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
     global $DB, $migration;
 
@@ -53,6 +50,8 @@ function update10024to10025()
     $DELFROMDISPLAYPREF = [];
     $update_dir = __DIR__ . '/update_10.0.24_to_10.0.25/';
 
+    //TRANS: %s is the number of new version
+    $migration->displayTitle(sprintf(__('Update to %s'), '10.0.25'));
     $migration->setVersion('10.0.25');
 
     $update_scripts = scandir($update_dir);

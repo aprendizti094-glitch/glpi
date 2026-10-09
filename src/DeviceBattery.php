@@ -42,6 +42,7 @@ class DeviceBattery extends CommonDevice
         return _n('Battery', 'Batteries', $nb);
     }
 
+
     public function getAdditionalFields()
     {
         return array_merge(
@@ -70,13 +71,14 @@ class DeviceBattery extends CommonDevice
         );
     }
 
+
     public function rawSearchOptions()
     {
         $tab = parent::rawSearchOptions();
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'capacity',
             'name'               => __('Capacity'),
             'datatype'           => 'integer',
@@ -84,7 +86,7 @@ class DeviceBattery extends CommonDevice
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'voltage',
             'name'               => __('Voltage'),
             'datatype'           => 'integer',
@@ -96,49 +98,6 @@ class DeviceBattery extends CommonDevice
             'field'              => 'name',
             'name'               => _n('Type', 'Types', 1),
             'datatype'           => 'dropdown',
-        ];
-
-        return $tab;
-    }
-
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param mixed[] $main_joinparams
-     * @return mixed[]
-     */
-    public static function rawSearchOptionsToAdd($itemtype, $main_joinparams)
-    {
-        $tab = [];
-
-        $tab[] = [
-            'id'            => '1340',
-            'table'         => 'glpi_devicebatteries',
-            'field'         => 'capacity',
-            'name'          => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Design capacity')),
-            'forcegroupby'  => true,
-            'usehaving'     => true,
-            'massiveaction' => false,
-            'datatype'      => 'integer',
-            'unit'          => __('mWh'),
-            'joinparams'    => [
-                'beforejoin' => [
-                    'table'      => 'glpi_items_devicebatteries',
-                    'joinparams' => $main_joinparams,
-                ],
-            ],
-        ];
-
-        $tab[] = [
-            'id'            => '1341',
-            'table'         => 'glpi_items_devicebatteries',
-            'field'         => 'real_capacity',
-            'name'          => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Real capacity')),
-            'forcegroupby'  => true,
-            'usehaving'     => true,
-            'massiveaction' => false,
-            'datatype'      => 'integer',
-            'unit'          => __('mWh'),
-            'joinparams'    => $main_joinparams,
         ];
 
         return $tab;
@@ -158,10 +117,10 @@ class DeviceBattery extends CommonDevice
             return $father;
         }
 
-        Manufacturer::getHTMLTableHeader(self::class, $base, $super, $father, $options);
-        $base->addHeader('devicebattery_type', _sn('Type', 'Types', 1), $super, $father);
-        $base->addHeader('voltage', sprintf(__s('%1$s (%2$s)'), __s('Voltage'), __s('mV')), $super, $father);
-        $base->addHeader('capacity', sprintf(__s('%1$s (%2$s)'), __s('Capacity'), __s('mWh')), $super, $father);
+        Manufacturer::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
+        $base->addHeader('devicebattery_type', _n('Type', 'Types', 1), $super, $father);
+        $base->addHeader('voltage', sprintf('%1$s (%2$s)', __('Voltage'), __('mV')), $super, $father);
+        $base->addHeader('capacity', sprintf('%1$s (%2$s)', __('Capacity'), __('mWh')), $super, $father);
     }
 
     public function getHTMLTableCellForItem(
@@ -170,6 +129,7 @@ class DeviceBattery extends CommonDevice
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
+
         $column = parent::getHTMLTableCellForItem($row, $item, $father, $options);
 
         if ($column == $father) {
@@ -181,7 +141,10 @@ class DeviceBattery extends CommonDevice
         if ($this->fields["devicebatterytypes_id"]) {
             $row->addCell(
                 $row->getHeaderByName('devicebattery_type'),
-                htmlescape(Dropdown::getDropdownName("glpi_devicebatterytypes", $this->fields["devicebatterytypes_id"])),
+                Dropdown::getDropdownName(
+                    "glpi_devicebatterytypes",
+                    $this->fields["devicebatterytypes_id"]
+                ),
                 $father
             );
         }
@@ -189,7 +152,7 @@ class DeviceBattery extends CommonDevice
         if ($this->fields["voltage"]) {
             $row->addCell(
                 $row->getHeaderByName('voltage'),
-                htmlescape($this->fields['voltage']),
+                $this->fields['voltage'],
                 $father
             );
         }
@@ -197,15 +160,16 @@ class DeviceBattery extends CommonDevice
         if ($this->fields["capacity"]) {
             $row->addCell(
                 $row->getHeaderByName('capacity'),
-                htmlescape($this->fields['capacity']),
+                $this->fields['capacity'],
                 $father
             );
         }
-        return null;
     }
+
 
     public function getImportCriteria()
     {
+
         return [
             'designation'           => 'equal',
             'devicebatterytypes_id' => 'equal',
@@ -214,6 +178,7 @@ class DeviceBattery extends CommonDevice
             'voltage'               => 'delta:10',
         ];
     }
+
 
     public static function getIcon()
     {

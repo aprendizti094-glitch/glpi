@@ -33,10 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
+
+include('../inc/includes.php');
 
 $inst = new Item_SoftwareVersion();
 
@@ -65,14 +64,13 @@ if (isset($_POST['add'])) {
     } else {
         $message = null;
         if (!isset($_POST['softwares_id']) || !$_POST['softwares_id']) {
-            $message = __s('Please select a software!');
+            $message = __('Please select a software!');
         } elseif (!isset($_POST['softwareversions_id']) || !$_POST['softwareversions_id']) {
-            $message = __s('Please select a version!');
+            $message = __('Please select a version!');
         }
 
         Session::addMessageAfterRedirect($message, true, ERROR);
     }
     Html::back();
 }
-
-throw new BadRequestHttpException();
+Html::displayErrorAndDie('Lost');

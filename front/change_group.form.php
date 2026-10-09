@@ -33,19 +33,23 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
-
 /**
  * @since 0.85
  */
 
+use Glpi\Event;
+
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+if (!defined('GLPI_ROOT')) {
+    include('../inc/includes.php');
+}
 
 $link = new Change_Group();
 $item = new Change();
+
+Session::checkLoginUser();
 
 if (isset($_POST['delete'])) {
     $link->check($_POST['id'], DELETE);
@@ -63,7 +67,7 @@ if (isset($_POST['delete'])) {
         Html::redirect(Change::getFormURLWithID($link->fields['changes_id']));
     }
     Session::addMessageAfterRedirect(
-        __s('You have been redirected because you no longer have access to this item'),
+        __('You have been redirected because you no longer have access to this item'),
         true,
         ERROR
     );
@@ -71,4 +75,4 @@ if (isset($_POST['delete'])) {
     Html::redirect($CFG_GLPI["root_doc"] . "/front/change.php");
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie('Lost');

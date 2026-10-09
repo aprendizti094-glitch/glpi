@@ -33,13 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\Http\NotFoundHttpException;
+use Glpi\Http\Response;
 use Glpi\RichText\RichText;
 
 /*
  * Ajax tooltip endpoint for CommonITILObjects
  */
+
+include('../inc/includes.php');
+Session::checkLoginUser();
 
 // Read parameters
 $itemtype = $_GET['itemtype'] ?? null;
@@ -47,12 +49,12 @@ $items_id = $_GET['items_id'] ?? null;
 
 // Validate mandatory parameters
 if (is_null($itemtype) || is_null($items_id)) {
-    throw new BadRequestHttpException("Missing required parameters");
+    Response::sendError(400, "Missing required parameters");
 }
 
 // Validate itemtype (only CommonITILObject allowed for now)
 if (!is_a($itemtype, CommonITILObject::class, true)) {
-    throw new BadRequestHttpException("Invalid itemtype");
+    Response::sendError(400, "Invalid itemtype");
 }
 $item = new $itemtype();
 
@@ -62,11 +64,11 @@ if (
     || !$item->canViewItem()
     || !$item->isField('content')
 ) {
-    throw new NotFoundHttpException("Item not found");
+    Response::sendError(404, "Item not found");
 }
 
 // Display content
-header('Content-type: text/html; charset=UTF-8');
+header('Content-type: text/html');
 echo RichText::getEnhancedHtml($item->fields['content'], [
     'images_gallery' => false, // Don't show photoswipe gallery
 ]);

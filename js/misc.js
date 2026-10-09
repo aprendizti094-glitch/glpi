@@ -31,7 +31,6 @@
  * ---------------------------------------------------------------------
  */
 
-/* eslint no-var: 0 */
 /* global glpi_alert, initMessagesAfterRedirectToasts */
 
 /*
@@ -41,7 +40,7 @@ window.old_alert = window.alert;
 window.alert = function(message, caption) {
     // Don't apply methods on undefined objects... ;-) #3866
     if(typeof message == 'string') {
-        message = message.replaceAll("\n", '<br>');
+        message = message.replace("\n", '<br>');
     }
     caption = caption || _n('Information', 'Information', 1);
 
@@ -55,7 +54,7 @@ window.displayAjaxMessageAfterRedirect = function() {
     var display_container = ($('#messages_after_redirect').length  == 0);
 
     $.ajax({
-        url: `${CFG_GLPI.root_doc}/ajax/displayMessageAfterRedirect.php`,
+        url: CFG_GLPI.root_doc+ '/ajax/displayMessageAfterRedirect.php',
         data: {
             'display_container': display_container
         },

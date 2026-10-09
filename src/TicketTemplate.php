@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
 /**
  * Ticket Template class
  *
@@ -42,23 +40,14 @@ use Glpi\Features\Clonable;
  **/
 class TicketTemplate extends ITILTemplate
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
-    #[Override]
-    public static function getPredefinedFields(): ITILTemplatePredefinedField
-    {
-        return new TicketTemplatePredefinedField();
-    }
+    public $second_level_menu         = "ticket";
+    public $third_level_menu          = "TicketTemplate";
 
     public static function getTypeName($nb = 0)
     {
         return _n('Ticket template', 'Ticket templates', $nb);
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['helpdesk', Ticket::class, self::class];
     }
 
     public function getCloneRelations(): array
@@ -67,7 +56,6 @@ class TicketTemplate extends ITILTemplate
             TicketTemplateHiddenField::class,
             TicketTemplateMandatoryField::class,
             TicketTemplatePredefinedField::class,
-            TicketTemplateReadonlyField::class,
         ];
     }
 
@@ -137,16 +125,7 @@ class TicketTemplate extends ITILTemplate
                 'name',
                 'glpi_contracts'
             )   => '_contracts_id',
-            $itil_object->getSearchOptionIDByField(
-                'field',
-                'type',
-                'glpi_tickets'
-            )   => 'type',
-            $itil_object->getSearchOptionIDByField(
-                'field',
-                'externalid',
-                'glpi_tickets'
-            )   => 'externalid',
+
         ];
 
         if ($withtypeandcategory) {
@@ -158,5 +137,41 @@ class TicketTemplate extends ITILTemplate
         }
 
         return $tab;
+    }
+
+    public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
+    {
+        if ($item instanceof ITILTemplate) {
+            switch ($tabnum) {
+                case 1:
+                    $item->showCentralPreview($item);
+                    return true;
+
+                case 2:
+                    static::showHelpdeskPreview($item);
+                    return true;
+            }
+        }
+        return false;
+    }
+
+
+    /**
+     * Print preview for Ticket template
+     *
+     * @param $tt ITILTemplate object
+     *
+     * @return void
+     **/
+    public static function showHelpdeskPreview(ITILTemplate $tt)
+    {
+
+        if (!$tt->getID()) {
+            return false;
+        }
+        if ($tt->getFromDBWithData($tt->getID())) {
+            $ticket = new Ticket();
+            $ticket->showFormHelpdesk(Session::getLoginUserID(), $tt->getID());
+        }
     }
 }

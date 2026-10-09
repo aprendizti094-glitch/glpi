@@ -33,19 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\Environment;
-use Glpi\Dashboard\Dashboard;
-use Glpi\Event;
-use Glpi\Form\AnswersSet;
-use Glpi\Form\Form;
 use Glpi\Inventory\Conf;
-use Glpi\Inventory\Inventory;
-use Glpi\Marketplace\Controller;
-use Glpi\RichText\UserMention;
 use Glpi\Socket;
-
-use function Safe\ini_get;
-use function Safe\json_encode;
+use Glpi\Toolbox\Sanitizer;
 
 // Use anonymous class so we can have constants that define special values without polluting the global table
 // and adding unnecessary variables to IDE autocomplete data that may result in errors
@@ -76,25 +66,9 @@ $empty_data_builder = new class {
     /** @var int Value indicating no rights */
     public const RIGHT_NONE           = 0;
 
-    // We want to create one entity and user per worker thread.
-    // This cover up to 16 concurent threads, it should be quite enough.
-    public const PLAYWRIGHT_MAX_WORKERS = 16;
-
-    /**
-     * @return array<string,array<string,mixed>>
-     */
     public function getEmptyData(): array
     {
         $tables = [];
-
-        // API need to be enabled to ease e2e testing
-        $env = Environment::get();
-        $add_playwright_data = $env->shouldAddExtraPlaywrightDataDuringInstallation();
-        $add_cypress_data = $env->shouldAddExtraCypressDataDuringInstallation();
-
-        $add_e2e_data = $env->shouldAddExtraE2EDataDuringInstallation();
-        $enable_api = $add_e2e_data ? "1" : "0";
-        $enable_api_login_credentials = $add_e2e_data ? "1" : "0";
 
         $tables['glpi_apiclients'] = [
             [
@@ -108,20 +82,6 @@ $empty_data_builder = new class {
                 'ipv6' => '::1',
             ],
         ];
-
-        if ($add_playwright_data) {
-            // White list docker internal host
-            $tables['glpi_apiclients'][] = [
-                'id' => 2,
-                'entities_id' => 0,
-                'is_recursive' => 1,
-                'name' => 'full access from docker networks',
-                'is_active' => 1,
-                'ipv4_range_start' => "2885681153", //value from MySQL INET_ATON('172.0.0.1')
-                'ipv4_range_end' => "2902458367", //value from MySQL INET_ATON('172.255.255.255')
-                'ipv6' => '::1',
-            ];
-        }
 
         foreach (Blacklist::getDefaults() as $type => $values) {
             foreach ($values as $value) {
@@ -169,10 +129,6 @@ $empty_data_builder = new class {
             'notifications_mailing' => '0',
             'admin_email' => 'admsys@localhost',
             'admin_email_name' => '',
-            'admin_email_noreply' => '',
-            'admin_email_noreply_name' => '',
-            'admin_reply' => '',
-            'admin_reply_name' => '',
             'from_email' => '',
             'from_email_name' => '',
             'noreply_email' => '',
@@ -200,11 +156,10 @@ $empty_data_builder = new class {
             'planning_end' => '20:00:00',
             'utf8_conv' => '1',
             'use_public_faq' => '0',
-            'allow_unauthenticated_uploads' => '0',
-            'url_base' => 'http://localhost',
+            'url_base' => 'http://localhost/glpi',
             'show_link_in_mail' => '0',
             'text_login' => '',
-            'found_new_version' => '',
+            'founded_new_version' => '',
             'dropdown_max' => '100',
             'ajax_wildcard' => '*',
             'ajax_limit_count' => '10',
@@ -225,7 +180,6 @@ $empty_data_builder = new class {
             'proxy_name' => '',
             'proxy_port' => '8080',
             'proxy_user' => '',
-            'proxy_exclusions' => '',
             'add_followup_on_update_ticket' => '1',
             'keep_tickets_on_delete' => '0',
             'time_step' => '5',
@@ -239,6 +193,16 @@ $empty_data_builder = new class {
             'printers_management_restrict' => Config::NO_MANAGEMENT,
             'use_log_in_files' => '1',
             'time_offset' => '0',
+            'is_contact_autoupdate' => '1',
+            'is_user_autoupdate' => '1',
+            'is_group_autoupdate' => '1',
+            'is_location_autoupdate' => '1',
+            'state_autoupdate_mode' => '0',
+            'is_contact_autoclean' => '0',
+            'is_user_autoclean' => '0',
+            'is_group_autoclean' => '0',
+            'is_location_autoclean' => '0',
+            'state_autoclean_mode' => '0',
             'use_flat_dropdowntree' => '0',
             'use_flat_dropdowntree_on_search_result' => '1',
             'use_autoname_by_entity' => '1',
@@ -258,20 +222,15 @@ $empty_data_builder = new class {
             'priority_matrix' => '{"1":{"1":1,"2":1,"3":2,"4":2,"5":2},"2":{"1":1,"2":2,"3":2,"4":3,"5":3},"3":{"1":2,"2":2,"3":3,"4":4,"5":4},"4":{"1":2,"2":3,"3":4,"4":4,"5":5},"5":{"1":2,"2":3,"3":4,"4":5,"5":5}}',
             'urgency_mask' => '62',
             'impact_mask' => '62',
-            'user_deleted_ldap_user' => '0',
-            'user_deleted_ldap_groups' => '0',
-            'user_deleted_ldap_authorizations' => '0',
+            'user_deleted_ldap' => '0',
             'user_restored_ldap' => '0',
             'auto_create_infocoms' => '0',
             'use_slave_for_search' => '0',
             'proxy_passwd' => '',
             'smtp_passwd' => '',
-            // Avoid counters for e2e tests to improve performances.
-            'show_count_on_tabs' => $add_playwright_data ? '0' : '1',
+            'show_count_on_tabs' => '1',
             'refresh_views' => '0',
             'set_default_tech' => '1',
-            'set_followup_tech' => '0',
-            'set_solution_tech' => '0',
             'allow_search_view' => '2',
             'allow_search_all' => '0',
             'allow_search_global' => '1',
@@ -308,18 +267,21 @@ $empty_data_builder = new class {
             'registration_number_ssofield' => '',
             'ssovariables_id' => '0',
             'ssologout_url' => '',
+            'translate_kb' => '0',
+            'translate_dropdowns' => '0',
+            'translate_reminders' => '0',
             'pdffont' => 'dejavusans',
             'keep_devices_when_purging_item' => '0',
             'maintenance_mode' => '0',
             'maintenance_text' => '',
             'attach_ticket_documents_to_mail' => '0',
-            'backcreated' => '1',
             'attach_documents_to_notifications_for_anonymous' => '0',
+            'backcreated' => '0',
             'task_state' => '1',
-            'planned_task_state' => '1',
             'palette' => 'auror',
             'page_layout' => 'vertical',
             'fold_menu' => '0',
+            'fold_search' => '0',
             'savedsearches_pinned' => '0',
             'timeline_order' => 'natural',
             'itil_layout' => '',
@@ -333,10 +295,10 @@ $empty_data_builder = new class {
             'highcontrast_css' => '0',
             'default_central_tab' => '0',
             'smtp_check_certificate' => '1',
-            'enable_api' => $enable_api,
-            'enable_hlapi' => $enable_api,
-            'enable_api_login_credentials' => $enable_api_login_credentials,
+            'enable_api' => '0',
+            'enable_api_login_credentials' => '0',
             'enable_api_login_external_token' => '1',
+            'url_base_api' => 'http://localhost/glpi/api',
             'login_remember_time' => '604800',
             'login_remember_default' => '1',
             'use_notifications' => '0',
@@ -344,43 +306,41 @@ $empty_data_builder = new class {
             'notifications_ajax_check_interval' => '5',
             'notifications_ajax_sound' => null,
             'notifications_ajax_icon_url' => '/pics/glpi.png',
-            'notifications_ajax_expiration_delay' => '7',
             'dbversion' => 'FILLED AT INSTALL',
             'smtp_max_retries' => '5',
             'smtp_sender' => null,
             'instance_uuid' => null,
             'registration_uuid' => null,
             'smtp_retry_time' => '5',
-            'purge_all' => '0',
-            'purge_refusedequipment' => '1',
-            'purge_plugins' => '0',
-            'purge_user_auth_changes' => '12',
-            'purge_datemod' => '12',
-            'purge_comments' => '0',
-            'purge_updateitem' => '0',
-            'purge_restoreitem' => '0',
-            'purge_deleteitem' => '0',
-            'purge_createitem' => '0',
-            'purge_deleterelation' => '0',
             'purge_addrelation' => '0',
-            'purge_userdeletedfromldap' => '1',
-            'purge_disconnectdevice' => '6',
-            'purge_connectdevice' => '6',
-            'purge_deletedevice' => '6',
-            'purge_updatedevice' => '6',
-            'purge_adddevice' => '6',
-            'purge_group_user' => '12',
-            'purge_profile_user' => '12',
+            'purge_deleterelation' => '0',
+            'purge_createitem' => '0',
+            'purge_deleteitem' => '0',
+            'purge_restoreitem' => '0',
+            'purge_updateitem' => '0',
+            'purge_item_software_install' => '0',
+            'purge_software_item_install' => '0',
+            'purge_software_version_install' => '0',
             'purge_infocom_creation' => '0',
-            'purge_software_version_install' => '3',
-            'purge_software_item_install' => '3',
-            'purge_item_software_install' => '3',
+            'purge_profile_user' => '0',
+            'purge_group_user' => '0',
+            'purge_adddevice' => '0',
+            'purge_updatedevice' => '0',
+            'purge_deletedevice' => '0',
+            'purge_connectdevice' => '0',
+            'purge_disconnectdevice' => '0',
+            'purge_userdeletedfromldap' => '0',
+            'purge_comments' => '0',
+            'purge_datemod' => '0',
+            'purge_all' => '0',
+            'purge_user_auth_changes' => '0',
+            'purge_plugins' => '0',
+            'purge_refusedequipment' => '0',
             'display_login_source' => '1',
             'devices_in_menu' => '["Item_DeviceSimcard"]',
             'password_expiration_delay' => '-1',
             'password_expiration_notice' => '-1',
             'password_expiration_lock_delay' => '-1',
-            'password_init_token_delay' => '86400',
             'default_dashboard_central' => 'central',
             'default_dashboard_assets' => 'assets',
             'default_dashboard_helpdesk' => 'assistance',
@@ -391,31 +351,11 @@ $empty_data_builder = new class {
             'planning_work_days' => exportArrayToDB([0, 1, 2, 3, 4, 5, 6]),
             'system_user' => self::USER_SYSTEM,
             'support_legacy_data' => 0, // New installation should not support legacy data
-            'toast_location' => 'bottom-right',
             'initialized_rules_collections' => '[]',
             'timeline_action_btn_layout' => 0,
             'timeline_date_format' => 0,
             'are_apiclients_tokens_encrypted' => 1,
             'are_users_tokens_encrypted' => 1,
-            '2fa_enforced' => 0,
-            '2fa_grace_date_start' => null,
-            '2fa_grace_days' => 0,
-            '2fa_suffix' => '',
-            'is_notif_enable_default' => 1,
-            'show_search_form' => 0,
-            'search_pagination_on_top' => 0,
-            'is_demo_dashboards' => 1, // Not configurable by users except to disable via a button on the dashboards. Switches dashboard data provider to demo data when enabled.
-            'projecttask_unstarted_states_id' => 0,
-            'projecttask_inprogress_states_id' => 0,
-            'projecttask_completed_states_id' => 0,
-            'non_reusable_passwords_count' => 1,
-            'plugins_execution_mode' => Plugin::EXECUTION_MODE_ON,
-            'glpinetwork_registration_key' => null,
-            'impact_assets_list' => '[]',
-            'timezone' => '0',
-            'glpi_11_form_migration' => 0,
-            'glpi_11_assets_migration' => 0,
-            'must_unsanitize_db_data' => 0,
         ];
 
         $tables['glpi_configs'] = [];
@@ -427,7 +367,7 @@ $empty_data_builder = new class {
             ];
         }
 
-        foreach (Conf::getDefaults() as $name => $value) {
+        foreach (\Glpi\Inventory\Conf::getDefaults() as $name => $value) {
             $tables['glpi_configs'][] = [
                 'context' => 'inventory',
                 'name' => $name,
@@ -440,422 +380,352 @@ $empty_data_builder = new class {
                 'id' => 2,
                 'itemtype' => 'CartridgeItem',
                 'name' => 'cartridge',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => 10,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 3,
                 'itemtype' => 'ConsumableItem',
                 'name' => 'consumable',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => 10,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 4,
                 'itemtype' => 'SoftwareLicense',
                 'name' => 'software',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 5,
                 'itemtype' => 'Contract',
                 'name' => 'contract',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 6,
                 'itemtype' => 'Infocom',
                 'name' => 'infocom',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 7,
                 'itemtype' => 'CronTask',
                 'name' => 'logs',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => '30',
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 9,
                 'itemtype' => 'MailCollector',
                 'name' => 'mailgate',
-                'frequency' => 10 * MINUTE_TIMESTAMP,
+                'frequency' => '600',
                 'param' => '10',
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 10,
                 'itemtype' => 'DBconnection',
                 'name' => 'checkdbreplicate',
-                'frequency' => 5 * MINUTE_TIMESTAMP,
+                'frequency' => '300',
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 11,
                 'itemtype' => 'CronTask',
                 'name' => 'checkupdate',
-                'frequency' => WEEK_TIMESTAMP,
+                'frequency' => '604800',
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 12,
                 'itemtype' => 'CronTask',
                 'name' => 'session',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => '86400',
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 13,
                 'itemtype' => 'CronTask',
                 'name' => 'graph',
-                'frequency' => HOUR_TIMESTAMP,
+                'frequency' => 3600,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 14,
                 'itemtype' => 'ReservationItem',
                 'name' => 'reservation',
-                'frequency' => HOUR_TIMESTAMP,
+                'frequency' => 3600,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 15,
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'name' => 'closeticket',
-                'frequency' => 12 * HOUR_TIMESTAMP,
+                'frequency' => 43200,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 16,
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'name' => 'alertnotclosed',
-                'frequency' => 12 * HOUR_TIMESTAMP,
+                'frequency' => 43200,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 17,
                 'itemtype' => 'SlaLevel_Ticket',
                 'name' => 'slaticket',
-                'frequency' => 5 * MINUTE_TIMESTAMP,
+                'frequency' => 300,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 18,
-                'itemtype' => Ticket::class,
-                'name' => 'createinquestticket',
-                'frequency' => DAY_TIMESTAMP,
+                'itemtype' => 'Ticket',
+                'name' => 'createinquest',
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 19,
                 'itemtype' => 'CronTask',
                 'name' => 'watcher',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 20,
                 'itemtype' => 'CommonITILRecurrentCron',
                 'name' => 'RecurrentItems',
-                'frequency' => HOUR_TIMESTAMP,
+                'frequency' => 3600,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 21,
                 'itemtype' => 'PlanningRecall',
                 'name' => 'planningrecall',
-                'frequency' => 5 * MINUTE_TIMESTAMP,
+                'frequency' => 300,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 22,
                 'itemtype' => 'QueuedNotification',
                 'name' => 'queuednotification',
-                'frequency' => MINUTE_TIMESTAMP,
+                'frequency' => 60,
                 'param' => 50,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 23,
                 'itemtype' => 'QueuedNotification',
                 'name' => 'queuednotificationclean',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => 30,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 24,
                 'itemtype' => 'CronTask',
                 'name' => 'temp',
-                'frequency' => HOUR_TIMESTAMP,
+                'frequency' => 3600,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 25,
                 'itemtype' => 'MailCollector',
                 'name' => 'mailgateerror',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 26,
                 'itemtype' => 'CronTask',
                 'name' => 'circularlogs',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => 4,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 27,
                 'itemtype' => 'ObjectLock',
                 'name' => 'unlockobject',
-                'frequency' => HOUR_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => 4,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 28,
                 'itemtype' => 'SavedSearch',
                 'name' => 'countAll',
-                'frequency' => WEEK_TIMESTAMP,
+                'frequency' => 604800,
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 29,
                 'itemtype' => 'SavedSearch_Alert',
                 'name' => 'savedsearchesalerts',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 30,
                 'itemtype' => 'Telemetry',
                 'name' => 'telemetry',
-                'frequency' => MONTH_TIMESTAMP,
+                'frequency' => 2592000,
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 31,
                 'itemtype' => 'Certificate',
                 'name' => 'certificate',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 32,
                 'itemtype' => 'OlaLevel_Ticket',
                 'name' => 'olaticket',
-                'frequency' => 5 * MINUTE_TIMESTAMP,
+                'frequency' => 300,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_INTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 33,
                 'itemtype' => 'PurgeLogs',
                 'name' => 'PurgeLogs',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 604800,
                 'param' => 24,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 34,
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'name' => 'purgeticket',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 604800,
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 35,
                 'itemtype' => 'Document',
-                'name' => 'cleanorphansdocument',
-                'frequency' => DAY_TIMESTAMP,
+                'name' => 'cleanorphans',
+                'frequency' => 604800,
                 'param' => null,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 36,
                 'itemtype' => 'User',
                 'name' => 'passwordexpiration',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => 100,
                 'state' => CronTask::STATE_DISABLE,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ], [
                 'id' => 37,
-                'itemtype' => Controller::class,
+                'itemtype' => 'Glpi\\Marketplace\\Controller',
                 'name' => 'checkAllUpdates',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 38,
                 'itemtype' => CleanSoftwareCron::getType(),
@@ -866,44 +736,16 @@ $empty_data_builder = new class {
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 300,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 39,
                 'itemtype' => 'Domain',
                 'name' => 'DomainsAlert',
-                'frequency' => DAY_TIMESTAMP,
+                'frequency' => 86400,
                 'param' => null,
                 'state' => CronTask::STATE_WAITING,
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
-            ], [
-                'id' => 40,
-                'itemtype' => Inventory::class,
-                'name' => 'cleantemp',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => null,
-                'state' => CronTask::STATE_DISABLE,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
-            ], [
-                'id' => 41,
-                'itemtype' => Inventory::class,
-                'name' => 'cleanorphansinventory',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => null,
-                'state' => CronTask::STATE_WAITING,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
             ], [
                 'id' => 42,
                 'itemtype' => PendingReasonCron::getType(),
@@ -914,8 +756,26 @@ $empty_data_builder = new class {
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 60,
-                'hourmin' => 0,
-                'hourmax' => 24,
+            ], [
+                'id' => 40,
+                'itemtype' => 'Glpi\Inventory\Inventory',
+                'name' => 'cleantemp',
+                'frequency' => 86400,
+                'param' => null,
+                'state' => CronTask::STATE_DISABLE,
+                'mode' => CronTask::MODE_EXTERNAL,
+                'lastrun' => null,
+                'logs_lifetime' => 30,
+            ], [
+                'id' => 41,
+                'itemtype' => 'Glpi\Inventory\Inventory',
+                'name' => 'cleanorphans',
+                'frequency' => 604800,
+                'param' => null,
+                'state' => CronTask::STATE_WAITING,
+                'mode' => CronTask::MODE_EXTERNAL,
+                'lastrun' => null,
+                'logs_lifetime' => 30,
             ], [
                 'id' => 43,
                 'itemtype' => 'Agent',
@@ -926,111 +786,25 @@ $empty_data_builder = new class {
                 'mode' => CronTask::MODE_EXTERNAL,
                 'lastrun' => null,
                 'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
-            ], [
-                'id' => 44,
-                'itemtype' => 'Change',
-                'name' => 'createinquestchange',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => null,
-                'state' => CronTask::STATE_WAITING,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
-            ], [
-                'id' => 45,
-                'itemtype' => 'QueuedNotification',
-                'name' => 'queuednotificationcleanstaleajax',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => null,
-                'state' => CronTask::STATE_DISABLE,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
-            ], [
-                'id' => 46,
-                'itemtype' => 'QueuedWebhook',
-                'name' => 'queuedwebhook',
-                'frequency' => MINUTE_TIMESTAMP,
-                'param' => 50,
-                'state' => CronTask::STATE_WAITING,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
-            ], [
-                'id' => 47,
-                'itemtype' => 'QueuedWebhook',
-                'name' => 'queuedwebhookclean',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => 30,
-                'state' => CronTask::STATE_WAITING,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 6,
-            ], [
-                'id' => 48,
-                'itemtype' => Form::class,
-                'name' => 'purgedraftforms',
-                'frequency' => DAY_TIMESTAMP,
-                'param' => 7,
-                'state' => CronTask::STATE_WAITING,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
-            ], [
-                'id' => 49,
-                'itemtype' => Software::class,
-                'name' => PurgeSoftwareTask::TASK_NAME,
-                'frequency' => MONTH_TIMESTAMP,
-                'param' => 1000,
-                'state' => CronTask::STATE_DISABLE,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 300,
-                'hourmin' => 0,
-                'hourmax' => 6,
-            ], [
-                'id' => 50,
-                'itemtype' => 'CommonITILValidationCron',
-                'name' => 'approvalreminder',
-                'frequency' => WEEK_TIMESTAMP,
-                'param' => null,
-                'state' => CronTask::STATE_DISABLE,
-                'mode' => CronTask::MODE_EXTERNAL,
-                'lastrun' => null,
-                'logs_lifetime' => 30,
-                'hourmin' => 0,
-                'hourmax' => 24,
             ],
         ];
 
+        $dashboards_data = include_once __DIR__ . "/migrations/update_9.4.x_to_9.5.0/dashboards.php";
         $tables['glpi_dashboards_dashboards'] = [];
         $tables['glpi_dashboards_items'] = [];
         $i = $j = 1;
-        foreach (Dashboard::getDefaults() as $dashboard_data) {
-            $tables['glpi_dashboards_dashboards'][] = [
+        foreach ($dashboards_data as $default_dashboard) {
+            $items = $default_dashboard['_items'];
+            unset($default_dashboard['_items']);
+            $tables['glpi_dashboards_dashboards'][] = array_merge([
                 'id' => $i,
-                'key' => $dashboard_data['key'],
-                'name' => $dashboard_data['name'],
-                'context' => $dashboard_data['context'],
-            ];
+            ], $default_dashboard);
 
-            foreach ($dashboard_data['items'] as $item) {
-                $item['id'] = $j;
-                $item['dashboards_dashboards_id'] = $i;
-                $item['card_options'] = json_encode($item['card_options']);
-                $tables['glpi_dashboards_items'][] = $item;
+            foreach ($items as $item) {
+                $tables['glpi_dashboards_items'][] = array_merge([
+                    'id' => $j,
+                    'dashboards_dashboards_id' => $i,
+                ], $item);
 
                 $j++;
             }
@@ -1471,24 +1245,8 @@ $empty_data_builder = new class {
                 'rank' => '3',
             ], [
                 'itemtype' => 'CronTask',
-                'num' => '5',
-                'rank' => '4',
-            ], [
-                'itemtype' => 'CronTask',
-                'num' => '6',
-                'rank' => '5',
-            ], [
-                'itemtype' => 'CronTask',
-                'num' => '17',
-                'rank' => '6',
-            ], [
-                'itemtype' => 'CronTask',
-                'num' => '18',
-                'rank' => '7',
-            ], [
-                'itemtype' => 'CronTask',
                 'num' => '7',
-                'rank' => '8',
+                'rank' => '4',
             ], [
                 'itemtype' => 'RequestType',
                 'num' => '14',
@@ -1630,11 +1388,11 @@ $empty_data_builder = new class {
                 'num' => '11',
                 'rank' => '1',
             ], [
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'num' => '12',
                 'rank' => '1',
             ], [
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'num' => '19',
                 'rank' => '2',
             ], [
@@ -2037,41 +1795,9 @@ $empty_data_builder = new class {
                 'itemtype' => 'Plugin',
                 'num' => '8',
                 'rank' => '7',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '155',
-                'rank' => '1',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '156',
-                'rank' => '2',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '157',
-                'rank' => '3',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '158',
-                'rank' => '4',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '159',
-                'rank' => '5',
-            ], [
-                'itemtype' => Event::class,
-                'num' => '160',
-                'rank' => '6',
             ],
         ];
-        // Set interface to previously defined values.
-        // TODO: the previous values should probably use $ADDTODISPLAYPREF to be
-        // more maintainable...
-        foreach (array_keys($tables['glpi_displaypreferences']) as $index) {
-            $tables['glpi_displaypreferences'][$index]['interface'] = 'central';
-        }
 
-        $ADDTODISPLAYPREF[Form::class] = [1, 80, 86, 3, 4];
-        $ADDTODISPLAYPREF[AnswersSet::class] = [1, 3, 4];
         $ADDTODISPLAYPREF['Cluster'] = [31, 19];
         $ADDTODISPLAYPREF['Domain'] = [3, 4, 2, 6, 7];
         $ADDTODISPLAYPREF['DomainRecord'] = [2, 3];
@@ -2086,15 +1812,6 @@ $empty_data_builder = new class {
         $ADDTODISPLAYPREF['Database'] = [2, 3, 6, 9, 10];
         $ADDTODISPLAYPREF[Socket::class] = [5, 6, 9, 8, 7];
         $ADDTODISPLAYPREF['Cable'] = [4, 31, 6, 15, 24, 8, 10, 13, 14];
-        $ADDTODISPLAYPREF[KnowbaseItem::class] = [79, 131, 13];
-        $ADDTODISPLAYPREF[Webhook::class] = [3, 4, 5];
-        $ADDTODISPLAYPREF[QueuedWebhook::class] = [80, 2, 22, 20, 21, 7, 30, 16];
-        $ADDTODISPLAYPREF[Consumable::class] = [2, 8, 3, 4, 5, 6, 7];
-        $ADDTODISPLAYPREF_HELPDESK[Ticket::class] = [
-            12, // Status
-            19, // Last update
-            15, // Opening date
-        ];
 
         foreach ($ADDTODISPLAYPREF as $type => $options) {
             $rank = 1;
@@ -2103,18 +1820,6 @@ $empty_data_builder = new class {
                     'itemtype' => $type,
                     'num' => $newval,
                     'rank' => $rank++,
-                    'interface' => 'central',
-                ];
-            }
-        }
-        foreach ($ADDTODISPLAYPREF_HELPDESK as $type => $options) {
-            $rank = 1;
-            foreach ($options as $newval) {
-                $tables['glpi_displaypreferences'][] = [
-                    'itemtype' => $type,
-                    'num' => $newval,
-                    'rank' => $rank++,
-                    'interface' => 'helpdesk',
                 ];
             }
         }
@@ -2480,11 +2185,6 @@ $empty_data_builder = new class {
                 'name' => 'Scalable Vector Graphics',
                 'ext' => 'svg',
                 'icon' => 'svg-dist.png',
-            ], [
-                'id' => '73',
-                'name' => 'WebP',
-                'ext' => 'webp',
-                'icon' => 'webp-dist.png',
             ],
         ];
 
@@ -2520,9 +2220,6 @@ $empty_data_builder = new class {
                 'inquest_config' => 1,
                 'inquest_rate' => 0,
                 'inquest_delay' => 0,
-                'inquest_max_rate' => 5,
-                'inquest_default_rate' => 3,
-                'inquest_mandatory_comment' => 0,
                 'autofill_warranty_date' => 0,
                 'autofill_use_date' => 0,
                 'autofill_buy_date' => 0,
@@ -2549,32 +2246,6 @@ $empty_data_builder = new class {
                 'display_users_initials' => 1,
                 'contracts_strategy_default' => 0,
                 'transfers_strategy' => 0,
-                'approval_reminder_repeat_interval' => 0,
-                'inquest_config_change' => 1,
-                'inquest_rate_change' => 0,
-                'inquest_delay_change' => 0,
-                'inquest_max_rate_change' => 5,
-                'inquest_default_rate_change' => 3,
-                'inquest_mandatory_comment_change' => 0,
-                '2fa_enforcement_strategy' => 0, // Not enforced at entity level (optional)
-                'is_contact_autoupdate' => '1',
-                'is_user_autoupdate' => '1',
-                'is_group_autoupdate' => '1',
-                'is_location_autoupdate' => '1',
-                'state_autoupdate_mode' => '0',
-                'is_contact_autoclean' => '0',
-                'is_user_autoclean' => '0',
-                'is_group_autoclean' => '0',
-                'is_location_autoclean' => '0',
-                'state_autoclean_mode' => '0',
-                'show_tickets_properties_on_helpdesk' => 0,
-                'custom_helpdesk_home_scene_left' => '',
-                'custom_helpdesk_home_scene_right' => '',
-                'custom_helpdesk_home_title' => '',
-                'enable_helpdesk_home_search_bar' => 1,
-                'enable_helpdesk_service_catalog' => 1,
-                'expand_service_catalog' => 0,
-                'service_catalog_default_sort_strategy' => 'popularity',
             ],
         ];
 
@@ -2780,7 +2451,7 @@ $empty_data_builder = new class {
                 'is_active' => 1,
             ], [
                 'id' => 12,
-                'name' => 'Ticket Approval',
+                'name' => 'Ticket Validation',
                 'itemtype' => 'Ticket',
                 'event' => 'validation',
                 'is_recursive' => 1,
@@ -2955,7 +2626,7 @@ $empty_data_builder = new class {
                 'is_active' => 1,
             ], [
                 'id' => 37,
-                'name' => 'Ticket Approval Answer',
+                'name' => 'Ticket Validation Answer',
                 'itemtype' => 'Ticket',
                 'event' => 'validation_answer',
                 'is_recursive' => 1,
@@ -3194,7 +2865,7 @@ $empty_data_builder = new class {
             ], [
                 'id' => 71,
                 'name' => 'Check plugin updates',
-                'itemtype' => Controller::class,
+                'itemtype' => 'Glpi\\Marketplace\\Controller',
                 'event' => 'checkpluginsupdate',
                 'is_recursive' => 1,
                 'is_active' => 1,
@@ -3205,76 +2876,6 @@ $empty_data_builder = new class {
                 'event' => 'user_mention',
                 'is_recursive' => 1,
                 'is_active' => 1,
-            ], [
-                'id' => 73,
-                'name' => 'Password Initialization',
-                'itemtype' => 'User',
-                'event' => 'passwordinit',
-                'is_recursive' => 1,
-                'is_active' => 1,
-            ], [
-                'id'           => 74,
-                'name'         => 'Change Satisfaction',
-                'itemtype'     => 'Change',
-                'event'        => 'satisfaction',
-                'is_recursive' => 1,
-                'is_active'    => 1,
-            ], [
-                'id'           => 75,
-                'name'         => 'Change Satisfaction Answer',
-                'itemtype'     => 'Change',
-                'event'        => 'replysatisfaction',
-                'is_recursive' => 1,
-                'is_active'    => 1,
-            ], [
-                'id'           => 76,
-                'name'         => 'Automatic reminder',
-                'itemtype'     => 'Ticket',
-                'event'        => 'auto_reminder',
-                'is_recursive' => 1,
-                'is_active'    => 0,
-            ], [
-                'id'           => 77,
-                'name'         => 'New document',
-                'itemtype'     => 'Ticket',
-                'event'        => 'add_document',
-                'is_recursive' => 0,
-                'is_active'    => 0,
-            ], [
-                'id'           => 78,
-                'name'         => 'New document',
-                'itemtype'     => 'Change',
-                'event'        => 'add_document',
-                'is_recursive' => 0,
-                'is_active'    => 0,
-            ], [
-                'id'           => 79,
-                'name'         => 'New document',
-                'itemtype'     => 'Problem',
-                'event'        => 'add_document',
-                'is_recursive' => 0,
-                'is_active'    => 0,
-            ], [
-                'id' => 80,
-                'name' => 'New knowledge base item',
-                'itemtype' => 'KnowbaseItem',
-                'event' => 'new',
-                'is_recursive' => 1,
-                'is_active' => 0,
-            ], [
-                'id' => 81,
-                'name' => 'Delete knowledge base item',
-                'itemtype' => 'KnowbaseItem',
-                'event' => 'delete',
-                'is_recursive' => 1,
-                'is_active' => 0,
-            ], [
-                'id' => 82,
-                'name' => 'Update knowledge base item',
-                'itemtype' => 'KnowbaseItem',
-                'event' => 'update',
-                'is_recursive' => 1,
-                'is_active' => 0,
             ],
         ];
 
@@ -3639,56 +3240,6 @@ $empty_data_builder = new class {
                 'notifications_id' => '72',
                 'mode' => 'mailing',
                 'notificationtemplates_id' => 4,
-            ], [
-                'id' => 73,
-                'notifications_id' => '73',
-                'mode' => 'mailing',
-                'notificationtemplates_id' => 29,
-            ], [
-                'id'                       => 74,
-                'notifications_id'         => '74',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 30,
-            ], [
-                'id'                       => 75,
-                'notifications_id'         => '75',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 30,
-            ], [
-                'id'                       => 76,
-                'notifications_id'         => '76',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 31,
-            ], [
-                'id'                       => 77,
-                'notifications_id'         => '77',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 4,
-            ], [
-                'id'                       => 78,
-                'notifications_id'         => '78',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 19,
-            ], [
-                'id'                       => 79,
-                'notifications_id'         => '79',
-                'mode'                     => 'mailing',
-                'notificationtemplates_id' => 17,
-            ], [
-                'id' => 80,
-                'notifications_id' => '80',
-                'mode' => 'mailing',
-                'notificationtemplates_id' => 32,
-            ], [
-                'id' => 81,
-                'notifications_id' => '81',
-                'mode' => 'mailing',
-                'notificationtemplates_id' => 32,
-            ], [
-                'id' => 82,
-                'notifications_id' => '82',
-                'mode' => 'mailing',
-                'notificationtemplates_id' => 32,
             ],
         ];
 
@@ -3765,7 +3316,7 @@ $empty_data_builder = new class {
                 'notifications_id' => '19',
             ], [
                 'id' => '15',
-                'items_id' => '40',
+                'items_id' => '14',
                 'type' => '1',
                 'notifications_id' => '12',
             ], [
@@ -4050,7 +3601,7 @@ $empty_data_builder = new class {
                 'notifications_id' => '36',
             ], [
                 'id' => '73',
-                'items_id' => '40',
+                'items_id' => '14',
                 'type' => '1',
                 'notifications_id' => '37',
             ], [
@@ -4383,261 +3934,6 @@ $empty_data_builder = new class {
                 'items_id' => '39',
                 'type' => '1',
                 'notifications_id' => '72',
-            ], [
-                'id' => '141',
-                'items_id' => '19',
-                'type' => '1',
-                'notifications_id' => '73',
-            ], [
-                'id'               => '142',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '74',
-            ], [
-                'id'               => '143',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '75',
-            ], [
-                'id'               => '144',
-                'items_id'         => '2',
-                'type'             => '1',
-                'notifications_id' => '75',
-            ], [
-                'id'               => '145',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '76',
-            ], [
-                'id'               => '146',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '76',
-            ], [
-                'id'               => '147',
-                'items_id'         => '21',
-                'type'             => '1',
-                'notifications_id' => '76',
-            ], [
-                'id'               => '148',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '77',
-            ], [
-                'id'               => '149',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '77',
-            ], [
-                'id'               => '150',
-                'items_id'         => '21',
-                'type'             => '1',
-                'notifications_id' => '77',
-            ], [
-                'id'               => '151',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '78',
-            ], [
-                'id'               => '152',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '78',
-            ], [
-                'id'               => '153',
-                'items_id'         => '21',
-                'type'             => '1',
-                'notifications_id' => '78',
-            ], [
-                'id'               => '154',
-                'items_id'         => '3',
-                'type'             => '1',
-                'notifications_id' => '79',
-            ], [
-                'id'               => '155',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '79',
-            ], [
-                'id'               => '156',
-                'items_id'         => '21',
-                'type'             => '1',
-                'notifications_id' => '79',
-            ], [
-                'id'               => '157',
-                'items_id'         => '16',
-                'type'             => '1',
-                'notifications_id' => '40',
-            ], [
-                'id'               => '158',
-                'items_id'         => '37',
-                'type'             => '1',
-                'notifications_id' => '40',
-            ], [
-                'id'               => '159',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '1',
-            ], [
-                'id'               => '160',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '12',
-            ], [
-                'id'               => '161',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '16',
-            ], [
-                'id'               => '162',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '17',
-            ], [
-                'id'               => '163',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '18',
-            ], [
-                'id'               => '164',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '20',
-            ], [
-                'id'               => '165',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '21',
-            ], [
-                'id'               => '166',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '22',
-            ], [
-                'id'               => '167',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '23',
-            ], [
-                'id'               => '168',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '24',
-            ], [
-                'id'               => '169',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '26',
-            ], [
-                'id'               => '170',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '27',
-            ], [
-                'id'               => '171',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '37',
-            ], [
-                'id'               => '172',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '38',
-            ], [
-                'id'               => '173',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '39',
-            ], [
-                'id'               => '174',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '50',
-            ], [
-                'id'               => '175',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '59',
-            ], [
-                'id'               => '176',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '60',
-            ], [
-                'id'               => '177',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '61',
-            ], [
-                'id'               => '178',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '62',
-            ], [
-                'id'               => '179',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '63',
-            ], [
-                'id'               => '180',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '64',
-            ], [
-                'id'               => '181',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '65',
-            ], [
-                'id'               => '183',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '67',
-            ], [
-                'id'               => '184',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '68',
-            ], [
-                'id'               => '185',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '69',
-            ], [
-                'id'               => '186',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '70',
-            ], [
-                'id'               => '187',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '72',
-            ], [
-                'id'               => '188',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '74',
-            ], [
-                'id'               => '189',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '75',
-            ], [
-                'id'               => '190',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '80',
-            ], [
-                'id'               => '191',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '81',
-            ], [
-                'id'               => '192',
-                'items_id'         => '1',
-                'type'             => '1',
-                'notifications_id' => '82',
             ],
         ];
 
@@ -4668,7 +3964,7 @@ $empty_data_builder = new class {
                 'itemtype' => 'Ticket',
             ], [
                 'id' => '7',
-                'name' => 'Tickets Approval',
+                'name' => 'Tickets Validation',
                 'itemtype' => 'Ticket',
             ], [
                 'id' => '8',
@@ -4753,23 +4049,7 @@ $empty_data_builder = new class {
             ], [
                 'id' => '28',
                 'name' => 'Plugin updates',
-                'itemtype' => Controller::class,
-            ], [
-                'id' => '29',
-                'name' => 'Password Initialization',
-                'itemtype' => 'User',
-            ], [
-                'id'       => '30',
-                'name'     => 'Change Satisfaction',
-                'itemtype' => 'Change',
-            ], [
-                'id'       => '31',
-                'name'     => 'Automatic reminder',
-                'itemtype' => 'Ticket',
-            ], [
-                'id'        => '32',
-                'name'      => 'Knowledge base item',
-                'itemtype'  => 'KnowbaseItem',
+                'itemtype' => 'Glpi\\Marketplace\\Controller',
             ],
         ];
 
@@ -4780,7 +4060,7 @@ $empty_data_builder = new class {
                 'language' => '',
                 'subject' => '##lang.dbconnection.title##',
                 'content_text' => '##lang.dbconnection.delay## : ##dbconnection.delay##',
-                'content_html' => '<p>##lang.dbconnection.delay## : ##dbconnection.delay##</p>',
+                'content_html' => '&lt;p&gt;##lang.dbconnection.delay## : ##dbconnection.delay##&lt;/p&gt;',
             ], [
                 'id' => '2',
                 'notificationtemplates_id' => '2',
@@ -4794,8 +4074,8 @@ $empty_data_builder = new class {
 ##lang.reservation.end##: ##reservation.end##
 ##lang.reservation.comment##: ##reservation.comment##
 ======================================================================',
-                'content_html' => '<!-- description{ color: inherit; background: #ebebeb;border-style: solid;border-color: #8d8d8d; border-width: 0px 1px 1px 0px; } -->
-<p><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.reservation.user##:</span>##reservation.user##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.reservation.item.name##:</span>##reservation.itemtype## - ##reservation.item.name##<br />##IFreservation.tech## ##lang.reservation.tech## ##reservation.tech####ENDIFreservation.tech##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.reservation.begin##:</span> ##reservation.begin##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.reservation.end##:</span>##reservation.end##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.reservation.comment##:</span> ##reservation.comment##</p>',
+                'content_html' => '&lt;!-- description{ color: inherit; background: #ebebeb;border-style: solid;border-color: #8d8d8d; border-width: 0px 1px 1px 0px; } --&gt;
+&lt;p&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.reservation.user##:&lt;/span&gt;##reservation.user##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.reservation.item.name##:&lt;/span&gt;##reservation.itemtype## - ##reservation.item.name##&lt;br /&gt;##IFreservation.tech## ##lang.reservation.tech## ##reservation.tech####ENDIFreservation.tech##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.reservation.begin##:&lt;/span&gt; ##reservation.begin##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.reservation.end##:&lt;/span&gt;##reservation.end##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.reservation.comment##:&lt;/span&gt; ##reservation.comment##&lt;/p&gt;',
             ], [
                 'id' => '3',
                 'notificationtemplates_id' => '3',
@@ -4812,11 +4092,11 @@ $empty_data_builder = new class {
  ##reservation.url##
 
  ##ENDFOREACHreservations##',
-                'content_html' => '<p>##lang.reservation.entity## : ##reservation.entity## <br /> <br />
-##FOREACHreservations## <br />##lang.reservation.itemtype## :  ##reservation.itemtype##<br />
- ##lang.reservation.item## :  ##reservation.item##<br /> <br />
- <a href="##reservation.url##"> ##reservation.url##</a><br />
- ##ENDFOREACHreservations##</p>',
+                'content_html' => '&lt;p&gt;##lang.reservation.entity## : ##reservation.entity## &lt;br /&gt; &lt;br /&gt;
+##FOREACHreservations## &lt;br /&gt;##lang.reservation.itemtype## :  ##reservation.itemtype##&lt;br /&gt;
+ ##lang.reservation.item## :  ##reservation.item##&lt;br /&gt; &lt;br /&gt;
+ &lt;a href="##reservation.url##"&gt; ##reservation.url##&lt;/a&gt;&lt;br /&gt;
+ ##ENDFOREACHreservations##&lt;/p&gt;',
             ], [
                 'id' => '4',
                 'notificationtemplates_id' => '4',
@@ -4877,27 +4157,27 @@ $empty_data_builder = new class {
 
 ##lang.ticket.numberoffollowups## : ##ticket.numberoffollowups##
 ##lang.ticket.numberoftasks## : ##ticket.numberoftasks##',
-                'content_html' => '<!-- description{ color: inherit; background: #ebebeb; border-style: solid;border-color: #8d8d8d; border-width: 0px 1px 1px 0px; }    -->
-<div>##IFticket.storestatus=5##</div>
-<div>##lang.ticket.url## : <a href="##ticket.urlapprove##">##ticket.urlapprove##</a> <strong>&#160;</strong></div>
-<div><strong>##lang.ticket.autoclosewarning##</strong></div>
-<div><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.ticket.solvedate##</span></strong></span> : ##ticket.solvedate##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.ticket.solution.type##</strong></span> : ##ticket.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.ticket.solution.description##</strong></span> : ##ticket.solution.description## ##ENDIFticket.storestatus##</div>
-<div>##ELSEticket.storestatus## ##lang.ticket.url## : <a href="##ticket.url##">##ticket.url##</a> ##ENDELSEticket.storestatus##</div>
-<p class="description b"><strong>##lang.ticket.description##</strong></p>
-<p><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.title##</span>&#160;:##ticket.title## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.authors##</span>&#160;:##IFticket.authors## ##ticket.authors## ##ENDIFticket.authors##    ##ELSEticket.authors##--##ENDELSEticket.authors## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.creationdate##</span>&#160;:##ticket.creationdate## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.closedate##</span>&#160;:##ticket.closedate## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.requesttype##</span>&#160;:##ticket.requesttype##<br />
-<br /><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.item.name##</span>&#160;:
-<p>##FOREACHitems##</p>
-<div class="description b">##IFticket.itemtype## ##ticket.itemtype##&#160;- ##ticket.item.name## ##IFticket.item.model## ##lang.ticket.item.model## : ##ticket.item.model## ##ENDIFticket.item.model## ##IFticket.item.serial## ##lang.ticket.item.serial## : ##ticket.item.serial## ##ENDIFticket.item.serial## ##IFticket.item.otherserial## ##lang.ticket.item.otherserial## : ##ticket.item.otherserial## ##ENDIFticket.item.otherserial## ##ENDIFticket.itemtype## </div><br />
-<p>##ENDFOREACHitems##</p>
-##IFticket.assigntousers## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.assigntousers##</span>&#160;: ##ticket.assigntousers## ##ENDIFticket.assigntousers##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.ticket.status## </span>&#160;: ##ticket.status##<br /> ##IFticket.assigntogroups## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.assigntogroups##</span>&#160;: ##ticket.assigntogroups## ##ENDIFticket.assigntogroups##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.urgency##</span>&#160;: ##ticket.urgency##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.impact##</span>&#160;: ##ticket.impact##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.priority##</span>&#160;: ##ticket.priority## <br /> ##IFticket.user.email##<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.user.email##</span>&#160;: ##ticket.user.email ##ENDIFticket.user.email##    <br /> ##IFticket.category##<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.ticket.category## </span>&#160;:##ticket.category## ##ENDIFticket.category## ##ELSEticket.category## ##lang.ticket.nocategoryassigned## ##ENDELSEticket.category##    <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.ticket.content##</span>&#160;: ##ticket.content##</p>
-<br />##IFticket.storestatus=6##<br /><span style="text-decoration: underline;"><strong><span style="color: #888888;">##lang.ticket.solvedate##</span></strong></span> : ##ticket.solvedate##<br /><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.ticket.solution.type##</span></strong></span> : ##ticket.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.ticket.solution.description##</strong></span> : ##ticket.solution.description##<br />##ENDIFticket.storestatus##</p>
-<p>##FOREACHtimelineitems##</p>
-<div class="description b"><br /><strong> [##timelineitems.date##]</strong><br /><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.timelineitems.author## </span> <span style="color: #000000; font-weight: bold; text-decoration: underline;">##timelineitems.author##</span><br /><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.timelineitems.description## </span> <span style="color: #000000; font-weight: bold; text-decoration: underline;">##timelineitems.description##</span><br /><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.timelineitems.date## </span> <span style="color: #000000; font-weight: bold; text-decoration: underline;">##timelineitems.date##</span><br /><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.timelineitems.position## </span><span style="color: #000000; font-weight: bold; text-decoration: underline;"> ##timelineitems.position##</span></div>
-<div class="description b"><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.timelineitems.type## </span><span style="color: #000000; font-weight: bold; text-decoration: underline;"> ##timelineitems.type##</span></div>
-<div class="description b"><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.timelineitems.typename## </span> <span style="color: #000000; font-weight: bold; text-decoration: underline;">##timelineitems.typename##</span></div>
-<p>##ENDFOREACHtimelineitems##</p>
-<div class="description b">##lang.ticket.numberoffollowups##&#160;: ##ticket.numberoffollowups##</div>
-<div class="description b">##lang.ticket.numberoftasks##&#160;: ##ticket.numberoftasks##</div>',
+                'content_html' => '&lt;!-- description{ color: inherit; background: #ebebeb; border-style: solid;border-color: #8d8d8d; border-width: 0px 1px 1px 0px; }    --&gt;
+&lt;div&gt;##IFticket.storestatus=5##&lt;/div&gt;
+&lt;div&gt;##lang.ticket.url## : &lt;a href="##ticket.urlapprove##"&gt;##ticket.urlapprove##&lt;/a&gt; &lt;strong&gt;&#160;&lt;/strong&gt;&lt;/div&gt;
+&lt;div&gt;&lt;strong&gt;##lang.ticket.autoclosewarning##&lt;/strong&gt;&lt;/div&gt;
+&lt;div&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.ticket.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##ticket.solvedate##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.ticket.solution.type##&lt;/strong&gt;&lt;/span&gt; : ##ticket.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.ticket.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##ticket.solution.description## ##ENDIFticket.storestatus##&lt;/div&gt;
+&lt;div&gt;##ELSEticket.storestatus## ##lang.ticket.url## : &lt;a href="##ticket.url##"&gt;##ticket.url##&lt;/a&gt; ##ENDELSEticket.storestatus##&lt;/div&gt;
+&lt;p class="description b"&gt;&lt;strong&gt;##lang.ticket.description##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.title##&lt;/span&gt;&#160;:##ticket.title## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.authors##&lt;/span&gt;&#160;:##IFticket.authors## ##ticket.authors## ##ENDIFticket.authors##    ##ELSEticket.authors##--##ENDELSEticket.authors## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.creationdate##&lt;/span&gt;&#160;:##ticket.creationdate## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.closedate##&lt;/span&gt;&#160;:##ticket.closedate## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.requesttype##&lt;/span&gt;&#160;:##ticket.requesttype##&lt;br /&gt;
+&lt;br /&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.item.name##&lt;/span&gt;&#160;:
+&lt;p&gt;##FOREACHitems##&lt;/p&gt;
+&lt;div class="description b"&gt;##IFticket.itemtype## ##ticket.itemtype##&#160;- ##ticket.item.name## ##IFticket.item.model## ##lang.ticket.item.model## : ##ticket.item.model## ##ENDIFticket.item.model## ##IFticket.item.serial## ##lang.ticket.item.serial## : ##ticket.item.serial## ##ENDIFticket.item.serial## ##IFticket.item.otherserial## ##lang.ticket.item.otherserial## : ##ticket.item.otherserial## ##ENDIFticket.item.otherserial## ##ENDIFticket.itemtype## &lt;/div&gt;&lt;br /&gt;
+&lt;p&gt;##ENDFOREACHitems##&lt;/p&gt;
+##IFticket.assigntousers## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.assigntousers##&lt;/span&gt;&#160;: ##ticket.assigntousers## ##ENDIFticket.assigntousers##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.ticket.status## &lt;/span&gt;&#160;: ##ticket.status##&lt;br /&gt; ##IFticket.assigntogroups## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.assigntogroups##&lt;/span&gt;&#160;: ##ticket.assigntogroups## ##ENDIFticket.assigntogroups##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.urgency##&lt;/span&gt;&#160;: ##ticket.urgency##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.impact##&lt;/span&gt;&#160;: ##ticket.impact##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.priority##&lt;/span&gt;&#160;: ##ticket.priority## &lt;br /&gt; ##IFticket.user.email##&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.user.email##&lt;/span&gt;&#160;: ##ticket.user.email ##ENDIFticket.user.email##    &lt;br /&gt; ##IFticket.category##&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.ticket.category## &lt;/span&gt;&#160;:##ticket.category## ##ENDIFticket.category## ##ELSEticket.category## ##lang.ticket.nocategoryassigned## ##ENDELSEticket.category##    &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.ticket.content##&lt;/span&gt;&#160;: ##ticket.content##&lt;/p&gt;
+&lt;br /&gt;##IFticket.storestatus=6##&lt;br /&gt;&lt;span style="text-decoration: underline;"&gt;&lt;strong&gt;&lt;span style="color: #888888;"&gt;##lang.ticket.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##ticket.solvedate##&lt;br /&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.ticket.solution.type##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##ticket.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.ticket.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##ticket.solution.description##&lt;br /&gt;##ENDIFticket.storestatus##&lt;/p&gt;
+&lt;p&gt;##FOREACHtimelineitems##&lt;/p&gt;
+&lt;div class="description b"&gt;&lt;br /&gt;&lt;strong&gt; [##timelineitems.date##]&lt;/strong&gt;&lt;br /&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.timelineitems.author## &lt;/span&gt; &lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt;##timelineitems.author##&lt;/span&gt;&lt;br /&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.timelineitems.description## &lt;/span&gt; &lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt;##timelineitems.description##&lt;/span&gt;&lt;br /&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.timelineitems.date## &lt;/span&gt; &lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt;##timelineitems.date##&lt;/span&gt;&lt;br /&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.timelineitems.position## &lt;/span&gt;&lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt; ##timelineitems.position##&lt;/span&gt;&lt;/div&gt;
+&lt;div class="description b"&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.timelineitems.type## &lt;/span&gt;&lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt; ##timelineitems.type##&lt;/span&gt;&lt;/div&gt;
+&lt;div class="description b"&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.timelineitems.typename## &lt;/span&gt; &lt;span style="color: #000000; font-weight: bold; text-decoration: underline;"&gt;##timelineitems.typename##&lt;/span&gt;&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHtimelineitems##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.ticket.numberoffollowups##&#160;: ##ticket.numberoffollowups##&lt;/div&gt;
+&lt;div class="description b"&gt;##lang.ticket.numberoftasks##&#160;: ##ticket.numberoftasks##&lt;/div&gt;',
             ], [
                 'id' => '5',
                 'notificationtemplates_id' => '12',
@@ -4912,16 +4192,16 @@ $empty_data_builder = new class {
 ##IFcontract.type####lang.contract.type## : ##contract.type####ENDIFcontract.type##
 ##contract.url##
 ##ENDFOREACHcontracts##',
-                'content_html' => '<p>##lang.contract.entity## : ##contract.entity##<br />
-<br />##FOREACHcontracts##<br />##lang.contract.name## :
-##contract.name##<br />
-##lang.contract.number## : ##contract.number##<br />
-##lang.contract.time## : ##contract.time##<br />
+                'content_html' => '&lt;p&gt;##lang.contract.entity## : ##contract.entity##&lt;br /&gt;
+&lt;br /&gt;##FOREACHcontracts##&lt;br /&gt;##lang.contract.name## :
+##contract.name##&lt;br /&gt;
+##lang.contract.number## : ##contract.number##&lt;br /&gt;
+##lang.contract.time## : ##contract.time##&lt;br /&gt;
 ##IFcontract.type####lang.contract.type## : ##contract.type##
-##ENDIFcontract.type##<br />
-<a href="##contract.url##">
-##contract.url##</a><br />
-##ENDFOREACHcontracts##</p>',
+##ENDIFcontract.type##&lt;br /&gt;
+&lt;a href="##contract.url##"&gt;
+##contract.url##&lt;/a&gt;&lt;br /&gt;
+##ENDFOREACHcontracts##&lt;/p&gt;',
             ], [
                 'id' => '6',
                 'notificationtemplates_id' => '5',
@@ -4946,31 +4226,31 @@ $empty_data_builder = new class {
 ##IFticket.itemtype##
 ##lang.ticket.item.name##  : ##ticket.itemtype## - ##ticket.item.name##
 ##ENDIFticket.itemtype##',
-                'content_html' => '<div>##lang.ticket.url## : <a href="##ticket.url##">
-##ticket.url##</a></div>
-<div class="description b">
-##lang.ticket.description##</div>
-<p><span
-style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-##lang.ticket.title##</span>&#160;:##ticket.title##
-<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-##lang.ticket.authors##</span>
+                'content_html' => '&lt;div&gt;##lang.ticket.url## : &lt;a href="##ticket.url##"&gt;
+##ticket.url##&lt;/a&gt;&lt;/div&gt;
+&lt;div class="description b"&gt;
+##lang.ticket.description##&lt;/div&gt;
+&lt;p&gt;&lt;span
+style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+##lang.ticket.title##&lt;/span&gt;&#160;:##ticket.title##
+&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+##lang.ticket.authors##&lt;/span&gt;
 ##IFticket.authors## ##ticket.authors##
 ##ENDIFticket.authors##
 ##ELSEticket.authors##--##ENDELSEticket.authors##
-<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-</span><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> </span>
-##IFticket.category##<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-##lang.ticket.category## </span>&#160;:##ticket.category##
+&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+&lt;/span&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; &lt;/span&gt;
+##IFticket.category##&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+##lang.ticket.category## &lt;/span&gt;&#160;:##ticket.category##
 ##ENDIFticket.category## ##ELSEticket.category##
 ##lang.ticket.nocategoryassigned## ##ENDELSEticket.category##
-<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-##lang.ticket.content##</span>&#160;:
-##ticket.content##<br />##IFticket.itemtype##
-<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
-##lang.ticket.item.name##</span>&#160;:
+&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+##lang.ticket.content##&lt;/span&gt;&#160;:
+##ticket.content##&lt;br /&gt;##IFticket.itemtype##
+&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;
+##lang.ticket.item.name##&lt;/span&gt;&#160;:
 ##ticket.itemtype## - ##ticket.item.name##
-##ENDIFticket.itemtype##</p>',
+##ENDIFticket.itemtype##&lt;/p&gt;',
             ], [
                 'id' => '15',
                 'notificationtemplates_id' => '15',
@@ -4987,12 +4267,12 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.unicity.action_type## : ##unicity.action_type##
 
 ##lang.unicity.date## : ##unicity.date##',
-                'content_html' => '<p>##lang.unicity.entity## : ##unicity.entity##</p>
-<p>##lang.unicity.itemtype## : ##unicity.itemtype##</p>
-<p>##lang.unicity.message## : ##unicity.message##</p>
-<p>##lang.unicity.action_user## : ##unicity.action_user##</p>
-<p>##lang.unicity.action_type## : ##unicity.action_type##</p>
-<p>##lang.unicity.date## : ##unicity.date##</p>',
+                'content_html' => '&lt;p&gt;##lang.unicity.entity## : ##unicity.entity##&lt;/p&gt;
+&lt;p&gt;##lang.unicity.itemtype## : ##unicity.itemtype##&lt;/p&gt;
+&lt;p&gt;##lang.unicity.message## : ##unicity.message##&lt;/p&gt;
+&lt;p&gt;##lang.unicity.action_user## : ##unicity.action_user##&lt;/p&gt;
+&lt;p&gt;##lang.unicity.action_type## : ##unicity.action_type##&lt;/p&gt;
+&lt;p&gt;##lang.unicity.date## : ##unicity.date##&lt;/p&gt;',
             ], [
                 'id' => '7',
                 'notificationtemplates_id' => '7',
@@ -5013,20 +4293,20 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.validation.commentvalidation## : ##validation.commentvalidation##
 ##ENDIFvalidation.commentvalidation##
 ##ENDFOREACHvalidations##',
-                'content_html' => '<div>##FOREACHvalidations##</div>
-<p>##IFvalidation.storestatus=2##</p>
-<div>##validation.submission.title##</div>
-<div>##lang.validation.commentsubmission## : ##validation.commentsubmission##</div>
-<div>##ENDIFvalidation.storestatus##</div>
-<div>##ELSEvalidation.storestatus## ##validation.answer.title## ##ENDELSEvalidation.storestatus##</div>
-<div></div>
-<div>
-<div>##lang.ticket.url## : <a href="##ticket.urlvalidation##"> ##ticket.urlvalidation## </a></div>
-</div>
-<p>##IFvalidation.status## ##lang.validation.status## : ##validation.status## ##ENDIFvalidation.status##
-<br /> ##IFvalidation.commentvalidation##<br /> ##lang.validation.commentvalidation## :
-&#160; ##validation.commentvalidation##<br /> ##ENDIFvalidation.commentvalidation##
-<br />##ENDFOREACHvalidations##</p>',
+                'content_html' => '&lt;div&gt;##FOREACHvalidations##&lt;/div&gt;
+&lt;p&gt;##IFvalidation.storestatus=2##&lt;/p&gt;
+&lt;div&gt;##validation.submission.title##&lt;/div&gt;
+&lt;div&gt;##lang.validation.commentsubmission## : ##validation.commentsubmission##&lt;/div&gt;
+&lt;div&gt;##ENDIFvalidation.storestatus##&lt;/div&gt;
+&lt;div&gt;##ELSEvalidation.storestatus## ##validation.answer.title## ##ENDELSEvalidation.storestatus##&lt;/div&gt;
+&lt;div&gt;&lt;/div&gt;
+&lt;div&gt;
+&lt;div&gt;##lang.ticket.url## : &lt;a href="##ticket.urlvalidation##"&gt; ##ticket.urlvalidation## &lt;/a&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;##IFvalidation.status## ##lang.validation.status## : ##validation.status## ##ENDIFvalidation.status##
+&lt;br /&gt; ##IFvalidation.commentvalidation##&lt;br /&gt; ##lang.validation.commentvalidation## :
+&#160; ##validation.commentvalidation##&lt;br /&gt; ##ENDIFvalidation.commentvalidation##
+&lt;br /&gt;##ENDFOREACHvalidations##&lt;/p&gt;',
             ], [
                 'id' => '8',
                 'notificationtemplates_id' => '6',
@@ -5043,28 +4323,28 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##ticket.assigntosupplier## ##ENDIFticket.assigntosupplier##
 ##lang.ticket.creationdate##: ##ticket.creationdate##
 ##lang.ticket.content##: ##ticket.content## ##ENDFOREACHtickets##',
-                'content_html' => '<table class="tab_cadre" border="1" cellspacing="2" cellpadding="3">
-<tbody>
-<tr>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.authors##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.title##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.priority##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.status##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.attribution##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.creationdate##</span></td>
-<td style="text-align: left;" width="auto" bgcolor="#cccccc"><span style="font-size: 11px; text-align: left;">##lang.ticket.content##</span>##FOREACHtickets##</td>
-</tr>
-<tr>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##ticket.authors##</span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;"><a href="##ticket.url##">##ticket.title##</a></span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##ticket.priority##</span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##ticket.status##</span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##IFticket.assigntousers####ticket.assigntousers##<br />##ENDIFticket.assigntousers####IFticket.assigntogroups##<br />##ticket.assigntogroups## ##ENDIFticket.assigntogroups####IFticket.assigntosupplier##<br />##ticket.assigntosupplier## ##ENDIFticket.assigntosupplier##</span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##ticket.creationdate##</span></td>
-<td width="auto"><span style="font-size: 11px; text-align: left;">##ticket.content##</span>##ENDFOREACHtickets##</td>
-</tr>
-</tbody>
-</table>',
+                'content_html' => '&lt;table class="tab_cadre" border="1" cellspacing="2" cellpadding="3"&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.authors##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.title##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.priority##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.status##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.attribution##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.creationdate##&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left;" width="auto" bgcolor="#cccccc"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##lang.ticket.content##&lt;/span&gt;##FOREACHtickets##&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##ticket.authors##&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;&lt;a href="##ticket.url##"&gt;##ticket.title##&lt;/a&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##ticket.priority##&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##ticket.status##&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##IFticket.assigntousers####ticket.assigntousers##&lt;br /&gt;##ENDIFticket.assigntousers####IFticket.assigntogroups##&lt;br /&gt;##ticket.assigntogroups## ##ENDIFticket.assigntogroups####IFticket.assigntosupplier##&lt;br /&gt;##ticket.assigntosupplier## ##ENDIFticket.assigntosupplier##&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##ticket.creationdate##&lt;/span&gt;&lt;/td&gt;
+&lt;td width="auto"&gt;&lt;span style="font-size: 11px; text-align: left;"&gt;##ticket.content##&lt;/span&gt;##ENDFOREACHtickets##&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;',
             ], [
                 'id' => '9',
                 'notificationtemplates_id' => '9',
@@ -5086,16 +4366,16 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##consumable.url##
 
 ##ENDFOREACHconsumables##',
-                'content_html' => '<p>
+                'content_html' => '&lt;p&gt;
 ##lang.consumable.entity## : ##consumable.entity##
-<br /> <br />##FOREACHconsumables##
-<br />##lang.consumable.item## : ##consumable.item##<br />
-<br />##lang.consumable.reference## : ##consumable.reference##<br />
-##lang.consumable.remaining## : ##consumable.remaining##<br />
-##lang.consumable.stock_target## : ##consumable.stock_target##<br />
-##lang.consumable.to_order## : ##consumable.to_order##<br />
-<a href="##consumable.url##"> ##consumable.url##</a><br />
-   ##ENDFOREACHconsumables##</p>',
+&lt;br /&gt; &lt;br /&gt;##FOREACHconsumables##
+&lt;br /&gt;##lang.consumable.item## : ##consumable.item##&lt;br /&gt;
+&lt;br /&gt;##lang.consumable.reference## : ##consumable.reference##&lt;br /&gt;
+##lang.consumable.remaining## : ##consumable.remaining##&lt;br /&gt;
+##lang.consumable.stock_target## : ##consumable.stock_target##&lt;br /&gt;
+##lang.consumable.to_order## : ##consumable.to_order##&lt;br /&gt;
+&lt;a href="##consumable.url##"&gt; ##consumable.url##&lt;/a&gt;&lt;br /&gt;
+   ##ENDFOREACHconsumables##&lt;/p&gt;',
             ], [
                 'id' => '10',
                 'notificationtemplates_id' => '8',
@@ -5116,21 +4396,21 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
 ##cartridge.url##
  ##ENDFOREACHcartridges##',
-                'content_html' => '<p>##lang.cartridge.entity## : ##cartridge.entity##
-<br /> <br />##FOREACHcartridges##
-<br />##lang.cartridge.item## :
-##cartridge.item##<br /> <br />
+                'content_html' => '&lt;p&gt;##lang.cartridge.entity## : ##cartridge.entity##
+&lt;br /&gt; &lt;br /&gt;##FOREACHcartridges##
+&lt;br /&gt;##lang.cartridge.item## :
+##cartridge.item##&lt;br /&gt; &lt;br /&gt;
 ##lang.cartridge.reference## :
-##cartridge.reference##<br />
+##cartridge.reference##&lt;br /&gt;
 ##lang.cartridge.remaining## :
-##cartridge.remaining##<br />
+##cartridge.remaining##&lt;br /&gt;
 ##lang.cartridge.stock_target## :
-##cartridge.stock_target##<br />
+##cartridge.stock_target##&lt;br /&gt;
 ##lang.cartridge.to_order## :
-##cartridge.to_order##<br />
-<a href="##cartridge.url##">
-##cartridge.url##</a><br />
-##ENDFOREACHcartridges##</p>',
+##cartridge.to_order##&lt;br /&gt;
+&lt;a href="##cartridge.url##"&gt;
+##cartridge.url##&lt;/a&gt;&lt;br /&gt;
+##ENDFOREACHcartridges##&lt;/p&gt;',
             ], [
                 'id' => '11',
                 'notificationtemplates_id' => '10',
@@ -5150,14 +4430,14 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
 ##infocom.url##
  ##ENDFOREACHinfocoms##',
-                'content_html' => '<p>##lang.infocom.entity## : ##infocom.entity##
-<br /> <br />##FOREACHinfocoms##
-<br />##lang.infocom.itemtype## : ##infocom.itemtype##<br />
-##lang.infocom.item## : ##infocom.item##<br /> <br />
+                'content_html' => '&lt;p&gt;##lang.infocom.entity## : ##infocom.entity##
+&lt;br /&gt; &lt;br /&gt;##FOREACHinfocoms##
+&lt;br /&gt;##lang.infocom.itemtype## : ##infocom.itemtype##&lt;br /&gt;
+##lang.infocom.item## : ##infocom.item##&lt;br /&gt; &lt;br /&gt;
 ##lang.infocom.expirationdate## : ##infocom.expirationdate##
-<br /> <a href="##infocom.url##">
-##infocom.url##</a><br />
-##ENDFOREACHinfocoms##</p>',
+&lt;br /&gt; &lt;a href="##infocom.url##"&gt;
+##infocom.url##&lt;/a&gt;&lt;br /&gt;
+##ENDFOREACHinfocoms##&lt;/p&gt;',
             ], [
                 'id' => '12',
                 'notificationtemplates_id' => '11',
@@ -5175,14 +4455,14 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
 ##license.url##
  ##ENDFOREACHlicenses##',
-                'content_html' => '<p>
-##lang.license.entity## : ##license.entity##<br />
+                'content_html' => '&lt;p&gt;
+##lang.license.entity## : ##license.entity##&lt;br /&gt;
 ##FOREACHlicenses##
-<br />##lang.license.item## : ##license.item##<br />
-##lang.license.serial## : ##license.serial##<br />
+&lt;br /&gt;##lang.license.item## : ##license.item##&lt;br /&gt;
+##lang.license.serial## : ##license.serial##&lt;br /&gt;
 ##lang.license.expirationdate## : ##license.expirationdate##
-<br /> <a href="##license.url##"> ##license.url##
-</a><br /> ##ENDFOREACHlicenses##</p>',
+&lt;br /&gt; &lt;a href="##license.url##"&gt; ##license.url##
+&lt;/a&gt;&lt;br /&gt; ##ENDFOREACHlicenses##&lt;/p&gt;',
             ], [
                 'id' => '13',
                 'notificationtemplates_id' => '13',
@@ -5193,9 +4473,9 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.passwordforget.information##
 
 ##lang.passwordforget.link## ##user.passwordforgeturl##',
-                'content_html' => '<p><strong>##user.realname## ##user.firstname##</strong></p>
-<p>##lang.passwordforget.information##</p>
-<p>##lang.passwordforget.link## <a title="##user.passwordforgeturl##" href="##user.passwordforgeturl##">##user.passwordforgeturl##</a></p>',
+                'content_html' => '&lt;p&gt;&lt;strong&gt;##user.realname## ##user.firstname##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;##lang.passwordforget.information##&lt;/p&gt;
+&lt;p&gt;##lang.passwordforget.link## &lt;a title="##user.passwordforgeturl##" href="##user.passwordforgeturl##"&gt;##user.passwordforgeturl##&lt;/a&gt;&lt;/p&gt;',
             ], [
                 'id' => '14',
                 'notificationtemplates_id' => '14',
@@ -5206,9 +4486,9 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.ticket.closedate## : ##ticket.closedate##
 
 ##lang.satisfaction.text## ##ticket.urlsatisfaction##',
-                'content_html' => '<p>##lang.ticket.title## : ##ticket.title##</p>
-<p>##lang.ticket.closedate## : ##ticket.closedate##</p>
-<p>##lang.satisfaction.text## <a href="##ticket.urlsatisfaction##">##ticket.urlsatisfaction##</a></p>',
+                'content_html' => '&lt;p&gt;##lang.ticket.title## : ##ticket.title##&lt;/p&gt;
+&lt;p&gt;##lang.ticket.closedate## : ##ticket.closedate##&lt;/p&gt;
+&lt;p&gt;##lang.satisfaction.text## &lt;a href="##ticket.urlsatisfaction##"&gt;##ticket.urlsatisfaction##&lt;/a&gt;&lt;/p&gt;',
             ], [
                 'id' => '16',
                 'notificationtemplates_id' => '16',
@@ -5220,8 +4500,8 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
  ##crontask.name## : ##crontask.description##
 
 ##ENDFOREACHcrontasks##',
-                'content_html' => '<p>##lang.crontask.warning##</p>
-<p>##FOREACHcrontasks## <br /><a href="##crontask.url##">##crontask.name##</a> : ##crontask.description##<br /> <br />##ENDFOREACHcrontasks##</p>',
+                'content_html' => '&lt;p&gt;##lang.crontask.warning##&lt;/p&gt;
+&lt;p&gt;##FOREACHcrontasks## &lt;br /&gt;&lt;a href="##crontask.url##"&gt;##crontask.name##&lt;/a&gt; : ##crontask.description##&lt;br /&gt; &lt;br /&gt;##ENDFOREACHcrontasks##&lt;/p&gt;',
             ], [
                 'id' => '17',
                 'notificationtemplates_id' => '17',
@@ -5282,26 +4562,26 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
 ##ENDFOREACHtasks##
 ',
-                'content_html' => '<p>##IFproblem.storestatus=5##</p>
-<div>##lang.problem.url## : <a href="##problem.urlapprove##">##problem.urlapprove##</a></div>
-<div><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.problem.solvedate##</span></strong></span> : ##problem.solvedate##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.problem.solution.type##</strong></span> : ##problem.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.problem.solution.description##</strong></span> : ##problem.solution.description## ##ENDIFproblem.storestatus##</div>
-<div>##ELSEproblem.storestatus## ##lang.problem.url## : <a href="##problem.url##">##problem.url##</a> ##ENDELSEproblem.storestatus##</div>
-<p class="description b"><strong>##lang.problem.description##</strong></p>
-<p><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.title##</span>&#160;:##problem.title## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.authors##</span>&#160;:##IFproblem.authors## ##problem.authors## ##ENDIFproblem.authors##    ##ELSEproblem.authors##--##ENDELSEproblem.authors## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.creationdate##</span>&#160;:##problem.creationdate## <br /> ##IFproblem.assigntousers## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.assigntousers##</span>&#160;: ##problem.assigntousers## ##ENDIFproblem.assigntousers##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.problem.status## </span>&#160;: ##problem.status##<br /> ##IFproblem.assigntogroups## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.assigntogroups##</span>&#160;: ##problem.assigntogroups## ##ENDIFproblem.assigntogroups##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.urgency##</span>&#160;: ##problem.urgency##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.impact##</span>&#160;: ##problem.impact##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.priority##</span> : ##problem.priority## <br />##IFproblem.category##<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.problem.category## </span>&#160;:##problem.category##  ##ENDIFproblem.category## ##ELSEproblem.category##  ##lang.problem.nocategoryassigned## ##ENDELSEproblem.category##    <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.problem.content##</span>&#160;: ##problem.content##</p>
-<p>##IFproblem.storestatus=6##<br /><span style="text-decoration: underline;"><strong><span style="color: #888888;">##lang.problem.solvedate##</span></strong></span> : ##problem.solvedate##<br /><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.problem.solution.type##</span></strong></span> : ##problem.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.problem.solution.description##</strong></span> : ##problem.solution.description##<br />##ENDIFproblem.storestatus##</p>
-<div class="description b">##lang.problem.numberoffollowups##&#160;: ##problem.numberoffollowups##</div>
-<p>##FOREACHfollowups##</p>
-<div class="description b"><br /> <strong> [##followup.date##] <em>##lang.followup.isprivate## : ##followup.isprivate## </em></strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.author## </span> ##followup.author##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.description## </span> ##followup.description##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.date## </span> ##followup.date##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.requesttype## </span> ##followup.requesttype##</div>
-<p>##ENDFOREACHfollowups##</p>
-<div class="description b">##lang.problem.numberoftickets##&#160;: ##problem.numberoftickets##</div>
-<p>##FOREACHtickets##</p>
-<div><strong> [##ticket.date##] <em>##lang.problem.title## : <a href="##ticket.url##">##ticket.title## </a></em></strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> </span><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.problem.content## </span> ##ticket.content##
-<p>##ENDFOREACHtickets##</p>
-<div class="description b">##lang.problem.numberoftasks##&#160;: ##problem.numberoftasks##</div>
-<p>##FOREACHtasks##</p>
-<div class="description b"><strong>[##task.date##] </strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.author##</span> ##task.author##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.description##</span> ##task.description##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.time##</span> ##task.time##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.category##</span> ##task.category##</div>
-<p>##ENDFOREACHtasks##</p>
-</div>',
+                'content_html' => '&lt;p&gt;##IFproblem.storestatus=5##&lt;/p&gt;
+&lt;div&gt;##lang.problem.url## : &lt;a href="##problem.urlapprove##"&gt;##problem.urlapprove##&lt;/a&gt;&lt;/div&gt;
+&lt;div&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.problem.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##problem.solvedate##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.problem.solution.type##&lt;/strong&gt;&lt;/span&gt; : ##problem.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.problem.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##problem.solution.description## ##ENDIFproblem.storestatus##&lt;/div&gt;
+&lt;div&gt;##ELSEproblem.storestatus## ##lang.problem.url## : &lt;a href="##problem.url##"&gt;##problem.url##&lt;/a&gt; ##ENDELSEproblem.storestatus##&lt;/div&gt;
+&lt;p class="description b"&gt;&lt;strong&gt;##lang.problem.description##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.title##&lt;/span&gt;&#160;:##problem.title## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.authors##&lt;/span&gt;&#160;:##IFproblem.authors## ##problem.authors## ##ENDIFproblem.authors##    ##ELSEproblem.authors##--##ENDELSEproblem.authors## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.creationdate##&lt;/span&gt;&#160;:##problem.creationdate## &lt;br /&gt; ##IFproblem.assigntousers## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.assigntousers##&lt;/span&gt;&#160;: ##problem.assigntousers## ##ENDIFproblem.assigntousers##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.problem.status## &lt;/span&gt;&#160;: ##problem.status##&lt;br /&gt; ##IFproblem.assigntogroups## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.assigntogroups##&lt;/span&gt;&#160;: ##problem.assigntogroups## ##ENDIFproblem.assigntogroups##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.urgency##&lt;/span&gt;&#160;: ##problem.urgency##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.impact##&lt;/span&gt;&#160;: ##problem.impact##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.priority##&lt;/span&gt; : ##problem.priority## &lt;br /&gt;##IFproblem.category##&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.problem.category## &lt;/span&gt;&#160;:##problem.category##  ##ENDIFproblem.category## ##ELSEproblem.category##  ##lang.problem.nocategoryassigned## ##ENDELSEproblem.category##    &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.problem.content##&lt;/span&gt;&#160;: ##problem.content##&lt;/p&gt;
+&lt;p&gt;##IFproblem.storestatus=6##&lt;br /&gt;&lt;span style="text-decoration: underline;"&gt;&lt;strong&gt;&lt;span style="color: #888888;"&gt;##lang.problem.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##problem.solvedate##&lt;br /&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.problem.solution.type##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##problem.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.problem.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##problem.solution.description##&lt;br /&gt;##ENDIFproblem.storestatus##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.problem.numberoffollowups##&#160;: ##problem.numberoffollowups##&lt;/div&gt;
+&lt;p&gt;##FOREACHfollowups##&lt;/p&gt;
+&lt;div class="description b"&gt;&lt;br /&gt; &lt;strong&gt; [##followup.date##] &lt;em&gt;##lang.followup.isprivate## : ##followup.isprivate## &lt;/em&gt;&lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.author## &lt;/span&gt; ##followup.author##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.description## &lt;/span&gt; ##followup.description##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.date## &lt;/span&gt; ##followup.date##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.requesttype## &lt;/span&gt; ##followup.requesttype##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHfollowups##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.problem.numberoftickets##&#160;: ##problem.numberoftickets##&lt;/div&gt;
+&lt;p&gt;##FOREACHtickets##&lt;/p&gt;
+&lt;div&gt;&lt;strong&gt; [##ticket.date##] &lt;em&gt;##lang.problem.title## : &lt;a href="##ticket.url##"&gt;##ticket.title## &lt;/a&gt;&lt;/em&gt;&lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; &lt;/span&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.problem.content## &lt;/span&gt; ##ticket.content##
+&lt;p&gt;##ENDFOREACHtickets##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.problem.numberoftasks##&#160;: ##problem.numberoftasks##&lt;/div&gt;
+&lt;p&gt;##FOREACHtasks##&lt;/p&gt;
+&lt;div class="description b"&gt;&lt;strong&gt;[##task.date##] &lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.author##&lt;/span&gt; ##task.author##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.description##&lt;/span&gt; ##task.description##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.time##&lt;/span&gt; ##task.time##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.category##&lt;/span&gt; ##task.category##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHtasks##&lt;/p&gt;
+&lt;/div&gt;',
             ], [
                 'id' => '18',
                 'notificationtemplates_id' => '18',
@@ -5315,10 +4595,10 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.recall.planning.end##: ##recall.planning.end##
 ##lang.recall.planning.state##: ##recall.planning.state##
 ##lang.recall.item.private##: ##recall.item.private##',
-                'content_html' => '<p>##recall.action##: <a href="##recall.item.url##">##recall.item.name##</a></p>
-<p>##recall.item.content##</p>
-<p>##lang.recall.planning.begin##: ##recall.planning.begin##<br />##lang.recall.planning.end##: ##recall.planning.end##<br />##lang.recall.planning.state##: ##recall.planning.state##<br />##lang.recall.item.private##: ##recall.item.private##<br /><br /></p>
-<p><br /><br /></p>',
+                'content_html' => '&lt;p&gt;##recall.action##: &lt;a href="##recall.item.url##"&gt;##recall.item.name##&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;##recall.item.content##&lt;/p&gt;
+&lt;p&gt;##lang.recall.planning.begin##: ##recall.planning.begin##&lt;br /&gt;##lang.recall.planning.end##: ##recall.planning.end##&lt;br /&gt;##lang.recall.planning.state##: ##recall.planning.state##&lt;br /&gt;##lang.recall.item.private##: ##recall.item.private##&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;',
             ], [
                 'id' => '19',
                 'notificationtemplates_id' => '19',
@@ -5379,26 +4659,26 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
 ##ENDFOREACHtasks##
 ',
-                'content_html' => '<p>##IFchange.storestatus=5##</p>
-<div>##lang.change.url## : <a href="##change.urlapprove##">##change.urlapprove##</a></div>
-<div><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.change.solvedate##</span></strong></span> : ##change.solvedate##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.change.solution.type##</strong></span> : ##change.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.change.solution.description##</strong></span> : ##change.solution.description## ##ENDIFchange.storestatus##</div>
-<div>##ELSEchange.storestatus## ##lang.change.url## : <a href="##change.url##">##change.url##</a> ##ENDELSEchange.storestatus##</div>
-<p class="description b"><strong>##lang.change.description##</strong></p>
-<p><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.title##</span>&#160;:##change.title## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.authors##</span>&#160;:##IFchange.authors## ##change.authors## ##ENDIFchange.authors##    ##ELSEchange.authors##--##ENDELSEchange.authors## <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.creationdate##</span>&#160;:##change.creationdate## <br /> ##IFchange.assigntousers## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.assigntousers##</span>&#160;: ##change.assigntousers## ##ENDIFchange.assigntousers##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.change.status## </span>&#160;: ##change.status##<br /> ##IFchange.assigntogroups## <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.assigntogroups##</span>&#160;: ##change.assigntogroups## ##ENDIFchange.assigntogroups##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.urgency##</span>&#160;: ##change.urgency##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.impact##</span>&#160;: ##change.impact##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.priority##</span> : ##change.priority## <br />##IFchange.category##<span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.change.category## </span>&#160;:##change.category##  ##ENDIFchange.category## ##ELSEchange.category##  ##lang.change.nocategoryassigned## ##ENDELSEchange.category##    <br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.change.content##</span>&#160;: ##change.content##</p>
-<p>##IFchange.storestatus=6##<br /><span style="text-decoration: underline;"><strong><span style="color: #888888;">##lang.change.solvedate##</span></strong></span> : ##change.solvedate##<br /><span style="color: #888888;"><strong><span style="text-decoration: underline;">##lang.change.solution.type##</span></strong></span> : ##change.solution.type##<br /><span style="text-decoration: underline; color: #888888;"><strong>##lang.change.solution.description##</strong></span> : ##change.solution.description##<br />##ENDIFchange.storestatus##</p>
-<div class="description b">##lang.change.numberoffollowups##&#160;: ##change.numberoffollowups##</div>
-<p>##FOREACHfollowups##</p>
-<div class="description b"><br /> <strong> [##followup.date##] <em>##lang.followup.isprivate## : ##followup.isprivate## </em></strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.author## </span> ##followup.author##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.description## </span> ##followup.description##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.date## </span> ##followup.date##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.followup.requesttype## </span> ##followup.requesttype##</div>
-<p>##ENDFOREACHfollowups##</p>
-<div class="description b">##lang.change.numberofproblems##&#160;: ##change.numberofproblems##</div>
-<p>##FOREACHproblems##</p>
-<div><strong> [##problem.date##] <em>##lang.change.title## : <a href="##problem.url##">##problem.title## </a></em></strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> </span><span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">##lang.change.content## </span> ##problem.content##
-<p>##ENDFOREACHproblems##</p>
-<div class="description b">##lang.change.numberoftasks##&#160;: ##change.numberoftasks##</div>
-<p>##FOREACHtasks##</p>
-<div class="description b"><strong>[##task.date##] </strong><br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.author##</span> ##task.author##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.description##</span> ##task.description##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.time##</span> ##task.time##<br /> <span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"> ##lang.task.category##</span> ##task.category##</div>
-<p>##ENDFOREACHtasks##</p>
-</div>',
+                'content_html' => '&lt;p&gt;##IFchange.storestatus=5##&lt;/p&gt;
+&lt;div&gt;##lang.change.url## : &lt;a href="##change.urlapprove##"&gt;##change.urlapprove##&lt;/a&gt;&lt;/div&gt;
+&lt;div&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.change.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##change.solvedate##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.change.solution.type##&lt;/strong&gt;&lt;/span&gt; : ##change.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.change.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##change.solution.description## ##ENDIFchange.storestatus##&lt;/div&gt;
+&lt;div&gt;##ELSEchange.storestatus## ##lang.change.url## : &lt;a href="##change.url##"&gt;##change.url##&lt;/a&gt; ##ENDELSEchange.storestatus##&lt;/div&gt;
+&lt;p class="description b"&gt;&lt;strong&gt;##lang.change.description##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.title##&lt;/span&gt;&#160;:##change.title## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.authors##&lt;/span&gt;&#160;:##IFchange.authors## ##change.authors## ##ENDIFchange.authors##    ##ELSEchange.authors##--##ENDELSEchange.authors## &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.creationdate##&lt;/span&gt;&#160;:##change.creationdate## &lt;br /&gt; ##IFchange.assigntousers## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.assigntousers##&lt;/span&gt;&#160;: ##change.assigntousers## ##ENDIFchange.assigntousers##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.change.status## &lt;/span&gt;&#160;: ##change.status##&lt;br /&gt; ##IFchange.assigntogroups## &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.assigntogroups##&lt;/span&gt;&#160;: ##change.assigntogroups## ##ENDIFchange.assigntogroups##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.urgency##&lt;/span&gt;&#160;: ##change.urgency##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.impact##&lt;/span&gt;&#160;: ##change.impact##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.priority##&lt;/span&gt; : ##change.priority## &lt;br /&gt;##IFchange.category##&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.change.category## &lt;/span&gt;&#160;:##change.category##  ##ENDIFchange.category## ##ELSEchange.category##  ##lang.change.nocategoryassigned## ##ENDELSEchange.category##    &lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.change.content##&lt;/span&gt;&#160;: ##change.content##&lt;/p&gt;
+&lt;p&gt;##IFchange.storestatus=6##&lt;br /&gt;&lt;span style="text-decoration: underline;"&gt;&lt;strong&gt;&lt;span style="color: #888888;"&gt;##lang.change.solvedate##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##change.solvedate##&lt;br /&gt;&lt;span style="color: #888888;"&gt;&lt;strong&gt;&lt;span style="text-decoration: underline;"&gt;##lang.change.solution.type##&lt;/span&gt;&lt;/strong&gt;&lt;/span&gt; : ##change.solution.type##&lt;br /&gt;&lt;span style="text-decoration: underline; color: #888888;"&gt;&lt;strong&gt;##lang.change.solution.description##&lt;/strong&gt;&lt;/span&gt; : ##change.solution.description##&lt;br /&gt;##ENDIFchange.storestatus##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.change.numberoffollowups##&#160;: ##change.numberoffollowups##&lt;/div&gt;
+&lt;p&gt;##FOREACHfollowups##&lt;/p&gt;
+&lt;div class="description b"&gt;&lt;br /&gt; &lt;strong&gt; [##followup.date##] &lt;em&gt;##lang.followup.isprivate## : ##followup.isprivate## &lt;/em&gt;&lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.author## &lt;/span&gt; ##followup.author##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.description## &lt;/span&gt; ##followup.description##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.date## &lt;/span&gt; ##followup.date##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.followup.requesttype## &lt;/span&gt; ##followup.requesttype##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHfollowups##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.change.numberofproblems##&#160;: ##change.numberofproblems##&lt;/div&gt;
+&lt;p&gt;##FOREACHproblems##&lt;/p&gt;
+&lt;div&gt;&lt;strong&gt; [##problem.date##] &lt;em&gt;##lang.change.title## : &lt;a href="##problem.url##"&gt;##problem.title## &lt;/a&gt;&lt;/em&gt;&lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; &lt;/span&gt;&lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt;##lang.change.content## &lt;/span&gt; ##problem.content##
+&lt;p&gt;##ENDFOREACHproblems##&lt;/p&gt;
+&lt;div class="description b"&gt;##lang.change.numberoftasks##&#160;: ##change.numberoftasks##&lt;/div&gt;
+&lt;p&gt;##FOREACHtasks##&lt;/p&gt;
+&lt;div class="description b"&gt;&lt;strong&gt;[##task.date##] &lt;/strong&gt;&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.author##&lt;/span&gt; ##task.author##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.description##&lt;/span&gt; ##task.description##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.time##&lt;/span&gt; ##task.time##&lt;br /&gt; &lt;span style="color: #8b8c8f; font-weight: bold; text-decoration: underline;"&gt; ##lang.task.category##&lt;/span&gt; ##task.category##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHtasks##&lt;/p&gt;
+&lt;/div&gt;',
             ], [
                 'id' => '20',
                 'notificationtemplates_id' => '20',
@@ -5409,8 +4689,8 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.mailcollector.errors## : ##mailcollector.errors##
 ##mailcollector.url##
 ##ENDFOREACHmailcollectors##',
-                'content_html' => '<p>##FOREACHmailcollectors##<br />##lang.mailcollector.name## : ##mailcollector.name##<br /> ##lang.mailcollector.errors## : ##mailcollector.errors##<br /><a href="##mailcollector.url##">##mailcollector.url##</a><br /> ##ENDFOREACHmailcollectors##</p>
-<p></p>',
+                'content_html' => '&lt;p&gt;##FOREACHmailcollectors##&lt;br /&gt;##lang.mailcollector.name## : ##mailcollector.name##&lt;br /&gt; ##lang.mailcollector.errors## : ##mailcollector.errors##&lt;br /&gt;&lt;a href="##mailcollector.url##"&gt;##mailcollector.url##&lt;/a&gt;&lt;br /&gt; ##ENDFOREACHmailcollectors##&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;',
             ], [
                 'id' => '21',
                 'notificationtemplates_id' => '21',
@@ -5444,15 +4724,15 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.task.description## : ##task.description##
 
 ##ENDFOREACHtasks##',
-                'content_html' => '<p>##lang.project.url## : <a href="##project.url##">##project.url##</a></p>
-<p><strong>##lang.project.description##</strong></p>
-<p>##lang.project.name## : ##project.name##<br />##lang.project.code## : ##project.code##<br /> ##lang.project.manager## : ##project.manager##<br />##lang.project.managergroup## : ##project.managergroup##<br /> ##lang.project.creationdate## : ##project.creationdate##<br />##lang.project.priority## : ##project.priority## <br />##lang.project.state## : ##project.state##<br />##lang.project.type## : ##project.type##<br />##lang.project.description## : ##project.description##</p>
-<p>##lang.project.numberoftasks## : ##project.numberoftasks##</p>
-<div>
-<p>##FOREACHtasks##</p>
-<div><strong>[##task.creationdate##] </strong><br /> ##lang.task.name## : ##task.name##<br />##lang.task.state## : ##task.state##<br />##lang.task.type## : ##task.type##<br />##lang.task.percent## : ##task.percent##<br />##lang.task.description## : ##task.description##</div>
-<p>##ENDFOREACHtasks##</p>
-</div>',
+                'content_html' => '&lt;p&gt;##lang.project.url## : &lt;a href="##project.url##"&gt;##project.url##&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;##lang.project.description##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;##lang.project.name## : ##project.name##&lt;br /&gt;##lang.project.code## : ##project.code##&lt;br /&gt; ##lang.project.manager## : ##project.manager##&lt;br /&gt;##lang.project.managergroup## : ##project.managergroup##&lt;br /&gt; ##lang.project.creationdate## : ##project.creationdate##&lt;br /&gt;##lang.project.priority## : ##project.priority## &lt;br /&gt;##lang.project.state## : ##project.state##&lt;br /&gt;##lang.project.type## : ##project.type##&lt;br /&gt;##lang.project.description## : ##project.description##&lt;/p&gt;
+&lt;p&gt;##lang.project.numberoftasks## : ##project.numberoftasks##&lt;/p&gt;
+&lt;div&gt;
+&lt;p&gt;##FOREACHtasks##&lt;/p&gt;
+&lt;div&gt;&lt;strong&gt;[##task.creationdate##] &lt;/strong&gt;&lt;br /&gt; ##lang.task.name## : ##task.name##&lt;br /&gt;##lang.task.state## : ##task.state##&lt;br /&gt;##lang.task.type## : ##task.type##&lt;br /&gt;##lang.task.percent## : ##task.percent##&lt;br /&gt;##lang.task.description## : ##task.description##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHtasks##&lt;/p&gt;
+&lt;/div&gt;',
             ], [
                 'id' => '22',
                 'notificationtemplates_id' => '22',
@@ -5483,15 +4763,15 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.task.description## : ##task.description##
 
 ##ENDFOREACHtasks##',
-                'content_html' => '<p>##lang.projecttask.url## : <a href="##projecttask.url##">##projecttask.url##</a></p>
-<p><strong>##lang.projecttask.description##</strong></p>
-<p>##lang.projecttask.name## : ##projecttask.name##<br />##lang.projecttask.project## : <a href="##projecttask.projecturl##">##projecttask.project##</a><br />##lang.projecttask.creationdate## : ##projecttask.creationdate##<br />##lang.projecttask.state## : ##projecttask.state##<br />##lang.projecttask.type## : ##projecttask.type##<br />##lang.projecttask.description## : ##projecttask.description##</p>
-<p>##lang.projecttask.numberoftasks## : ##projecttask.numberoftasks##</p>
-<div>
-<p>##FOREACHtasks##</p>
-<div><strong>[##task.creationdate##] </strong><br />##lang.task.name## : ##task.name##<br />##lang.task.state## : ##task.state##<br />##lang.task.type## : ##task.type##<br />##lang.task.percent## : ##task.percent##<br />##lang.task.description## : ##task.description##</div>
-<p>##ENDFOREACHtasks##</p>
-</div>',
+                'content_html' => '&lt;p&gt;##lang.projecttask.url## : &lt;a href="##projecttask.url##"&gt;##projecttask.url##&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;##lang.projecttask.description##&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;##lang.projecttask.name## : ##projecttask.name##&lt;br /&gt;##lang.projecttask.project## : &lt;a href="##projecttask.projecturl##"&gt;##projecttask.project##&lt;/a&gt;&lt;br /&gt;##lang.projecttask.creationdate## : ##projecttask.creationdate##&lt;br /&gt;##lang.projecttask.state## : ##projecttask.state##&lt;br /&gt;##lang.projecttask.type## : ##projecttask.type##&lt;br /&gt;##lang.projecttask.description## : ##projecttask.description##&lt;/p&gt;
+&lt;p&gt;##lang.projecttask.numberoftasks## : ##projecttask.numberoftasks##&lt;/p&gt;
+&lt;div&gt;
+&lt;p&gt;##FOREACHtasks##&lt;/p&gt;
+&lt;div&gt;&lt;strong&gt;[##task.creationdate##] &lt;/strong&gt;&lt;br /&gt;##lang.task.name## : ##task.name##&lt;br /&gt;##lang.task.state## : ##task.state##&lt;br /&gt;##lang.task.type## : ##task.type##&lt;br /&gt;##lang.task.percent## : ##task.percent##&lt;br /&gt;##lang.task.description## : ##task.description##&lt;/div&gt;
+&lt;p&gt;##ENDFOREACHtasks##&lt;/p&gt;
+&lt;/div&gt;',
             ], [
                 'id' => '23',
                 'notificationtemplates_id' => '23',
@@ -5510,20 +4790,20 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
       Thank you,
       Regards,
       ##objectlock.requester.firstname##',
-                'content_html' => '<table>
-      <tbody>
-      <tr><th colspan="2"><a href="##objectlock.url##">##objectlock.type## ###objectlock.id## - ##objectlock.name##</a></th></tr>
-      <tr>
-      <td>##lang.objectlock.url##</td>
-      <td>##objectlock.url##</td>
-      </tr>
-      <tr>
-      <td>##lang.objectlock.date_mod##</td>
-      <td>##objectlock.date_mod##</td>
-      </tr>
-      </tbody>
-      </table>
-      <p><span style="font-size: small;">Hello ##objectlock.lockedby.firstname##,<br />Could go to this item and unlock it for me?<br />Thank you,<br />Regards,<br />##objectlock.requester.firstname## ##objectlock.requester.lastname##</span></p>',
+                'content_html' => '&lt;table&gt;
+      &lt;tbody&gt;
+      &lt;tr&gt;&lt;th colspan="2"&gt;&lt;a href="##objectlock.url##"&gt;##objectlock.type## ###objectlock.id## - ##objectlock.name##&lt;/a&gt;&lt;/th&gt;&lt;/tr&gt;
+      &lt;tr&gt;
+      &lt;td&gt;##lang.objectlock.url##&lt;/td&gt;
+      &lt;td&gt;##objectlock.url##&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+      &lt;td&gt;##lang.objectlock.date_mod##&lt;/td&gt;
+      &lt;td&gt;##objectlock.date_mod##&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;/tbody&gt;
+      &lt;/table&gt;
+      &lt;p&gt;&lt;span style="font-size: small;"&gt;Hello ##objectlock.lockedby.firstname##,&lt;br /&gt;Could go to this item and unlock it for me?&lt;br /&gt;Thank you,&lt;br /&gt;Regards,&lt;br /&gt;##objectlock.requester.firstname## ##objectlock.requester.lastname##&lt;/span&gt;&lt;/p&gt;',
             ], [
                 'id' => '24',
                 'notificationtemplates_id' => '24',
@@ -5537,17 +4817,17 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
       ##savedsearch.url##
 
       Regards,',
-                'content_html' => '<table>
-      <tbody>
-      <tr><th colspan="2"><a href="##savedsearch.url##">##savedsearch.type## ###savedsearch.id## - ##savedsearch.name##</a></th></tr>
-      <tr><td colspan="2"><a href="##savedsearch.url##">##savedsearch.message##</a></td></tr>
-      <tr>
-      <td>##lang.savedsearch.url##</td>
-      <td>##savedsearch.url##</td>
-      </tr>
-      </tbody>
-      </table>
-      <p><span style="font-size: small;">Hello <br />Regards,</span></p>',
+                'content_html' => '&lt;table&gt;
+      &lt;tbody&gt;
+      &lt;tr&gt;&lt;th colspan="2"&gt;&lt;a href="##savedsearch.url##"&gt;##savedsearch.type## ###savedsearch.id## - ##savedsearch.name##&lt;/a&gt;&lt;/th&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;td colspan="2"&gt;&lt;a href="##savedsearch.url##"&gt;##savedsearch.message##&lt;/a&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;
+      &lt;td&gt;##lang.savedsearch.url##&lt;/td&gt;
+      &lt;td&gt;##savedsearch.url##&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;/tbody&gt;
+      &lt;/table&gt;
+      &lt;p&gt;&lt;span style="font-size: small;"&gt;Hello &lt;br /&gt;Regards,&lt;/span&gt;&lt;/p&gt;',
             ], [
                 'id' => '25',
                 'notificationtemplates_id' => '25',
@@ -5560,14 +4840,14 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##lang.certificate.expirationdate## : ##certificate.expirationdate##
 
 ##certificate.url##',
-                'content_html' => '<p>
-##lang.certificate.entity## : ##certificate.entity##<br />
-<br />##lang.certificate.name## : ##certificate.name##<br />
-##lang.certificate.serial## : ##certificate.serial##<br />
+                'content_html' => '&lt;p&gt;
+##lang.certificate.entity## : ##certificate.entity##&lt;br /&gt;
+&lt;br /&gt;##lang.certificate.name## : ##certificate.name##&lt;br /&gt;
+##lang.certificate.serial## : ##certificate.serial##&lt;br /&gt;
 ##lang.certificate.expirationdate## : ##certificate.expirationdate##
-<br /> <a href="##certificate.url##"> ##certificate.url##
-</a><br />
-</p>',
+&lt;br /&gt; &lt;a href="##certificate.url##"&gt; ##certificate.url##
+&lt;/a&gt;&lt;br /&gt;
+&lt;/p&gt;',
             ], [
                 'id' => '26',
                 'notificationtemplates_id' => '26',
@@ -5575,9 +4855,9 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'subject' => '##domain.action## : ##domain.name##',
                 'content_text' => '##lang.domain.entity## :##domain.entity##
    ##lang.domain.name## : ##domain.name## - ##lang.domain.dateexpiration## : ##domain.dateexpiration##',
-                'content_html' => '<p>##lang.domain.entity## :##domain.entity##<br /> <br />
-                        ##lang.domain.name##  : ##domain.name## - ##lang.domain.dateexpiration## :  ##domain.dateexpiration##<br />
-                        </p>',
+                'content_html' => '&lt;p&gt;##lang.domain.entity## :##domain.entity##&lt;br /&gt; &lt;br /&gt;
+                        ##lang.domain.name##  : ##domain.name## - ##lang.domain.dateexpiration## :  ##domain.dateexpiration##&lt;br /&gt;
+                        &lt;/p&gt;',
 
             ], [
                 'id' => '27',
@@ -5598,20 +4878,20 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 ##ENDIFuser.account.lock.date##
 
 ##password.update.link## ##user.password.update.url##',
-                'content_html' => '<p><strong>##user.realname## ##user.firstname##</strong></p>
+                'content_html' => '&lt;p&gt;&lt;strong&gt;##user.realname## ##user.firstname##&lt;/strong&gt;&lt;/p&gt;
 
 ##IFuser.password.has_expired=1##
-<p>##lang.password.has_expired.information##</p>
+&lt;p&gt;##lang.password.has_expired.information##&lt;/p&gt;
 ##ENDIFuser.password.has_expired##
 ##ELSEuser.password.has_expired##
-<p>##lang.password.expires_soon.information##</p>
+&lt;p&gt;##lang.password.expires_soon.information##&lt;/p&gt;
 ##ENDELSEuser.password.has_expired##
-<p>##lang.user.password.expiration.date##: ##user.password.expiration.date##</p>
+&lt;p&gt;##lang.user.password.expiration.date##: ##user.password.expiration.date##&lt;/p&gt;
 ##IFuser.account.lock.date##
-<p>##lang.user.account.lock.date##: ##user.account.lock.date##</p>
+&lt;p&gt;##lang.user.account.lock.date##: ##user.account.lock.date##&lt;/p&gt;
 ##ENDIFuser.account.lock.date##
 
-<p>##lang.password.update.link## <a href="##user.password.update.url##">##user.password.update.url##</a></p>',
+&lt;p&gt;##lang.password.update.link## &lt;a href="##user.password.update.url##"&gt;##user.password.update.url##&lt;/a&gt;&lt;/p&gt;',
 
             ], [
                 'id' => '28',
@@ -5621,107 +4901,15 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'content_text' => '##lang.plugins_updates_available##
 
 ##FOREACHplugins##
-##plugin.name## :##plugin.old_version## -> ##plugin.version##
+##plugin.name## :##plugin.old_version## -&gt; ##plugin.version##
 ##ENDFOREACHplugins##
 
 ##lang.marketplace.url## : ##marketplace.url##',
-                'content_html' => '<p>##lang.plugins_updates_available##</p>
-<ul>##FOREACHplugins##
-<li>##plugin.name## :##plugin.old_version## -> ##plugin.version##</li>
-##ENDFOREACHplugins##</ul>
-<p>##lang.marketplace.url## : <a title="##lang.marketplace.url##" href="##marketplace.url##" target="_blank" rel="noopener">##marketplace.url##</a></p>',
-            ], [
-                'id' => '29',
-                'notificationtemplates_id' => '29',
-                'language' => '',
-                'subject' => '##user.action##',
-                'content_text' => '##user.realname## ##user.firstname##
-
-##lang.passwordinit.information##
-
-##lang.passwordinit.link## ##user.passwordiniturl##',
-                'content_html' => '<p><strong>##user.realname## ##user.firstname##</strong></p>
-<p>##lang.passwordinit.information##</p>
-<p>##lang.passwordinit.link## <a title="##user.passwordiniturl##" href="##user.passwordiniturl##">##user.passwordiniturl##</a></p>',
-            ], [
-                'id'                       => '30',
-                'notificationtemplates_id' => '30',
-                'language'                 => '',
-                'subject'                  => '##change.action## ##change.title##',
-                'content_text'             => '##lang.change.title## : ##change.title##
-##lang.change.closedate## : ##change.closedate##
-##lang.satisfaction.text## ##change.urlsatisfaction##',
-                'content_html'             => '<p>##lang.change.title## : ##change.title##</p>
-<p>##lang.change.closedate## : ##change.closedate##</p>
-<p>##lang.satisfaction.text## <a href="##change.urlsatisfaction##">##change.urlsatisfaction##</a></p>',
-            ], [
-                'id'                       => '31',
-                'notificationtemplates_id' => '31',
-                'language'                 => '',
-                'subject'                  => '##ticket.action## ##ticket.name##',
-                'content_text'             => '##lang.ticket.title##: ##ticket.title##
-
-##lang.ticket.reminder.bumpcounter##: ##ticket.reminder.bumpcounter##
-##lang.ticket.reminder.bumpremaining##: ##ticket.reminder.bumpremaining##
-##lang.ticket.reminder.bumptotal##: ##ticket.reminder.bumptotal##
-##lang.ticket.reminder.deadline##: ##ticket.reminder.deadline##
-
-##lang.ticket.reminder.text##: ##ticket.reminder.text##',
-                'content_html'             => '<p>##lang.ticket.title##: ##ticket.title##</p>
-                    <p>##lang.ticket.reminder.bumpcounter##: ##ticket.reminder.bumpcounter##</a><br />
-                    ##lang.ticket.reminder.bumpremaining##: ##ticket.reminder.bumpremaining##</a><br />
-                    ##lang.ticket.reminder.bumptotal##: ##ticket.reminder.bumptotal##</a><br />
-                    ##lang.ticket.reminder.deadline##: ##ticket.reminder.deadline##</p>
-                    <p>##lang.ticket.reminder.text##: ##ticket.reminder.text##</p>',
-            ], [
-                'id' => '32',
-                'notificationtemplates_id' => '32',
-                'language' => '',
-                'subject' => '##knowbaseitem.action## - ##knowbaseitem.subject##',
-                'content_text' => '##lang.knowbaseitem.url## : ##knowbaseitem.url##
-
-##lang.knowbaseitem.subject## : ##knowbaseitem.subject##
-
-##lang.knowbaseitem.content## : ##knowbaseitem.content##
-
-##lang.knowbaseitem.categories## : ##knowbaseitem.categories##
-##lang.knowbaseitem.is_faq## ##knowbaseitem.is_faq##
-##lang.knowbaseitem.begin_date## : ##knowbaseitem.begin_date##
-##lang.knowbaseitem.end_date## : ##knowbaseitem.end_date##
-
-##lang.knowbaseitem.numberofdocuments## : ##knowbaseitem.numberofdocuments##
-
-##FOREACHdocuments##
-  ##lang.document.downloadurl## : ##document.downloadurl##
-  ##lang.document.filename## : ##document.filename##
-  ##lang.document.heading## : ##document.heading##
-  ##lang.document.id## : ##document.id##
-  ##lang.document.name## : ##document.name##
-  ##lang.document.url## : ##document.url##
-  ##lang.document.weblink## : ##document.weblink##
-##ENDFOREACHdocuments##
-
-##FOREACHtargets##
-  ##lang.target.itemtype## : ##target.type##
-  ##lang.target.name## : ##target.name##
-  ##lang.target.url## : ##target.url##
-##ENDFOREACHtargets##',
-                'content_html' => '<p>##lang.knowbaseitem.subject## : ##knowbaseitem.subject##
-<br>##lang.knowbaseitem.categories## : ##knowbaseitem.categories##
-<br>##lang.knowbaseitem.is_faq## ##knowbaseitem.is_faq##
-<br>##lang.knowbaseitem.begin_date## : ##knowbaseitem.begin_date##
-<br>##lang.knowbaseitem.end_date## : ##knowbaseitem.end_date##
-<br>##lang.knowbaseitem.numberofdocuments## : ##knowbaseitem.numberofdocuments##</p>
-##FOREACHdocuments## <p>##lang.document.downloadurl## : ##document.downloadurl##</p>
-<p>##lang.document.filename## : ##document.filename##</p>
-<p>##lang.document.heading## : ##document.heading##</p>
-<p>##lang.document.id## : ##document.id##</p>
-<p>##lang.document.name## : ##document.name##</p>
-<p>##lang.document.url## : ##document.url##</p>
-<p>##lang.document.weblink## : ##document.weblink##</p> ##ENDFOREACHdocuments##</p>
-##FOREACHtargets## <p>##lang.target.itemtype## : ##target.type##</p>
-<p>##lang.target.name## : ##target.name##</p>
-<p>##lang.target.url## : ##target.url##</p> ##ENDFOREACHtargets##',
+                'content_html' => '&lt;p&gt;##lang.plugins_updates_available##&lt;/p&gt;
+&lt;ul&gt;##FOREACHplugins##
+&lt;li&gt;##plugin.name## :##plugin.old_version## -&gt; ##plugin.version##&lt;/li&gt;
+##ENDFOREACHplugins##&lt;/ul&gt;
+&lt;p&gt;##lang.marketplace.url## : &lt;a title="##lang.marketplace.url##" href="##marketplace.url##" target="_blank" rel="noopener"&gt;##marketplace.url##&lt;/a&gt;&lt;/p&gt;',
             ],
         ];
 
@@ -5897,11 +5085,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::ADDMY,
+                'rights' => READ | CREATE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC,
+                'rights' => READ,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'planning',
@@ -5913,10 +5101,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'taskcategory',
-                'rights' => self::RIGHT_NONE,
-            ], [
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'name' => 'tasktemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
@@ -5957,10 +5141,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'itilfollowuptemplate',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
-                'profiles_id' => self::PROFILE_SUPERVISOR,
-                'name' => 'itilvalidationtemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
@@ -6013,19 +5193,19 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'computer',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'monitor',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'software',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'networking',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'internet',
@@ -6033,23 +5213,23 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'printer',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'peripheral',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'cartridge',
-                'rights' => READ | READNOTE | READ_ASSIGNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'consumable',
-                'rights' => READ | READNOTE | READ_ASSIGNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'phone',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'queuednotification',
@@ -6177,15 +5357,15 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'ticket',
-                'rights' => READ | CREATE | DELETE | PURGE | Ticket::READALL | Ticket::READASSIGN | Ticket::OWN | CommonITILObject::SURVEY,
+                'rights' => READ | CREATE | DELETE | PURGE | Ticket::READALL | Ticket::READASSIGN | Ticket::OWN | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::ADDMY,
+                'rights' => READ | CREATE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC,
+                'rights' => READ,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'projecttask',
@@ -6205,10 +5385,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'taskcategory',
-                'rights' => self::RIGHT_NONE,
-            ], [
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'name' => 'tasktemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
@@ -6251,20 +5427,12 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'name' => 'itilfollowuptemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'name' => 'itilvalidationtemplate',
-                'rights' => self::RIGHT_NONE,
-            ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'solutiontemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'itilfollowuptemplate',
-                'rights' => self::RIGHT_NONE,
-            ], [
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'name' => 'itilvalidationtemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
@@ -6281,7 +5449,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'problem',
-                'rights' => Problem::READMY | READNOTE | Problem::READALL,
+                'rights' => Change::READMY | READNOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'cable_management',
@@ -6321,19 +5489,19 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'computer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'monitor',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'software',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'networking',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'internet',
@@ -6341,23 +5509,23 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'printer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'peripheral',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'cartridge',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'consumable',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'phone',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'queuednotification',
@@ -6486,25 +5654,25 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'ticket',
                 'rights' => ALLSTANDARDRIGHT | Ticket::READALL | Ticket::READGROUP | Ticket::READASSIGN | Ticket::ASSIGN
-                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | CommonITILObject::SURVEY | Ticket::READNEWTICKET,
+                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMY | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADD_AS_GROUP
-                    | ITILFollowup::ADDALLITEM | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER | ITILFollowup::ADD_AS_TECHNICIAN,
+                'rights' => READ | UPDATE | CREATE | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADDGROUPTICKET
+                    | ITILFollowup::ADDALLTICKET | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC | CommonITILTask::UPDATEMY | CommonITILTask::ADDMY | PURGE | CommonITILTask::UPDATEALL | CommonITILTask::ADD_AS_GROUP
-                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE | CommonITILTask::ADD_AS_OBSERVER | CommonITILTask::ADD_AS_TECHNICIAN,
+                'rights' => CommonITILTask::SEEPUBLIC | PURGE | CommonITILTask::UPDATEALL
+                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'projecttask',
-                'rights' => DELETE | PURGE | ProjectTask::READMY | ProjectTask::UPDATEMY | READNOTE | UPDATENOTE,
+                'rights' => ProjectTask::READMY | ProjectTask::UPDATEMY | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'projecttask',
-                'rights' => DELETE | PURGE | ProjectTask::READMY | ProjectTask::UPDATEMY | READNOTE | UPDATENOTE,
+                'rights' => ProjectTask::READMY | ProjectTask::UPDATEMY | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'projecttask',
@@ -6516,10 +5684,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'taskcategory',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
-                'profiles_id' => self::PROFILE_SUPERVISOR,
-                'name' => 'tasktemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
@@ -6566,10 +5730,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'name' => 'itilfollowuptemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'itilvalidationtemplate',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'solutiontemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
@@ -6578,17 +5738,13 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'name' => 'itilfollowuptemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => 'itilvalidationtemplate',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'calendar',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'slm',
-                'rights' => READ | UPDATE | CREATE | PURGE | SLM::RIGHT_ASSIGN,
+                'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'rule_dictionnary_printer',
@@ -6633,19 +5789,19 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'computer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'monitor',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'software',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'networking',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'internet',
@@ -6653,23 +5809,23 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'printer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'peripheral',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'cartridge',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'consumable',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'phone',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | UNLOCK,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'contact_enterprise',
@@ -6758,7 +5914,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'user',
-                'rights' => ALLSTANDARDRIGHT | UNLOCK | User::IMPORTEXTAUTHUSERS | User::READAUTHENT | User::UPDATEAUTHENT | User::IMPERSONATE,
+                'rights' => ALLSTANDARDRIGHT | UNLOCK | User::IMPORTEXTAUTHUSERS | User::READAUTHENT | User::UPDATEAUTHENT,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'group',
@@ -6795,17 +5951,17 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'ticket',
                 'rights' => ALLSTANDARDRIGHT | Ticket::READALL | Ticket::READGROUP | Ticket::READASSIGN | Ticket::ASSIGN
-                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | CommonITILObject::SURVEY | Ticket::READNEWTICKET,
+                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMY | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADD_AS_GROUP
-                    | ITILFollowup::ADDALLITEM | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER | ITILFollowup::ADD_AS_TECHNICIAN,
+                'rights' => READ | UPDATE | CREATE | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADDGROUPTICKET
+                    | ITILFollowup::ADDALLTICKET | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC | CommonITILTask::UPDATEMY | CommonITILTask::ADDMY | PURGE | CommonITILTask::UPDATEALL | CommonITILTask::ADD_AS_GROUP
-                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE | CommonITILTask::ADD_AS_OBSERVER | CommonITILTask::ADD_AS_TECHNICIAN,
+                'rights' => CommonITILTask::SEEPUBLIC | PURGE | CommonITILTask::UPDATEALL
+                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'project',
@@ -6825,10 +5981,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'taskcategory',
-                'rights' => self::RIGHT_NONE,
-            ], [
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'name' => 'tasktemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
@@ -6875,10 +6027,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'name' => 'itilfollowuptemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'name' => 'itilvalidationtemplate',
-                'rights' => self::RIGHT_NONE,
-            ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'solutiontemplate',
                 'rights' => self::RIGHT_NONE,
@@ -6887,17 +6035,13 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'name' => 'itilfollowuptemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'name' => 'itilvalidationtemplate',
-                'rights' => self::RIGHT_NONE,
-            ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'calendar',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'slm',
-                'rights' => READ | UPDATE | CREATE | PURGE | SLM::RIGHT_ASSIGN,
+                'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'rule_dictionnary_printer',
@@ -6929,7 +6073,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'change',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'changevalidation',
@@ -7105,17 +6249,16 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'ticket',
-                'rights' => Ticket::READMY | UPDATE | CREATE | Ticket::READALL | Ticket::ASSIGN | CommonITILObject::SURVEY | Ticket::READNEWTICKET,
+                'rights' => Ticket::READMY | UPDATE | CREATE | Ticket::READALL | Ticket::ASSIGN | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMY
-                    | ITILFollowup::ADDALLITEM | ITILFollowup::SEEPRIVATE,
+                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMYTICKET
+                    | ITILFollowup::ADDALLTICKET | ITILFollowup::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC | CommonITILTask::UPDATEMY | CommonITILTask::ADDMY
-                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE,
+                'rights' => READ | CommonITILTask::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'project',
@@ -7135,10 +6278,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'taskcategory',
-                'rights' => self::RIGHT_NONE,
-            ], [
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'name' => 'tasktemplate',
                 'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
@@ -7223,11 +6362,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'change',
-                'rights' => UPDATE | CREATE | DELETE | PURGE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => UPDATE | CREATE | DELETE | PURGE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'change',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'ticketvalidation',
@@ -7235,19 +6374,19 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'computer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'monitor',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'software',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'networking',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'internet',
@@ -7255,23 +6394,23 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'printer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'peripheral',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'cartridge',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'consumable',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'phone',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'queuednotification',
@@ -7396,17 +6535,17 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'ticket',
                 'rights' => Ticket::READMY | UPDATE | CREATE | Ticket::READALL | Ticket::READGROUP
-                    | Ticket::OWN | CommonITILObject::SURVEY | Ticket::READNEWTICKET,
+                    | Ticket::OWN | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMY | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADD_AS_GROUP
-                    | ITILFollowup::ADDALLITEM | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER | ITILFollowup::ADD_AS_TECHNICIAN,
+                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMYTICKET
+                    | ITILFollowup::UPDATEALL | ITILFollowup::ADDALLTICKET | ITILFollowup::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC | CommonITILTask::UPDATEMY | CommonITILTask::ADDMY | PURGE | CommonITILTask::UPDATEALL | CommonITILTask::ADD_AS_GROUP
-                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE | CommonITILTask::ADD_AS_OBSERVER | CommonITILTask::ADD_AS_TECHNICIAN,
+                'rights' => CommonITILTask::SEEPUBLIC | PURGE | CommonITILTask::UPDATEALL
+                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'project',
@@ -7426,10 +6565,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'taskcategory',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => 'tasktemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
@@ -7482,7 +6617,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'slm',
-                'rights' => READ | SLM::RIGHT_ASSIGN,
+                'rights' => READ,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'rule_dictionnary_printer',
@@ -7490,7 +6625,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'problem',
-                'rights' => ALLSTANDARDRIGHT | Problem::READMY | Problem::READALL | READNOTE | UPDATENOTE,
+                'rights' => Problem::READMY | Problem::READALL | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'knowbasecategory',
@@ -7518,11 +6653,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'change',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'change',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_TECHNICIAN,
                 'name' => 'ticketvalidation',
@@ -7530,19 +6665,19 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'computer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'monitor',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'software',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'networking',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'internet',
@@ -7550,23 +6685,23 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'printer',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'peripheral',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'cartridge',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'consumable',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'phone',
-                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE | READ_ASSIGNED | UPDATE_ASSIGNED | READ_OWNED | UPDATE_OWNED,
+                'rights' => ALLSTANDARDRIGHT | READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'queuednotification',
@@ -7574,7 +6709,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'contact_enterprise',
-                'rights' => READ | READNOTE | UPDATENOTE,
+                'rights' => READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'document',
@@ -7582,7 +6717,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'contract',
-                'rights' => READ | READNOTE | UPDATENOTE,
+                'rights' => READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'infocom',
@@ -7642,7 +6777,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'search_config',
-                'rights' => DisplayPreference::PERSONAL,
+                'rights' => self::RIGHT_NONE,
             ], [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
                 'name' => 'domain',
@@ -7691,17 +6826,17 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'ticket',
                 'rights' => ALLSTANDARDRIGHT | Ticket::READALL | Ticket::READGROUP | Ticket::READASSIGN | Ticket::ASSIGN
-                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | CommonITILObject::SURVEY | Ticket::READNEWTICKET,
+                    | Ticket::STEAL | Ticket::OWN | Ticket::CHANGEPRIORITY | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'followup',
-                'rights' => ITILFollowup::SEEPUBLIC | ITILFollowup::UPDATEMY | ITILFollowup::ADDMY | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADD_AS_GROUP
-                    | ITILFollowup::ADDALLITEM | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER | ITILFollowup::ADD_AS_TECHNICIAN,
+                'rights' => READ | UPDATE | CREATE | PURGE | ITILFollowup::UPDATEALL | ITILFollowup::ADDGROUPTICKET
+                    | ITILFollowup::ADDALLTICKET | ITILFollowup::SEEPRIVATE | ITILFollowup::ADD_AS_OBSERVER,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'task',
-                'rights' => CommonITILTask::SEEPUBLIC | CommonITILTask::UPDATEMY | CommonITILTask::ADDMY | PURGE | CommonITILTask::UPDATEALL | CommonITILTask::ADD_AS_GROUP
-                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE | CommonITILTask::ADD_AS_OBSERVER | CommonITILTask::ADD_AS_TECHNICIAN,
+                'rights' => CommonITILTask::SEEPUBLIC | PURGE | CommonITILTask::UPDATEALL
+                    | CommonITILTask::ADDALLITEM | CommonITILTask::SEEPRIVATE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'queuednotification',
@@ -7713,10 +6848,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'taskcategory',
-                'rights' => READ | UPDATE | CREATE | PURGE,
-            ], [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'tasktemplate',
                 'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
@@ -7745,7 +6876,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'budget',
-                'rights' => READ | READNOTE | UPDATENOTE,
+                'rights' => READNOTE | UPDATENOTE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'notification',
@@ -7769,7 +6900,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'slm',
-                'rights' => READ | UPDATE | CREATE | PURGE | SLM::RIGHT_ASSIGN,
+                'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'rule_dictionnary_printer',
@@ -7809,7 +6940,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_OBSERVER,
                 'name' => 'change',
-                'rights' => Change::READMY | READNOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => Change::READMY | READNOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_SUPERVISOR,
                 'name' => 'ticketvalidation',
@@ -7833,11 +6964,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'cartridge',
-                'rights' => READ | READNOTE | READ_ASSIGNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'change',
-                'rights' => Change::READMY | READNOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => Change::READMY | READNOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'changevalidation',
@@ -7845,7 +6976,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'computer',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'config',
@@ -7853,7 +6984,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'consumable',
-                'rights' => READ | READNOTE | READ_ASSIGNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'contact_enterprise',
@@ -7929,7 +7060,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'monitor',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'cable_management',
@@ -7937,7 +7068,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'networking',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'notification',
@@ -7949,11 +7080,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'peripheral',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'phone',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'planning',
@@ -7961,11 +7092,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'printer',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'problem',
-                'rights' => Change::READMY | READNOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => Change::READMY | READNOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'profile',
@@ -7973,7 +7104,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'project',
-                'rights' => Change::READMY | READNOTE | Change::READALL | CommonITILObject::SURVEY,
+                'rights' => Change::READMY | READNOTE | Change::READALL,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'projecttask',
@@ -8049,7 +7180,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'software',
-                'rights' => READ | READNOTE | READ_ASSIGNED | READ_OWNED,
+                'rights' => READ | READNOTE,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'solutiontemplate',
@@ -8076,12 +7207,8 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'rights' => READ,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => 'tasktemplate',
-                'rights' => READ,
-            ], [
-                'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'ticket',
-                'rights' => Ticket::READMY | Ticket::READALL | Ticket::READGROUP | Ticket::READASSIGN | CommonITILObject::SURVEY,
+                'rights' => Ticket::READMY | Ticket::READALL | Ticket::READGROUP | Ticket::READASSIGN | Ticket::SURVEY,
             ], [
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'ticketcost',
@@ -8185,11 +7312,11 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ], [
                 'profiles_id' => self::PROFILE_ADMIN,
                 'name' => 'lineoperator',
-                'rights' => READ | UPDATE | CREATE | PURGE | READNOTE | UPDATENOTE,
+                'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'lineoperator',
-                'rights' => READ | UPDATE | CREATE | PURGE | READNOTE | UPDATENOTE,
+                'rights' => READ | UPDATE | CREATE | PURGE,
             ], [
                 'profiles_id' => self::PROFILE_HOTLINER,
                 'name' => 'lineoperator',
@@ -8618,30 +7745,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'database',
                 'rights' => READ,
-            ], [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => 'rule_change',
-                'rights' => READ | UPDATE | CREATE | PURGE | RuleCommonITILObject::PARENT,
-            ], [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'rule_change',
-                'rights' => READ,
-            ], [
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => 'rule_change',
-                'rights' => READ,
-            ], [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => 'rule_problem',
-                'rights' => READ | UPDATE | CREATE | PURGE | RuleCommonITILObject::PARENT,
-            ], [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'rule_problem',
-                'rights' => READ,
-            ], [
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => 'rule_problem',
-                'rights' => READ,
             ],
             [
                 'profiles_id' => self::PROFILE_SELF_SERVICE,
@@ -8881,126 +7984,13 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'profiles_id' => self::PROFILE_READ_ONLY,
                 'name' => 'unmanaged',
                 'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
+
             ],
             [
                 'profiles_id' => self::PROFILE_SUPER_ADMIN,
                 'name' => 'system_logs',
                 'rights' => READ,
-            ],
-            [
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SUPERVISOR,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => 'system_logs',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => Form::$rightname,
-                'rights' => ALLSTANDARDRIGHT,
-            ],
-            [
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SUPERVISOR,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => Form::$rightname,
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_ADMIN,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'name' => 'oauth_client',
-                'rights' => ALLSTANDARDRIGHT,
-            ],
-            [
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_SUPERVISOR,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
-            ],
-            [
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'name' => 'oauth_client',
-                'rights' => self::RIGHT_NONE,
+
             ],
         ];
 
@@ -9013,7 +8003,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '1',
                 'helpdesk_hardware' => '1',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '{"1":{"2":0,"3":0,"4":0,"5":0,"6":0},"2":{"1":0,"3":0,"4":0,"5":0,"6":0},"3":{"1":0,"2":0,"4":0,"5":0,"6":0},"4":{"1":0,"2":0,"3":0,"5":0,"6":0},"5":{"1":0,"2":0,"3":0,"4":0},"6":{"1":0,"2":0,"3":0,"4":0,"5":0}}',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9028,7 +8017,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '1',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9043,7 +8031,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '3',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9058,7 +8045,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '3',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9073,7 +8059,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '3',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9088,7 +8073,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '3',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9103,7 +8087,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '3',
                 'helpdesk_item_type' => '["Computer","Monitor","NetworkEquipment","Peripheral","Phone","Printer","Software", "DCRoom", "Rack", "Enclosure", "Database"]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '[]',
                 'comment' => '',
                 'problem_status' => '[]',
@@ -9118,7 +8101,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'is_default' => '0',
                 'helpdesk_hardware' => '0',
                 'helpdesk_item_type' => '[]',
-                'use_mentions' => UserMention::USER_MENTION_FULL,
                 'ticket_status' => '{"1":{"2":0,"3":0,"4":0,"5":0,"6":0},"2":{"1":0,"3":0,"4":0,"5":0,"6":0},"3":{"1":0,"2":0,"4":0,"5":0,"6":0},"4":{"1":0,"2":0,"3":0,"5":0,"6":0},"5":{"1":0,"2":0,"3":0,"4":0,"6":0},"6":{"1":0,"2":0,"3":0,"4":0,"5":0}}',
                 'comment' => 'This profile defines read-only access. It is used when objects are locked. It can also be used to give to users rights to unlock objects.',
                 'problem_status' => '{"1":{"7":0,"2":0,"3":0,"4":0,"5":0,"8":0,"6":0},"7":{"1":0,"2":0,"3":0,"4":0,"5":0,"8":0,"6":0},"2":{"1":0,"7":0,"3":0,"4":0,"5":0,"8":0,"6":0},"3":{"1":0,"7":0,"2":0,"4":0,"5":0,"8":0,"6":0},"4":{"1":0,"7":0,"2":0,"3":0,"5":0,"8":0,"6":0},"5":{"1":0,"7":0,"2":0,"3":0,"4":0,"8":0,"6":0},"8":{"1":0,"7":0,"2":0,"3":0,"4":0,"5":0,"6":0},"6":{"1":0,"7":0,"2":0,"3":0,"4":0,"5":0,"8":0}}',
@@ -9322,7 +8304,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
             ],
         ];
 
-        // allowed_statuses is set using default value, @see install/mysql/glpi-empty.sql ( table `glpi_tickettemplates` )
         $tables['glpi_tickettemplates'] = [
             [
                 'id' => 1,
@@ -9422,8 +8403,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'language' => null,
                 'list_limit' => '20',
                 'authtype' => '1',
-                'profiles_id' => 0,
-                'entities_id' => 0,
             ], [
                 'id' => self::USER_POST_ONLY,
                 'name' => 'post-only',
@@ -9432,8 +8411,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'language' => 'en_GB',
                 'list_limit' => '20',
                 'authtype' => '1',
-                'profiles_id' => 0,
-                'entities_id' => 0,
             ], [
                 'id' => self::USER_TECH,
                 'name' => 'tech',
@@ -9442,8 +8419,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'language' => 'en_GB',
                 'list_limit' => '20',
                 'authtype' => '1',
-                'profiles_id' => 0,
-                'entities_id' => 0,
             ], [
                 'id' => self::USER_NORMAL,
                 'name' => 'normal',
@@ -9452,8 +8427,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'language' => 'en_GB',
                 'list_limit' => '20',
                 'authtype' => '1',
-                'profiles_id' => 0,
-                'entities_id' => 0,
             ], [
                 'id' => self::USER_SYSTEM,
                 'name' => 'glpi-system',
@@ -9462,8 +8435,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'language' => null,
                 'list_limit' => null,
                 'authtype' => 1,
-                'profiles_id' => 0,
-                'entities_id' => 0,
             ],
         ];
 
@@ -9484,7 +8455,7 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
 
         $tables[DomainRecordType::getTable()] = DomainRecordType::getDefaults();
         $tables[DomainRelation::getTable()] = DomainRelation::getDefaults();
-        $tables[NetworkPortType::getTable()] = NetworkPortType::getDefaults();
+        $tables[NetworkPortType::getTable()] = Sanitizer::encodeHtmlSpecialCharsRecursive(NetworkPortType::getDefaults());
 
         $tables['glpi_agenttypes'] = [
             [
@@ -9506,285 +8477,6 @@ style="color: #8b8c8f; font-weight: bold; text-decoration: underline;">
                 'snmpversion' => 2,
                 'community' => 'public',
             ],
-        ];
-
-        // Test environment data
-        $root_entity = array_filter($tables['glpi_entities'], static fn($e) => $e['id'] === 0);
-        $root_entity = current($root_entity);
-
-        if ($add_cypress_data) {
-            // Main E2E test entity
-            $e2e_entity = array_replace($root_entity, [
-                'id' => 1,
-                'name' => 'E2ETestEntity',
-                'entities_id' => 0,
-                'completename' => __('Root entity') . ' > E2ETestEntity',
-                'level' => 2,
-            ]);
-            $tables['glpi_entities'][] = $e2e_entity;
-
-            // Sub entity 1
-            $e2e_subentity1 = array_replace($root_entity, [
-                'id' => 2,
-                'name' => 'E2ETestSubEntity1',
-                'entities_id' => 1,
-                'completename' => __('Root entity') . ' > E2ETestEntity > E2ETestSubEntity1',
-                'level' => 3,
-            ]);
-            $tables['glpi_entities'][] = $e2e_subentity1;
-
-            // Sub entity 2
-            $e2e_subentity2 = array_replace($root_entity, [
-                'id' => 3,
-                'name' => 'E2ETestSubEntity2',
-                'entities_id' => 1,
-                'completename' => __('Root entity') . ' > E2ETestEntity > E2ETestSubEntity2',
-                'level' => 3,
-            ]);
-            $tables['glpi_entities'][] = $e2e_subentity2;
-
-            // New e2e super-admin user (login: e2e_tests, password: glpi)
-            $default_glpi_user = array_filter($tables['glpi_users'], static fn($u) => $u['id'] === self::USER_GLPI);
-            $e2e_user = array_shift($default_glpi_user);
-            $e2e_user = array_replace($e2e_user, [
-                'id' => 7,
-                'name' => 'e2e_tests',
-                'realname' => 'E2E Tests',
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-            ]);
-            $tables['glpi_users'][] = $e2e_user;
-
-            // Assign e2e user all default profiles on the e2e entity
-            $tables['glpi_profiles_users'][] = [
-                'id' => 6,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 7,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_SELF_SERVICE,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 8,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_OBSERVER,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 9,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_ADMIN,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 10,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_HOTLINER,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 11,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_TECHNICIAN,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-            $tables['glpi_profiles_users'][] = [
-                'id' => 12,
-                'users_id' => 7,
-                'profiles_id' => self::PROFILE_READ_ONLY,
-                'entities_id' => 1,
-                'is_recursive' => 1,
-                'is_dynamic' => 0,
-            ];
-
-            $tables['glpi_oauthclients'][] = [
-                'name' => 'Test E2E OAuth Client',
-                'redirect_uri' => json_encode(["/api.php/oauth2/redirection"]),
-                'grants' => json_encode(['authorization_code', 'password']),
-                'scopes' => json_encode(['api', 'user', 'graphql', 'status', 'email']),
-                'is_active' => 1,
-                'is_confidential' => 1,
-                'identifier' => '9246d35072ff62193330003a8106d947fafe5ac036d11a51ebc7ca11b9bc135e',
-                'secret' => (new GLPIKey())->encrypt('d2c4f3b8a0e1f7b5c6a9d1e4f3b8a0e1f7b5c6a9d1e4f3b8a0e1f7b5c6a9d1'),
-            ];
-
-            $tables['glpi_authldaps'][] = [
-                'name'            => '_e2e_ldap',
-                'host'            => 'openldap',
-                'basedn'          => 'dc=glpi,dc=org',
-                'rootdn'          => 'cn=Manager,dc=glpi,dc=org',
-                'port'            => '3890',
-                'condition'       => '(objectclass=inetOrgPerson)',
-                'login_field'     => 'uid',
-                'rootdn_passwd'   => (new GLPIKey())->encrypt('insecure'),
-                'is_default'      => 1,
-                'is_active'       => 0,
-                'use_tls'         => 0,
-                'email1_field'    => 'mail',
-                'realname_field'  => 'cn',
-                'firstname_field' => 'sn',
-                'phone_field'     => 'telephonenumber',
-                'comment_field'   => 'description',
-                'title_field'     => 'title',
-                'category_field'  => 'businesscategory',
-                'language_field'  => 'preferredlanguage',
-                'group_search_type'  => AuthLDAP::GROUP_SEARCH_GROUP,
-                'group_condition' => '(objectclass=groupOfNames)',
-                'group_member_field' => 'member',
-            ];
-        } elseif ($add_playwright_data) {
-            // Main E2E test entity
-            $e2e_parent_entity_id = max(
-                array_column($tables['glpi_entities'], 'id')
-            ) + 1;
-            $e2e_parent_entity_label = "E2E tests entity";
-            $e2e_parent_entity = array_replace($root_entity, [
-                'id'           => $e2e_parent_entity_id,
-                'name'         => $e2e_parent_entity_label,
-                'entities_id'  => 0,
-                'completename' => __('Root entity') . " > $e2e_parent_entity_label",
-                'level'        => 2,
-            ]);
-            $tables['glpi_entities'][] = $e2e_parent_entity;
-
-            // Keep track of entities and users to create
-            $sub_entities_to_create = [];
-            $users_to_create = [
-                [
-                    'login'       => 'e2e_api_account',
-                    'password'    => password_hash(
-                        'e2e_api_account',
-                        PASSWORD_DEFAULT,
-                    ),
-                    'realname'    => 'E2E API account',
-                    'entities_id' => 0,
-                ],
-            ];
-
-            // Add one worker user and entity per worker
-            $next_available_entity_id = max(
-                array_column($tables['glpi_entities'], 'id')
-            );
-            for ($i = 1; $i <= self::PLAYWRIGHT_MAX_WORKERS; $i++) {
-                $padded_i = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
-                $sub_entities_to_create[] = "E2E worker entity $padded_i";
-
-                // Compute matching entity id
-                $entity_id = $next_available_entity_id + $i;
-
-                $users_to_create[] = [
-                    'login'       => "e2e_worker_account_$padded_i",
-                    'password'    => password_hash(
-                        "e2e_worker_account_$padded_i",
-                        PASSWORD_DEFAULT,
-                    ),
-                    'realname'    => "E2E worker account $padded_i",
-                    'entities_id' => $entity_id,
-                ];
-            }
-
-            // Create required entites
-            foreach ($sub_entities_to_create as $entity) {
-                $next_available_entity_id = max(
-                    array_column($tables['glpi_entities'], 'id')
-                ) + 1;
-                $subentity = array_replace($root_entity, [
-                    'id'           => $next_available_entity_id,
-                    'name'         => $entity,
-                    'entities_id'  => $e2e_parent_entity_id,
-                    'completename' => __('Root entity')
-                        . " > $e2e_parent_entity_label"
-                        . " > $entity",
-                    'level'        => 3,
-                ]);
-                $tables['glpi_entities'][] = $subentity;
-            }
-
-            // // Create required users
-            $default_glpi_user = array_filter(
-                $tables['glpi_users'],
-                static fn($u) => $u['id'] === self::USER_GLPI
-            );
-            $default_glpi_user = array_shift($default_glpi_user);
-
-            $extra_profiles_to_add = [
-                self::PROFILE_SELF_SERVICE,
-                self::PROFILE_OBSERVER,
-                self::PROFILE_ADMIN,
-                self::PROFILE_SUPER_ADMIN,
-                self::PROFILE_HOTLINER,
-                self::PROFILE_TECHNICIAN,
-                self::PROFILE_SUPERVISOR,
-                self::PROFILE_READ_ONLY,
-            ];
-            $tables['glpi_oauthclients'][] = [
-                'name'         => 'Test E2E Playwright OAuth Client',
-                'redirect_uri' => json_encode(["/api.php/oauth2/redirection"]),
-                'grants'       => json_encode(['authorization_code']),
-                'scopes'       => json_encode(['api', 'user']),
-                'is_active'    => 1,
-                'is_confidential' => 1,
-                'identifier'   => 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
-                'secret'       => (new GLPIKey())->encrypt('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210'),
-            ];
-
-            foreach ($users_to_create as $user_data) {
-                $next_available_user_id = max(
-                    array_column($tables['glpi_users'], 'id')
-                ) + 1;
-                $user = array_replace($default_glpi_user, [
-                    'id'          => $next_available_user_id++,
-                    'name'        => $user_data['login'],
-                    'password'    => $user_data['password'],
-                    'realname'    => $user_data['realname'],
-                    'profiles_id' => self::PROFILE_SUPER_ADMIN,
-                    'entities_id' => $user_data['entities_id'],
-                ]);
-                $tables['glpi_users'][] = $user;
-
-                foreach ($extra_profiles_to_add as $profile_id) {
-                    $next_available_profile_id = max(
-                        array_column($tables['glpi_profiles_users'], 'id')
-                    ) + 1;
-                    $tables['glpi_profiles_users'][] = [
-                        'id'           => $next_available_profile_id,
-                        'users_id'     => $user['id'],
-                        'profiles_id'  => $profile_id,
-                        // Enable access to all entities in case a test need
-                        // to interact with a setting that only exist for the
-                        // root entity.
-                        'entities_id'  => 0,
-                        'is_recursive' => 1,
-                        'is_dynamic'   => 0,
-                    ];
-                }
-            }
-        }
-
-        // initial validation steps
-        $tables[ValidationStep::getTable()][] = [
-            'id' => 1,
-            'name' => CommonITILValidation::getTypeName(1),
-            'minimal_required_validation_percent' => 100,
-            'is_default' => 1,
-            'date_creation' => date('Y-m-d H:i:s'),
-            'date_mod' => date('Y-m-d H:i:s'),
-            'comment' => '',
         ];
 
         return $tables;

@@ -33,10 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
-use function Safe\preg_match;
-
 /**
  * Blacklist Class
  *
@@ -44,9 +40,6 @@ use function Safe\preg_match;
  **/
 class Blacklist extends CommonDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
-
     // From CommonDBTM
     public $dohistory = true;
 
@@ -57,8 +50,9 @@ class Blacklist extends CommonDropdown
     /**
      * Loaded blacklists.
      * Used for caching purposes.
+     * @var array
      */
-    private ?array $blacklists = null;
+    private $blacklists;
 
     public const IP             = 1;
     public const MAC            = 2;
@@ -69,18 +63,21 @@ class Blacklist extends CommonDropdown
     public const NAME           = 7;
     public const MANUFACTURER   = 8;
 
-    /** @return int */
     public function maxActionsCount()
     {
         return 0;
     }
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return static::canUpdate();
     }
 
-    public static function canPurge(): bool
+
+    /**
+     * @since 0.85
+     */
+    public static function canPurge()
     {
         return static::canUpdate();
     }
@@ -109,6 +106,11 @@ class Blacklist extends CommonDropdown
     }
 
 
+    /**
+     * Get search function for the class
+     *
+     * @return array of search option
+     */
     public function rawSearchOptions()
     {
         $tab = parent::rawSearchOptions();
@@ -168,7 +170,7 @@ class Blacklist extends CommonDropdown
         switch ($field) {
             case 'type':
                 $types = self::getTypes();
-                return htmlescape($types[$values[$field]]);
+                return $types[$values[$field]];
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }
@@ -257,8 +259,9 @@ class Blacklist extends CommonDropdown
         return $this->blacklists ?? $this->loadBlacklists();
     }
 
-    private function loadBlacklists(): array
+    private function loadBlacklists()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request(['FROM' => self::getTable()]);
@@ -275,7 +278,7 @@ class Blacklist extends CommonDropdown
     /**
      * Get blacklisted items for a specific type
      *
-     * @param int $type type to get (see constants)
+     * @param string $type type to get (see constants)
      *
      * @return array Array of blacklisted items
      **/
@@ -474,12 +477,6 @@ class Blacklist extends CommonDropdown
         return $defaults;
     }
 
-    /**
-     * @param int $type
-     * @param string $value
-     *
-     * @return string
-     */
     public function process(int $type, string $value)
     {
         $criteria = $this->getBlacklists()[$type] ?? [];
@@ -495,12 +492,7 @@ class Blacklist extends CommonDropdown
         return $value;
     }
 
-    /**
-     * @param object $value
-     *
-     * @return void
-     */
-    public function processBlackList($value)
+    public function processBlackList(&$value)
     {
 
         if (
@@ -558,7 +550,7 @@ class Blacklist extends CommonDropdown
             if (
                 !is_numeric($value->$key)
                 && preg_match('/^.+models_id/', $key)
-                && '' == $this->process(self::MODEL, $value->$key ?? '')
+                && '' == $this->process(self::MODEL, $value->$key)
             ) {
                 unset($value->$key);
             }
@@ -567,11 +559,6 @@ class Blacklist extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-ban";
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [];
+        return "fas fa-ban";
     }
 }

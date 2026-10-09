@@ -47,71 +47,76 @@ class RegisteredID extends CommonDBChild
     public static $items_id        = 'items_id';
     public $dohistory              = true;
 
-    public static function getRegisteredIDTypes(): array
+
+    public static function getRegisteredIDTypes()
     {
-        return [
-            'PCI' => __('PCI'),
+
+        return ['PCI' => __('PCI'),
             'USB' => __('USB'),
         ];
     }
+
 
     public static function getTypeName($nb = 0)
     {
         return _n('Registered ID (issued by PCI-SIG)', 'Registered IDs (issued by PCI-SIG)', $nb);
     }
 
-    #[Override()]
-    public static function getJSCodeToAddForItemChild($field_name, $child_count_js_var): string
+
+    /**
+     * @param $field_name
+     * @param $child_count_js_var
+     *
+     * @return string
+     **/
+    public static function getJSCodeToAddForItemChild($field_name, $child_count_js_var)
     {
-        $html = "<select name='" . htmlescape($field_name) . "_type[-__JS_PLACEHOLDER__]'>"
-            . "<option value=''>" . htmlescape(Dropdown::EMPTY_VALUE) . "</option>";
 
+        $result  = "<select name=\'" . $field_name . "_type[-'+$child_count_js_var+']\'>";
+        $result .= "<option value=\'\'>" . Dropdown::EMPTY_VALUE . "</option>";
         foreach (self::getRegisteredIDTypes() as $name => $label) {
-            $name = htmlescape($name);
-            $label = htmlescape($label);
-            $html .= "<option value='$name'>$label</option>";
+            $result .= "<option value=\'$name\'>$label</option>";
         }
-        $html .= "</select> : ";
-        $html .= "<input type='text' size='30' name='" . htmlescape($field_name) . "[-__JS_PLACEHOLDER__]'>";
-
-        return str_replace(
-            '__JS_PLACEHOLDER__',
-            "'+{$child_count_js_var}+'", // string closing, + operator, JS variable name, + operator, string reopening
-            jsescape($html)
-        );
+        $result .= "</select> : ";
+        $result .= "<input type=\'text\' size=\'30\' " . "name=\'" . $field_name .
+                "[-'+$child_count_js_var+']\'>";
+        return $result;
     }
 
+
+    /**
+     * @see CommonDBChild::showChildForItemForm()
+     **/
     public function showChildForItemForm($canedit, $field_name, $id, bool $display = true)
     {
-        if (self::isNewID($this->getID())) {
+
+        if ($this->isNewID($this->getID())) {
             $value = '';
         } else {
             $value = $this->getName();
         }
-        $value             = htmlescape($value);
         $result            = "";
-        $main_field        = htmlescape($field_name . "[$id]");
-        $type_field        = htmlescape($field_name . "_type[$id]");
+        $main_field        = $field_name . "[$id]";
+        $type_field        = $field_name . "_type[$id]";
         $registeredIDTypes = self::getRegisteredIDTypes();
 
         if ($canedit) {
-            $result .= "<select name='$type_field' class='form-select w-auto d-inline'>";
+            $result .= "<select name='$type_field'>";
             $result .= "<option value=''>" . Dropdown::EMPTY_VALUE . "</option>";
             foreach ($registeredIDTypes as $name => $label) {
-                $result .= sprintf(
-                    "<option value='%s'%s>%s</option>",
-                    htmlescape($name),
-                    $this->fields['device_type'] === $name ? " selected" : "",
-                    htmlescape($label)
-                );
+                $result .= "<option value='$name'";
+                if ($this->fields['device_type'] == $name) {
+                    $result .= " selected";
+                }
+                $result .= ">$label</option>";
             }
-            $result .= "</select> : <input type='text' size='30' name='$main_field' value='$value' class='form-control'>\n";
+            $result .= "</select> : <input type='text' size='30' name='$main_field' value='$value'>\n";
         } else {
-            $result .= "<input type='hidden' name='$main_field' value='$value' class='form-control'>";
+            $result .= "<input type='hidden' name='$main_field' value='$value'>";
             if (!empty($this->fields['device_type'])) {
                 $result .= sprintf(
-                    __s('%1$s: %2$s'),
-                    htmlescape($registeredIDTypes[$this->fields['device_type']]),
+                    __('%1$s: %2$s'),
+                    $registeredIDTypes[$this->fields['device_type']],
                     $value
                 );
             } else {

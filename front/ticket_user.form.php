@@ -33,23 +33,26 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
 
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+if (!defined('GLPI_ROOT')) {
+    include('../inc/includes.php');
+}
 
 $link = new Ticket_User();
 $item = new Ticket();
 
-Html::popHeader(__('Email followup'));
+Session::checkLoginUser();
+Html::popHeader(__('Email followup'), $_SERVER['PHP_SELF']);
 
 if (isset($_POST["update"])) {
     $link->check($_POST["id"], UPDATE);
 
     if ($link->update($_POST)) {
-        echo "<script type='text/javascript' >";
+        echo "<script type='text/javascript' >\n";
         echo "window.parent.location.reload();";
         echo "</script>";
     } else {
@@ -71,14 +74,16 @@ if (isset($_POST["update"])) {
         Html::redirect(Ticket::getFormURLWithID($link->fields['tickets_id']));
     }
     Session::addMessageAfterRedirect(
-        __s('You have been redirected because you no longer have access to this item'),
+        __('You have been redirected because you no longer have access to this item'),
         true,
         ERROR
     );
 
     Html::redirect($CFG_GLPI["root_doc"] . "/front/ticket.php");
+} elseif (isset($_GET["id"])) {
+    $link->showUserNotificationForm($_GET["id"]);
 } else {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie('Lost');
 }
 
 Html::popFooter();

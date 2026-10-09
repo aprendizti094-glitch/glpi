@@ -35,14 +35,10 @@
 
 /**
  *  Timer class for debug and some other cases
- * @deprecated 11.0.0
  */
 class Timer
 {
-    /**
-     * Timer value
-     * @var int|float
-     */
+    //! Timer value
     public $timer = 0;
 
 
@@ -53,7 +49,7 @@ class Timer
      */
     public function start()
     {
-        Toolbox::deprecated();
+
         $this->timer = microtime(true);
         return true;
     }
@@ -62,8 +58,8 @@ class Timer
     /**
      * Get the current time of the timer
      *
-     * @param int $decimals Number of decimal of the result (default 3)
-     * @param bool $raw      Get raw time
+     * @param integer $decimals Number of decimal of the result (default 3)
+     * @param boolean $raw      Get raw time
      *
      * @return string time past from start
      **/

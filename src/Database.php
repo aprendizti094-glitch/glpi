@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-
 /**
  * Database Class
  **/
@@ -46,7 +44,7 @@ class Database extends CommonDBChild
     public static $mustBeAttached  = false;
 
     // From CommonDBChild
-    public static $itemtype = DatabaseInstance::class;
+    public static $itemtype = 'DatabaseInstance';
     public static $items_id = 'databaseinstances_id';
 
     public static function getTypeName($nb = 0)
@@ -54,53 +52,95 @@ class Database extends CommonDBChild
         return _n('Database', 'Databases', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['management', self::class];
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [
-            Appliance_Item::class,
-            Domain_Item::class,
-        ];
-    }
-
     public function defineTabs($options = [])
     {
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Document_Item::class, $ong, $options)
-         ->addStandardTab(KnowbaseItem_Item::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Lock::class, $ong, $options)
-         ->addStandardTab(Notepad::class, $ong, $options)
-         ->addStandardTab(Domain_Item::class, $ong, $options)
-         ->addStandardTab(Appliance_Item::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Document_Item', $ong, $options)
+         ->addStandardTab('KnowbaseItem_Item', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('Lock', $ong, $options)
+         ->addStandardTab('Notepad', $ong, $options)
+         ->addStandardTab('Domain_Item', $ong, $options)
+         ->addStandardTab('Appliance_Item', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
         return $ong;
     }
 
+
     public function showForm($ID, array $options = [])
     {
-        if ($ID > 0) {
-            $this->check($ID, READ);
-        }
+        $rand = mt_rand();
+        $this->initForm($ID, $options);
+        $this->showFormHeader($options);
+
+        echo "<tr class='tab_bg_1'>";
+
+        echo "<td><label for='textfield_name$rand'>" . __('Name') . "</label></td>";
+        echo "<td>";
+        echo Html::input(
+            'name',
+            [
+                'value' => $this->fields['name'],
+                'id'    => "textfield_name$rand",
+            ]
+        );
+        echo "</td>";
+        echo "<td><label for='is_active$rand'>" . __('Is active') . "</label></td>";
+        echo "<td>";
+        Dropdown::showYesNo('is_active', $this->fields['is_active']);
+        echo "</td></tr>\n";
+
+        echo "<tr class='tab_bg_1'>";
         $database = new DatabaseInstance();
         $database->getFromDB($this->fields['databaseinstances_id']);
+        echo "<tr>";
+        echo "<td>" . DatabaseInstance::getTypeName(1) . "</td>";
+        echo "<td>";
+        if (isset($_REQUEST['databaseinstances_id']) && !empty($_REQUEST['databaseinstances_id'])) {
+            echo $database->getLink();
+            echo Html::hidden('databaseinstances_id', ['value' => $this->fields['databaseinstances_id']]);
+        } else {
+            $database::dropdown(['value' => $this->fields['databaseinstances_id']]);
+        }
+        echo "</td>";
+        echo "<td><label for='size$rand'>" . sprintf(__('%1$s (%2$s)'), __('Size'), __('Mio')) . "</label></td>";
+        echo "<td>";
+        echo Html::input(
+            'size',
+            [
+                'id' => 'size' . $rand,
+                'type' => 'number',
+                'value' => $this->fields['size'],
+            ]
+        );
+        echo "</td></tr>\n";
 
-        TemplateRenderer::getInstance()->display('pages/management/database.html.twig', [
-            'item' => $this,
-            'database_instance' => $database,
-        ]);
+        echo "<tr class='tab_bg_1'>";
+        echo "<td><label for='is_onbackup$rand'>" . __('Has backup') . "</label></td>";
+        echo "<td>";
+        Dropdown::showYesNo('is_onbackup', $this->fields['is_onbackup']);
+        echo "</td>";
+        echo "<td><label for='date_lastbackup$rand'>" . __('Last backup date') . "</label></td>";
+        echo "<td>";
+        Html::showDateTimeField(
+            "date_lastbackup",
+            [
+                'value'      => $this->fields['date_lastbackup'],
+                'maybeempty' => true,
+            ]
+        );
+        echo "</td></tr>\n";
+
+        $this->showFormButtons($options);
 
         return true;
     }
+
 
     public static function getIcon()
     {
@@ -114,12 +154,12 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => 'common',
-            'name'               => static::getTypeName(1),
+            'name'               => $this->getTypeName(1),
         ];
 
         $tab[] = [
             'id'                 => '1',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'name',
             'name'               => __('Name'),
             'datatype'           => 'itemlink',
@@ -127,17 +167,8 @@ class Database extends CommonDBChild
         ];
 
         $tab[] = [
-            'id'                 => 2,
-            'table'              => static::getTable(),
-            'field'              => 'id',
-            'name'               => __('ID'),
-            'datatype'           => 'number',
-            'massiveaction'      => false,
-        ];
-
-        $tab[] = [
             'id'                 => '3',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_active',
             'name'               => __('Active'),
             'datatype'           => 'bool',
@@ -145,7 +176,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '4',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_mod',
             'name'               => __('Last update'),
             'datatype'           => 'datetime',
@@ -154,7 +185,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '5',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_creation',
             'name'               => __('Creation date'),
             'datatype'           => 'datetime',
@@ -163,7 +194,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '6',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'size',
             'unit'               => 'auto',
             'name'               => __('Global size'),
@@ -183,7 +214,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '8',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_recursive',
             'name'               => __('Child entities'),
             'datatype'           => 'bool',
@@ -191,7 +222,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '9',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_onbackup',
             'name'               => __('Is on backup'),
             'datatype'           => 'bool',
@@ -199,7 +230,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '10',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_lastbackup',
             'name'               => __('Last backup date'),
             'datatype'           => 'date',
@@ -237,7 +268,7 @@ class Database extends CommonDBChild
 
         $tab[] = [
             'id'                 => '13',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_dynamic',
             'name'               => __('Dynamic'),
             'datatype'           => 'bool',
@@ -246,9 +277,6 @@ class Database extends CommonDBChild
         return $tab;
     }
 
-    /**
-     * @return array
-     */
     public static function rawSearchOptionsToAdd()
     {
         $tab = [];
@@ -350,7 +378,7 @@ class Database extends CommonDBChild
     {
         if (
             !$withtemplate
-            && ($item::class === DatabaseInstance::class)
+            && ($item instanceof DatabaseInstance)
             && $item->canView()
         ) {
             $nb = 0;
@@ -363,17 +391,14 @@ class Database extends CommonDBChild
                     ]
                 );
             }
-            return self::createTabEntry(self::getTypeName(), $nb, $item::class);
+            return self::createTabEntry(self::getTypeName(), $nb);
         }
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if (!$item instanceof DatabaseInstance) {
-            return false;
-        }
-
         self::showForInstance($item);
         return true;
     }
@@ -383,12 +408,12 @@ class Database extends CommonDBChild
      *
      * @param DatabaseInstance $instance Database object
      *
-     * @return void|bool
+     * @return void|boolean
      **/
     public static function showForInstance(DatabaseInstance $instance)
     {
 
-        $ID = $instance->getID();
+        $ID = $instance->fields['id'];
 
         if (!$instance->getFromDB($ID) || !$instance->can($ID, READ)) {
             return false;
@@ -396,13 +421,10 @@ class Database extends CommonDBChild
         $canedit = $instance->canEdit($ID);
 
         if ($canedit) {
-            TemplateRenderer::getInstance()->display(
-                'components/tab/addlink_block.html.twig',
-                [
-                    'add_link' => static::getFormURL() . "?databaseinstances_id=$ID",
-                    'button_label' => __('Add a database'),
-                ]
-            );
+            echo "<div class='center firstbloc'>" .
+            "<a class='btn btn-primary' href='" . static::getFormURL() . "?databaseinstances_id=$ID'>";
+            echo __('Add a database');
+            echo "</a></div>\n";
         }
 
         echo "<div class='center'>";
@@ -429,15 +451,15 @@ class Database extends CommonDBChild
         );
 
         if (empty($databases)) {
-            echo "<tr><th>" . __s('No database') . "</th></tr>";
+            echo "<tr><th>" . __('No database') . "</th></tr>";
         } else {
-            echo "<tr class='noHover'><th colspan='10'>" . htmlescape(self::getTypeName(Session::getPluralNumber())) . "</th></tr>";
+            echo "<tr class='noHover'><th colspan='10'>" . self::getTypeName(Session::getPluralNumber()) . "</th></tr>";
 
-            $header = "<tr><th>" . __s('Name') . "</th>";
-            $header .= "<th>" . sprintf(__s('%1$s (%2$s)'), __s('Size'), __s('Mio')) . "</th>";
-            $header .= "<th>" . __s('Is active') . "</th>";
-            $header .= "<th>" . __s('Has backup') . "</th>";
-            $header .= "<th>" . __s('Is dynamic') . "</th>";
+            $header = "<tr><th>" . __('Name') . "</th>";
+            $header .= "<th>" . sprintf(__('%1$s (%2$s)'), __('Size'), __('Mio')) . "</th>";
+            $header .= "<th>" . __('Is active') . "</th>";
+            $header .= "<th>" . __('Has backup') . "</th>";
+            $header .= "<th>" . __('Is dynamic') . "</th>";
             $header .= "</tr>";
             echo $header;
 
@@ -446,10 +468,10 @@ class Database extends CommonDBChild
                 $db->getFromDB($row['id']);
                 echo "<tr class='" . ((isset($row['is_deleted']) && $row['is_deleted']) ? "tab_bg_2_2'" : "tab_bg_2") . "'>";
                 echo "<td>" . $db->getLink() . "</td>";
-                echo "<td>" . htmlescape($row['size']) . "</td>";
-                echo "<td>" . htmlescape(Dropdown::getYesNo($db->fields['is_active'])) . "</td>";
-                echo "<td>" . htmlescape(Dropdown::getYesNo($db->fields['is_onbackup'])) . "</td>";
-                echo "<td>" . htmlescape(Dropdown::getYesNo($db->fields['is_dynamic'])) . "</td>";
+                echo "<td>" . $row['size'] . "</td>";
+                echo "<td>" . Dropdown::getYesNo($db->fields['is_active']) . "</td>";
+                echo "<td>" . Dropdown::getYesNo($db->fields['is_onbackup']) . "</td>";
+                echo "<td>" . Dropdown::getYesNo($db->fields['is_dynamic']) . "</td>";
                 echo "</tr>";
                 Session::addToNavigateListItems('DatabaseInstance', $row['id']);
             }
@@ -475,10 +497,9 @@ class Database extends CommonDBChild
     public static function getAdditionalMenuLinks()
     {
         $links = [];
-        $label = htmlescape(DatabaseInstance::getTypeName(Session::getPluralNumber()));
         if (static::canView()) {
-            $insts = "<i class=\"ti ti-database-import\" title=\"$label\""
-            . "></i><span class='d-none d-xxl-block'>$label</span>";
+            $insts = "<i class=\"ti ti-database-import\" title=\"" . DatabaseInstance::getTypeName(Session::getPluralNumber()) .
+            "\"></i><span class='d-none d-xxl-block'>" . DatabaseInstance::getTypeName(Session::getPluralNumber()) . "</span>";
             $links[$insts] = DatabaseInstance::getSearchURL(false);
         }
         if (count($links)) {
@@ -491,7 +512,7 @@ class Database extends CommonDBChild
     {
         if (static::canView()) {
             return [
-                DatabaseInstance::class => [
+                'databaseinstance' => [
                     'title' => DatabaseInstance::getTypeName(Session::getPluralNumber()),
                     'page'  => DatabaseInstance::getSearchURL(false),
                     'icon'  => DatabaseInstance::getIcon(),

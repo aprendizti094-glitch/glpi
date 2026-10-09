@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight("notification", READ);
 
@@ -47,22 +47,18 @@ $notification = new Notification();
 if (isset($_POST["add"])) {
     $notification->check(-1, CREATE, $_POST);
 
-    if ($newID = $notification->add($_POST)) {
-        Event::log(
-            $newID,
-            "notifications",
-            4,
-            "notification",
-            sprintf(__('%1$s adds the item %2$s'), $_SESSION["glpiname"], $_POST["name"])
-        );
-        if ($_SESSION['glpibackcreated']) {
-            Html::redirect($notification->getLinkURL());
-        }
-    }
-    Html::back();
+    $newID = $notification->add($_POST);
+    Event::log(
+        $newID,
+        "notifications",
+        4,
+        "notification",
+        sprintf(__('%1$s adds the item %2$s'), $_SESSION["glpiname"], $_POST["name"])
+    );
+    Html::redirect($_SERVER['PHP_SELF'] . "?id=$newID");
 } elseif (isset($_POST["purge"])) {
     $notification->check($_POST["id"], PURGE);
-    $notification->delete($_POST, true);
+    $notification->delete($_POST, 1);
 
     Event::log(
         $_POST["id"],
@@ -87,6 +83,6 @@ if (isset($_POST["add"])) {
     );
     Html::back();
 } else {
-    $menus = ["config", "notification", "Notification"];
+    $menus = ["config", "notification", "notification"];
     Notification::displayFullPageForItem($_GET["id"], $menus);
 }

@@ -33,30 +33,16 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryFunction;
-use Glpi\DBAL\QuerySubQuery;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
-use Glpi\Features\DCBreadcrumb;
-use Glpi\Features\DCBreadcrumbInterface;
-use Glpi\Features\Inventoriable;
-use Glpi\Features\StateInterface;
 use Glpi\Socket;
 
 /**
  * Network equipment Class
  **/
-class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DCBreadcrumbInterface, StateInterface
+class NetworkEquipment extends CommonDBTM
 {
-    use DCBreadcrumb;
-    /** @use Clonable<static> */
-    use Clonable;
-    use Inventoriable;
-    use Glpi\Features\State;
-    use AssignableItem {
-        prepareInputForAdd as prepareInputForAddAssignableItem;
-    }
+    use Glpi\Features\DCBreadcrumb;
+    use Glpi\Features\Clonable;
+    use Glpi\Features\Inventoriable;
 
     // From CommonDBTM
     public $dohistory                   = true;
@@ -78,34 +64,28 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
             Contract_Item::class,
             Document_Item::class,
             KnowbaseItem_Item::class,
-            Appliance_Item::class,
-            Certificate_Item::class,
-            Domain_Item::class,
-            Item_Disk::class,
-            Item_Project::class,
-            Item_SoftwareLicense::class,
-            Item_SoftwareVersion::class,
-            ManualLink::class,
-            Socket::class,
         ];
     }
+    /** /RELATIONS */
 
+
+    /**
+     * Name of the type
+     *
+     * @param $nb  integer  number of item in the type (default 0)
+     **/
     public static function getTypeName($nb = 0)
     {
         return _n('Network device', 'Network devices', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['assets', self::class];
-    }
 
     public static function getAdditionalMenuOptions()
     {
 
         if (static::canView()) {
             $options = [
-                NetworkPort::class => [
+                'networkport' => [
                     'title' => NetworkPort::getTypeName(Session::getPluralNumber()),
                     'page'  => NetworkPort::getFormURL(false),
                 ],
@@ -133,31 +113,29 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
-         ->addStandardTab(Item_OperatingSystem::class, $ong, $options)
-         ->addStandardTab(Item_SoftwareVersion::class, $ong, $options)
-         ->addStandardTab(Item_Devices::class, $ong, $options)
-         ->addStandardTab(Item_Line::class, $ong, $options)
-         ->addStandardTab(Item_Disk::class, $ong, $options)
-         ->addStandardTab(NetworkPort::class, $ong, $options)
-         ->addStandardTab(NetworkName::class, $ong, $options)
+         ->addStandardTab('Item_OperatingSystem', $ong, $options)
+         ->addStandardTab('Item_SoftwareVersion', $ong, $options)
+         ->addStandardTab('Item_Devices', $ong, $options)
+         ->addStandardTab('Item_Disk', $ong, $options)
+         ->addStandardTab('NetworkPort', $ong, $options)
+         ->addStandardTab('NetworkName', $ong, $options)
          ->addStandardTab(Socket::class, $ong, $options)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Contract_Item::class, $ong, $options)
-         ->addStandardTab(Document_Item::class, $ong, $options)
-         ->addStandardTab(KnowbaseItem_Item::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Item_Project::class, $ong, $options)
-         ->addStandardTab(ManualLink::class, $ong, $options)
-         ->addStandardTab(Lock::class, $ong, $options)
-         ->addStandardTab(Notepad::class, $ong, $options)
-         ->addStandardTab(Reservation::class, $ong, $options)
-         ->addStandardTab(Certificate_Item::class, $ong, $options)
-         ->addStandardTab(Domain_Item::class, $ong, $options)
-         ->addStandardTab(Appliance_Item::class, $ong, $options)
-         ->addStandardTab(RuleMatchedLog::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Contract_Item', $ong, $options)
+         ->addStandardTab('Document_Item', $ong, $options)
+         ->addStandardTab('KnowbaseItem_Item', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('ManualLink', $ong, $options)
+         ->addStandardTab('Lock', $ong, $options)
+         ->addStandardTab('Notepad', $ong, $options)
+         ->addStandardTab('Reservation', $ong, $options)
+         ->addStandardTab('Certificate_Item', $ong, $options)
+         ->addStandardTab('Domain_Item', $ong, $options)
+         ->addStandardTab('Appliance_Item', $ong, $options)
+         ->addStandardTab('RuleMatchedLog', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -165,13 +143,13 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
 
     public function prepareInputForAdd($input)
     {
+
         if (isset($input["id"]) && ($input["id"] > 0)) {
             $input["_oldID"] = $input["id"];
         }
         unset($input['id']);
         unset($input['withtemplate']);
 
-        $input = $this->prepareInputForAddAssignableItem($input);
         return $input;
     }
 
@@ -182,10 +160,11 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
      *
      * Overloaded from CommonDBTM
      *
-     * @return bool
+     * @return boolean
      **/
     public function canUnrecurs()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $ID = $this->fields['id'];
@@ -212,11 +191,7 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
             $criteria = [
                 'SELECT'       => [
                     'itemtype',
-                    QueryFunction::groupConcat(
-                        expression: 'items_id',
-                        distinct: true,
-                        alias: 'ids'
-                    ),
+                    new QueryExpression('GROUP_CONCAT(DISTINCT ' . $DB->quoteName('items_id') . ') AS ' . $DB->quoteName('ids')),
                 ],
                 'FROM'         => 'glpi_networkports_networkports',
                 'INNER JOIN'   => [
@@ -275,10 +250,10 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
         if ($isadmin) {
             $actions += [
                 'Item_SoftwareLicense' . MassiveAction::CLASS_ACTION_SEPARATOR . 'add'
-               => "<i class='ti ti-key'></i>"
-                  . _sx('button', 'Add a license'),
+               => "<i class='ma-icon fas fa-key'></i>" .
+                  _x('button', 'Add a license'),
             ];
-            KnowbaseItem_Item::getMassiveActionsForItemtype($actions, self::class, false, $checkitem);
+            KnowbaseItem_Item::getMassiveActionsForItemtype($actions, __CLASS__, 0, $checkitem);
         }
 
         return $actions;
@@ -318,11 +293,11 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
 
         $tab[] = [
             'id'                 => '31',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_networkequipment' => 1],
         ];
 
         $tab[] = [
@@ -371,19 +346,8 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
             'table'              => 'glpi_groups',
             'field'              => 'completename',
             'name'               => Group::getTypeName(1),
-            'condition'          => ['is_itemgroup' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_NORMAL],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
+            'condition'          => ['is_itemgroup' => 1],
         ];
 
         $tab[] = [
@@ -424,7 +388,7 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
             'id'                 => '16',
             'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
@@ -494,20 +458,9 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
             'id'                 => '49',
             'table'              => 'glpi_groups',
             'field'              => 'completename',
-            'linkfield'          => 'groups_id',
+            'linkfield'          => 'groups_id_tech',
             'name'               => __('Group in charge'),
             'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
@@ -551,9 +504,9 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
 
         $tab = array_merge($tab, Rack::rawSearchOptionsToAdd(get_class($this)));
 
-        $tab = array_merge($tab, SNMPCredential::rawSearchOptionsToAdd());
+        $tab = array_merge($tab, Socket::rawSearchOptionsToAdd());
 
-        $tab = array_merge($tab, NetworkEquipmentModel::rawSearchOptionsToAdd());
+        $tab = array_merge($tab, SNMPCredential::rawSearchOptionsToAdd());
 
         $tab = array_merge($tab, DCRoom::rawSearchOptionsToAdd());
 
@@ -562,6 +515,6 @@ class NetworkEquipment extends CommonDBTM implements AssignableItemInterface, DC
 
     public static function getIcon()
     {
-        return "ti ti-network";
+        return "fas fa-network-wired";
     }
 }

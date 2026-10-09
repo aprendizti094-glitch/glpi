@@ -35,18 +35,22 @@
 /**
  * Update from 9.2 to 9.2.1
  *
- * @return bool
+ * @return bool for success (will die for most error)
  **/
 function update920to921()
 {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
     global $DB, $migration;
 
+    $current_config   = Config::getConfigurationValues('core');
     $updateresult     = true;
+    $ADDTODISPLAYPREF = [];
 
+    //TRANS: %s is the number of new version
+    $migration->displayTitle(sprintf(__('Update to %s'), '9.2.1'));
     $migration->setVersion('9.2.1');
 
     //fix migration parts that may not been ran from 9.1.x update
@@ -84,17 +88,19 @@ function update920to921()
     }
 
     // Sla rules criterias migration
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_rulecriterias",
         ['criteria' => "slts_ttr_id"],
-        ['criteria' => "slas_id"]
+        ['criteria' => "slas_id"],
+        "SLA rulecriterias migration"
     );
 
     // Sla rules actions migration
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_ruleactions",
         ['field' => "slts_ttr_id"],
-        ['field' => "slas_id"]
+        ['field' => "slas_id"],
+        "SLA ruleactions migration"
     );
     // end fix 9.1.x migration
 
@@ -109,8 +115,8 @@ function update920to921()
                `value` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
                PRIMARY KEY (`id`),
                KEY `olalevels_id` (`olalevels_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
-        $DB->doQuery($query);
+            ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+        $DB->doQueryOrDie($query, "9.2 add table glpi_olalevelactions");
     }
 
     if (!$DB->tableExists('glpi_olalevelcriterias')) {
@@ -123,8 +129,8 @@ function update920to921()
                PRIMARY KEY (`id`),
                KEY `olalevels_id` (`olalevels_id`),
                KEY `condition` (`condition`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
-        $DB->doQuery($query);
+            ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+        $DB->doQueryOrDie($query, "9.2 add table glpi_olalevelcriterias");
     }
 
     if (!$DB->tableExists('glpi_olalevels')) {
@@ -142,8 +148,8 @@ function update920to921()
                KEY `name` (`name`),
                KEY `is_active` (`is_active`),
                KEY `olas_id` (`olas_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
-        $DB->doQuery($query);
+            ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+        $DB->doQueryOrDie($query, "9.2 add table glpi_olalevels");
     }
 
     if (!$DB->tableExists('glpi_olalevels_tickets')) {
@@ -156,10 +162,10 @@ function update920to921()
                   KEY `tickets_id` (`tickets_id`),
                   KEY `olalevels_id` (`olalevels_id`),
                   KEY `unicity` (`tickets_id`,`olalevels_id`)
-               ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
-        $DB->doQuery($query);
+               ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
+        $DB->doQueryOrDie($query, "9.2 add table glpi_olalevels_tickets");
 
-        $DB->insert("glpi_crontasks", [
+        $DB->insertOrDie("glpi_crontasks", [
             'itemtype'        => "OlaLevel_Ticket",
             'name'            => "olaticket",
             'frequency'       => "604800",
@@ -173,7 +179,7 @@ function update920to921()
             'lastrun'         => null,
             'lastcode'        => null,
             'comment'         => null,
-        ]);
+        ], "9.2 populate glpi_crontasks for olaticket");
     }
 
     if (!$DB->tableExists('glpi_slms')) {
@@ -288,36 +294,41 @@ function update920to921()
     }
 
     // ProfileRights changes
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_profilerights",
         ['name' => "slm"],
-        ['name' => "sla"]
+        ['name' => "sla"],
+        "SLM profilerights migration"
     );
 
     //Sla rules criterias migration
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_rulecriterias",
         ['criteria' => "slas_ttr_id"],
-        ['criteria' => "slts_ttr_id"]
+        ['criteria' => "slts_ttr_id"],
+        "SLA rulecriterias migration"
     );
 
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_rulecriterias",
         ['criteria' => "slas_tto_id"],
-        ['criteria' => "slts_tto_id"]
+        ['criteria' => "slts_tto_id"],
+        "SLA rulecriterias migration"
     );
 
     // Sla rules actions migration
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_ruleactions",
         ['field' => "slas_ttr_id"],
-        ['field' => "slts_ttr_id"]
+        ['field' => "slts_ttr_id"],
+        "SLA ruleactions migration"
     );
 
-    $DB->update(
+    $DB->updateOrDie(
         "glpi_ruleactions",
         ['field' => "slas_tto_id"],
-        ['field' => "slts_tto_id"]
+        ['field' => "slts_tto_id"],
+        "SLA ruleactions migration"
     );
 
     //see https://github.com/glpi-project/glpi/issues/3037
@@ -365,8 +376,8 @@ function update920to921()
     $migration->addPreQuery(
         $DB->buildUpdate(
             "glpi_savedsearches",
-            ['entities_id' => 0],
-            ['entities_id' => -1]
+            ['entities_id' => "0"],
+            ['entities_id' => "-1"]
         )
     );
 
@@ -375,7 +386,7 @@ function update920to921()
                        (`notifications_id`, `mode`, `notificationtemplates_id`)
                        SELECT `id`, `mode`, `notificationtemplates_id`
                        FROM `glpi_notifications`";
-        $DB->doQuery($query);
+        $DB->doQueryOrDie($query, "9.2 migrate notifications templates");
 
         //migrate any existing mode before removing the field
         $migration->dropField('glpi_notifications', 'mode');

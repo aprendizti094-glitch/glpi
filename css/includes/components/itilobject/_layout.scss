@@ -41,17 +41,12 @@
     }
 
     @include media-breakpoint-up(lg) {
-        height: calc(100vh - 197px);
+        height: calc(100vh - 187px);
 
         .itil-left-side,
         .itil-right-side {
             overflow-y: auto;
             transition: all 400ms ease;
-        }
-
-        .itil-left-side:focus,
-        .itil-right-side:focus {
-            outline: none;
         }
 
         .itil-left-side {
@@ -64,13 +59,13 @@
             height: calc(100% + 4px);
             position: relative;
             border: 0;
-            border-left: 1px solid var(--tblr-border-color);
+            border-left: 1px solid $border-color;
 
             .accordion-item {
                 background: none;
 
                 .accordion-button {
-                    background-color: var(--tblr-accordion-bg);
+                    background-color: $accordion-button-bg;
                 }
             }
 
@@ -139,14 +134,8 @@
                         display: none;
                     }
 
-                    .accordion-button {
-                        &::after {
-                            display: none;
-                        }
-
-                        .btn {
-                            display: none;
-                        }
+                    .accordion-button::after {
+                        display: none;
                     }
                 }
 
@@ -173,10 +162,16 @@
     }
 }
 
-.central.horizontal-layout {
+.horizontal-layout {
     .itil-object {
         @include media-breakpoint-up(lg) {
             height: calc(100vh - 257px);
         }
     }
+}
+
+#itil-object-container ~ #debugajax {
+    position: fixed;
+    bottom: 10px;
+    left: 45%;
 }

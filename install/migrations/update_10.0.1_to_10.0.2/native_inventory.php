@@ -32,14 +32,9 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * @var Migration $migration
- */
-$migration->addCrontask(
-    'Agent',
-    'Cleanoldagents',
-    DAY_TIMESTAMP,
-    options: [
-        'comment' => 'Clean old agents',
-    ]
-);
+CronTask::register('Agent', 'Cleanoldagents', DAY_TIMESTAMP, [
+    'comment' => 'Clean old agents',
+    'state' => CronTask::STATE_WAITING,
+    'mode' => CronTask::MODE_EXTERNAL,
+    'logs_lifetime' => 30,
+]);

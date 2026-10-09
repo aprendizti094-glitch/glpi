@@ -33,87 +33,44 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Safe\DateTime;
 
-use function Safe\parse_url;
-use function Safe\strtotime;
-
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+// avoid reloading js libs
+if (isset($_GET['ajax']) && $_GET['ajax']) {
+    $AJAX_INCLUDE = true;
+}
+
+include('../inc/includes.php');
 
 $rr = new Reservation();
 
-if (Session::getCurrentInterface() == "helpdesk") {
+if (isset($_REQUEST['ajax'])) {
+    Html::header_nocache();
+    Html::popHeader(__('Simplified interface'));
+} elseif (Session::getCurrentInterface() == "helpdesk") {
     Html::helpHeader(__('Simplified interface'));
 } else {
-    Html::header(Reservation::getTypeName(Session::getPluralNumber()), '', "tools", "reservationitem");
+    Html::header(Reservation::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "tools", "reservationitem");
 }
-
-$fn_redirect_back = static function ($begin_date = null) {
-    $back_url = Html::getBackUrl() ?: '';
-    if ($begin_date === null) {
-        // Try to get from POST data
-        try {
-            $date = isset($_POST['resa']["begin"]) ? strtotime($_POST['resa']["begin"]) : time();
-            $begin_date = date('Y-m-d', $date);
-        } catch (Exception) {
-            $begin_date = date('Y-m-d');
-        }
-    }
-
-    // Remove old month/year params
-    $back_url_params = [];
-    $path_result = parse_url($back_url, PHP_URL_PATH);
-    $back_url_base = is_string($path_result) ? $path_result : '';
-    $query_result = parse_url($back_url, PHP_URL_QUERY);
-    parse_str(is_string($query_result) ? $query_result : '', $back_url_params);
-    unset($back_url_params['month'], $back_url_params['year'], $back_url_params['tab_params']);
-    $back_url = $back_url_params !== []
-        ? $back_url_base . '?' . Toolbox::append_params($back_url_params)
-        : $back_url_base;
-    if (str_contains($back_url, 'front/reservation.php')) {
-        $back_url .= (!str_contains($back_url, '?') ? '?' : '&') . Toolbox::append_params([
-            'defaultDate' => $begin_date,
-        ]);
-    } else {
-        $back_url .= (!str_contains($back_url, '?') ? '?' : '&') . Toolbox::append_params([
-            'tab_params' => [
-                'defaultDate' => $begin_date,
-            ],
-        ]);
-    }
-    Html::redirect($back_url);
-};
 
 if (isset($_POST["update"])) {
     $rr->check($_POST["id"], UPDATE);
 
     Toolbox::manageBeginAndEndPlanDates($_POST['resa']);
+    $_POST['_target'] = $_SERVER['PHP_SELF'];
     $_POST['_item']   = key($_POST["items"]);
     $_POST['begin']   = $_POST['resa']["begin"];
     $_POST['end']     = $_POST['resa']["end"];
-    if ($rr->update($_POST)) {
-        Event::log(
-            $_POST["id"],
-            "reservation",
-            4,
-            "inventory",
-            //TRANS: %s is the user login
-            sprintf(
-                __('%1$s updates the reservation for item %2$s'),
-                $_SESSION["glpiname"],
-                $_POST['_item']
-            )
-        );
-    }
-    $fn_redirect_back();
+    $rr->update($_POST);
+    Html::back();
 } elseif (isset($_POST["purge"])) {
     $rr->check($_POST["id"], PURGE);
 
     $reservationitems_id = key($_POST["items"]);
-    if ($rr->delete($_POST, true)) {
+    if ($rr->delete($_POST, 1)) {
         Event::log(
             $_POST["id"],
             "reservation",
@@ -128,10 +85,12 @@ if (isset($_POST["update"])) {
         );
     }
 
-    $fn_redirect_back((new DateTime($rr->fields["begin"]))->format('Y-m-d'));
+    [$begin_year, $begin_month] = explode("-", $rr->fields["begin"]);
+    Html::redirect($CFG_GLPI["root_doc"] . "/front/reservation.php?reservationitems_id=" .
+        "$reservationitems_id&mois_courant=$begin_month&annee_courante=$begin_year");
 } elseif (isset($_POST["add"])) {
     Reservation::handleAddForm($_POST);
-    $fn_redirect_back();
+    Html::back();
 } elseif (isset($_GET["id"])) {
     if (!empty($_GET["id"])) {
         $rr->check($_GET["id"], READ);
@@ -153,7 +112,9 @@ if (isset($_POST["update"])) {
     }
 }
 
-if (Session::getCurrentInterface() == "helpdesk") {
+if (isset($_REQUEST['ajax'])) {
+    Html::popFooter();
+} elseif (Session::getCurrentInterface() == "helpdesk") {
     Html::helpFooter();
 } else {
     Html::footer();

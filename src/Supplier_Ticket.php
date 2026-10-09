@@ -41,21 +41,21 @@
 class Supplier_Ticket extends CommonITILActor
 {
     // From CommonDBRelation
-    public static $itemtype_1 = Ticket::class;
+    public static $itemtype_1 = 'Ticket';
     public static $items_id_1 = 'tickets_id';
-    public static $itemtype_2 = Supplier::class;
+    public static $itemtype_2 = 'Supplier';
     public static $items_id_2 = 'suppliers_id';
 
 
     /**
-     * @param int $items_id
-     * @param string $email
-     * @return bool
+     * @param $items_id
+     * @param $email
      *
      * @since 0.85
      **/
     public function isSupplierEmail($items_id, $email)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -78,5 +78,17 @@ class Supplier_Ticket extends CommonITILActor
             return true;
         }
         return false;
+    }
+
+    public function post_addItem()
+    {
+
+        switch ($this->input['type']) { // Values from CommonITILObject::getSearchOptionsActors()
+            case CommonITILActor::ASSIGN:
+                $this->_force_log_option = 6;
+                break;
+        }
+        parent::post_addItem();
+        $this->_force_log_option = 0;
     }
 }

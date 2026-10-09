@@ -33,8 +33,9 @@
  */
 
 /**
- * @var Migration $migration
+ * @var \Migration $migration
  */
+
 $migration->changeField(
     RefusedEquipment::getTable(),
     'ip',

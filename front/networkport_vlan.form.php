@@ -33,10 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 $npv = new NetworkPort_Vlan();
@@ -47,7 +46,7 @@ if (isset($_POST["add"])) {
         $npv->assignVlan(
             $_POST["networkports_id"],
             $_POST["vlans_id"],
-            (isset($_POST['tagged']) ? ((int) $_POST['tagged']) : 0)
+            (isset($_POST['tagged']) ? '1' : '0')
         );
         Event::log(
             0,
@@ -61,4 +60,4 @@ if (isset($_POST["add"])) {
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie('Lost');

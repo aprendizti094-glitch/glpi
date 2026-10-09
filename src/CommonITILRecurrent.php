@@ -33,11 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
-use function Safe\preg_match;
-use function Safe\strtotime;
-
 /**
  * Base class for recurrent tickets and changes
  *
@@ -45,13 +40,17 @@ use function Safe\strtotime;
  */
 abstract class CommonITILRecurrent extends CommonDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
     /**
      * @var bool From CommonDBTM
      */
     public $dohistory = true;
+
+    /**
+     * @var string From CommonDropdown
+     */
+    public $first_level_menu = "helpdesk";
 
     /**
      * @var bool From CommonDropdown
@@ -65,22 +64,16 @@ abstract class CommonITILRecurrent extends CommonDropdown
 
     /**
      * Concrete items to be instanciated
-     *
-     * @return class-string<CommonDBTM>
      */
     abstract public static function getConcreteClass();
 
     /**
      * Template class to use to create the concrete items
-     *
-     * @return class-string<CommonDBTM>
      */
     abstract public static function getTemplateClass();
 
     /**
      * Predefined field class to use to set the concrete items's data
-     *
-     * @return class-string<CommonDBTM>
      */
     abstract public static function getPredefinedFieldsClass();
 
@@ -112,7 +105,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
         // Tabs on CommonITILRecurrent items
         if ($item instanceof self) {
             $ong = [];
-            $ong[1] = self::createTabEntry(_n('Information', 'Information', Session::getPluralNumber()), icon: 'ti ti-info-circle');
+            $ong[1] = _n('Information', 'Information', Session::getPluralNumber());
             return $ong;
         }
 
@@ -129,7 +122,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
         $ong = [];
         $this->addDefaultFormTab($ong);
         $this->addStandardTab(static::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -242,12 +235,13 @@ abstract class CommonITILRecurrent extends CommonDropdown
         switch ($field) {
             case 'periodicity':
                 if (preg_match('/([0-9]+)MONTH/', $values[$field], $matches)) {
-                    return htmlescape(sprintf(_n('%d month', '%d months', (int) $matches[1]), (int) $matches[1]));
+                    return sprintf(_n('%d month', '%d months', $matches[1]), $matches[1]);
                 }
                 if (preg_match('/([0-9]+)YEAR/', $values[$field], $matches)) {
-                    return htmlescape(sprintf(_n('%d year', '%d years', (int) $matches[1]), (int) $matches[1]));
+                    return sprintf(_n('%d year', '%d years', $matches[1]), $matches[1]);
                 }
-                return htmlescape(Html::timestampToString($values[$field], false));
+                return Html::timestampToString($values[$field], false);
+                break;
         }
 
         return parent::getSpecificValueToDisplay($field, $values, $options);
@@ -256,28 +250,12 @@ abstract class CommonITILRecurrent extends CommonDropdown
     /**
      * Display periodicity field
      * The displayed dropdown offer the following options:
-     *    1 to 23 hours
+     *    1 to 24 hours
      *    1 to 30 days
      *    1 to 11 months
      *    1 to 10 years
      */
     public function displayPeriodicityInput(): void
-    {
-        Dropdown::showFromArray('periodicity', static::getPeriodicityPossibleValues(), [
-            'value' => $this->fields['periodicity'],
-        ]);
-    }
-
-    /**
-     * Get all possible periodicity values:
-     *    1 to 23 hours
-     *    1 to 30 days
-     *    1 to 11 months
-     *    1 to 10 years
-     *
-     * @return array<int|string, string>
-     */
-    public static function getPeriodicityPossibleValues(): array
     {
         $possible_values = [];
 
@@ -301,20 +279,9 @@ abstract class CommonITILRecurrent extends CommonDropdown
             $possible_values[$i . 'YEAR'] = sprintf(_n('%d year', '%d years', $i), $i);
         }
 
-        return $possible_values;
-    }
-
-    public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
-    {
-        if (!is_array($values)) {
-            $values = [$field => $values];
-        }
-        $options['display'] = false;
-        if ($field === 'periodicity') {
-            $options['value'] = $values[$field];
-            return (string) Dropdown::showFromArray($name, static::getPeriodicityPossibleValues(), $options);
-        }
-        return parent::getSpecificValueToSelect($field, $name, $values, $options);
+        Dropdown::showFromArray('periodicity', $possible_values, [
+            'value' => $this->fields['periodicity'],
+        ]);
     }
 
     public function rawSearchOptions()
@@ -367,8 +334,6 @@ abstract class CommonITILRecurrent extends CommonDropdown
             'field'    => 'create_before',
             'name'     => __('Preliminary creation'),
             'datatype' => 'timestamp',
-            'max'      => 2 * WEEK_TIMESTAMP,
-            'step'     => HOUR_TIMESTAMP,
         ];
 
         $tab[] = [
@@ -390,11 +355,9 @@ abstract class CommonITILRecurrent extends CommonDropdown
         if (!is_null($this->fields['next_creation_date'])) {
             echo "<div class='center'>";
             //TRANS: %s is the date of next creation
-            echo htmlescape(
-                sprintf(
-                    __('Next creation on %s'),
-                    Html::convDateTime($this->fields['next_creation_date'])
-                )
+            echo sprintf(
+                __('Next creation on %s'),
+                Html::convDateTime($this->fields['next_creation_date'])
             );
             echo "</div>";
         }
@@ -406,7 +369,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
      * @param string         $begin_date     Begin date of the recurrent item in 'Y-m-d H:i:s' format.
      * @param string         $end_date       End date of the recurrent item in 'Y-m-d H:i:s' format,
      *                                       or 'NULL' or empty value.
-     * @param string|int $periodicity    Periodicity of creation, could be:
+     * @param string|integer $periodicity    Periodicity of creation, could be:
      *                                        - an integer corresponding to seconds,
      *                                        - a string using "/([0-9]+)(MONTH|YEAR)/" pattern.
      * @param int            $create_before  Anticipated creation delay in seconds.
@@ -462,7 +425,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
         // Check that anticipated creation delay is greater than periodicity.
         if ($create_before > $periodicity_in_seconds) {
             Session::addMessageAfterRedirect(
-                __s('Invalid frequency. It must be greater than the preliminary creation.'),
+                __('Invalid frequency. It must be greater than the preliminary creation.'),
                 false,
                 ERROR
             );
@@ -473,10 +436,10 @@ abstract class CommonITILRecurrent extends CommonDropdown
         $is_calendar_valid = $calendars_id && $calendar->getFromDB($calendars_id) && $calendar->hasAWorkingDay();
 
         if (!$is_calendar_valid || $periodicity_in_seconds >= DAY_TIMESTAMP) {
-            // Compute next occurrence without using the calendar if calendar is not valid
+            // Compute next occurence without using the calendar if calendar is not valid
             // or if periodicity is at least one day.
 
-            // First occurrence of creation
+            // First occurence of creation
             $occurence_time = strtotime($begin_date);
             $creation_time  = $occurence_time - $create_before;
 
@@ -492,30 +455,36 @@ abstract class CommonITILRecurrent extends CommonDropdown
             }
 
             if ($is_calendar_valid) {
-                // Jump to next working day if occurrence is outside working days.
+                // Jump to next working day if occurence is outside working days.
                 while (
                     $calendar->isHoliday(date('Y-m-d', $occurence_time))
                     || !$calendar->isAWorkingDay($occurence_time)
                 ) {
                     $occurence_time = strtotime('+ 1 day', $occurence_time);
                 }
-                // Jump to next working hour if occurrence is outside working hours.
+                // Jump to next working hour if occurence is outside working hours.
                 if (!$calendar->isAWorkingHour($occurence_time)) {
-                    // On the first iteration, we work with the start of the day
-                    $tmp_search_time = date('Y-m-d', $occurence_time);
+                    $tmp_search_time = null;
 
                     // Find the first calendar segment that is after the current date
-                    while (
-                        ($occurence_date = $calendar->computeEndDate(
+                    do {
+                        if ($tmp_search_time === null) {
+                            // On the first iteration, we work with the start of the day
+                            $tmp_search_time = date('Y-m-d', $occurence_time);
+                        } else {
+                            // If we iterate a second time, this mean the date returned was too early
+                            // We will add the periodicity once again to try to get a valid date
+                            $tmp_search_time = date(
+                                'Y-m-d H:i:s',
+                                strtotime("+ $periodicity_as_interval", strtotime($occurence_date))
+                            );
+                        }
+
+                        $occurence_date = $calendar->computeEndDate(
                             $tmp_search_time,
                             0 // 0 second delay to get the first working "second"
-                        )) < date('Y-m-d H:i:s', $now)
-                    ) {
-                        $tmp_search_time = date(
-                            'Y-m-d H:i:s',
-                            strtotime("+ $periodicity_as_interval", strtotime($occurence_date))
                         );
-                    }
+                    } while ($occurence_date < date('Y-m-d H:i:s', $now));
 
                     $occurence_time = strtotime($occurence_date);
                 }
@@ -526,7 +495,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
 
             $occurence_date = $calendar->computeEndDate(
                 $begin_date,
-                0 // 0-second delay to get the first working "second"
+                0 // 0 second delay to get the first working "second"
             );
             $occurence_time = strtotime($occurence_date);
             $creation_time  = $occurence_time - $create_before;
@@ -602,45 +571,21 @@ abstract class CommonITILRecurrent extends CommonDropdown
     }
 
     /**
-     * Get all available types to which an ITIL object can be assigned
-     *
-     * @return class-string<CommonDBTM>[]
-     **/
-    public static function getAllTypesForHelpdesk()
-    {
-        return CommonITILObject::getAllTypesForHelpdesk();
-    }
-
-    /**
      * Create an item based on the specified template
-     *
-     * @param array $linked_items array of elements (itemtype => array(id1, id2, id3, ...))
      *
      * @param CommonITILObject|null $created_item   Will contain the created item instance
      *
-     * @return bool
+     * @return boolean
      */
-    public function createItem(array $linked_items = [], ?CommonITILObject &$created_item = null)
+    public function createItem(?CommonITILObject &$created_item = null)
     {
         $result = false;
-
         $concrete_class = static::getConcreteClass();
-        if (!is_a($concrete_class, CommonITILObject::class, true)) {
-            throw new LogicException();
-        }
-
         $template_class = static::getTemplateClass();
-        if (!is_a($template_class, ITILTemplate::class, true)) {
-            throw new LogicException();
-        }
-
         $fields_class = static::getPredefinedFieldsClass();
-        if (!is_a($fields_class, ITILTemplatePredefinedField::class, true)) {
-            throw new LogicException();
-        }
-
         $tmpl_fk = $template_class::getForeignKeyField();
 
+        /** @var ITILTemplate */
         $template = new $template_class();
 
         // Create item based on specified template and entity information
@@ -648,10 +593,8 @@ abstract class CommonITILRecurrent extends CommonDropdown
             // Get default values for item
             $input = $concrete_class::getDefaultValues($this->fields['entities_id']);
 
-            // Set template id
-            $input[$template::getForeignKeyField()] = $template->getID();
-
             // Apply itiltemplates predefined values
+            /** @var ITILTemplatePredefinedField */
             $fields = new $fields_class();
             $predefined = $fields->getPredefinedFields($this->fields[$tmpl_fk], true);
             $input = $this->handlePredefinedFields($predefined, $input);
@@ -664,7 +607,9 @@ abstract class CommonITILRecurrent extends CommonDropdown
             $input['entities_id'] = $this->fields['entities_id'];
             $input['_auto_import'] = true;
 
+            /** @var CommonITILObject */
             $item = new $concrete_class();
+            $input  = Toolbox::addslashes_deep($input);
 
             if ($items_id = $item->add($input)) {
                 $created_item = $item;
@@ -673,22 +618,6 @@ abstract class CommonITILRecurrent extends CommonDropdown
                     $concrete_class::getTypeName(1),
                     $items_id
                 );
-                // add item if any
-                if (count($linked_items) > 0) {
-                    foreach ($linked_items as $linked_itemtype => $linked_items_ids) {
-                        foreach ($linked_items_ids as $linked_item_id) {
-                            $item_link = getItemForItemtype($concrete_class::getItemLinkClass());
-                            $item_link->add(
-                                [
-                                    $item->getForeignKeyField() => $items_id,
-                                    'itemtype' => $linked_itemtype,
-                                    'items_id' => $linked_item_id,
-                                ]
-                            );
-                        }
-                    }
-                }
-
                 $result = true;
             } else {
                 $msg = sprintf(
@@ -706,7 +635,7 @@ abstract class CommonITILRecurrent extends CommonDropdown
         Log::history(
             $this->fields['id'],
             static::class,
-            [0, '', $msg],
+            [0, '', addslashes($msg)],
             '',
             Log::HISTORY_LOG_SIMPLE_MESSAGE
         );
@@ -730,42 +659,5 @@ abstract class CommonITILRecurrent extends CommonDropdown
     public static function getIcon()
     {
         return "ti ti-alarm";
-    }
-
-    /**
-     * Return classname corresponding to relations with items.
-     *
-     * @return string|null Classname, or null if relations with items is not handled.
-     */
-    public static function getItemLinkClass(): ?string
-    {
-        return null;
-    }
-
-    /**
-     * Return elements related to the recurrent object.
-     * Result keys corresponds to itemtypes, and values are arrays of ids `array(itemtype => array(id1, id2, id3, ...))`.
-     *
-     * @return array
-     */
-    public function getRelatedElements(): array
-    {
-        global $DB;
-        $items = [];
-        if (($item_class = static::getItemLinkClass()) !== null) {
-            $iterator = $DB->request([
-                'FROM'   => $item_class::getTable(),
-                'WHERE'  => [
-                    'ticketrecurrents_id' =>  $this->getId(),
-                ],
-            ]);
-            foreach ($iterator as $data) {
-                if (!array_key_exists($data['itemtype'], $items)) {
-                    $items[$data['itemtype']] = [];
-                }
-                $items[$data['itemtype']][] = $data['items_id'];
-            }
-        }
-        return $items;
     }
 }

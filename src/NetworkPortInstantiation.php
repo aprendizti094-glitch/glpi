@@ -33,14 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
 use Glpi\Socket;
-use Glpi\Toolbox\ArrayPathAccessor;
 
 /**
  * NetworkPortInstantiation class
  *
- * Represents the type of given network port. As such, its ID field is the same one than the ID
+ * Represents the type of a given network port. As such, its ID field is the same one than the ID
  * of the network port it instantiates. This class don't have any table associated. It just
  * provides usefull and default methods for the instantiations.
  * Several kind of instanciations are available for a given port :
@@ -59,22 +57,20 @@ class NetworkPortInstantiation extends CommonDBChild
     public $auto_message_on_action   = false;
 
     // From CommonDBChild
-    public static $itemtype       = NetworkPort::class;
+    public static $itemtype       = 'NetworkPort';
     public static $items_id       = 'networkports_id';
     public $dohistory             = false;
 
     // Instantiation properties
-    /** @var bool */
     public $canHaveVLAN           = true;
-    /** @var bool */
     public $canHaveVirtualPort    = true;
-    /** @var bool */
     public $haveMAC               = true;
 
     public static function getIndexName()
     {
         return 'networkports_id';
     }
+
 
     /**
      * Show the instanciation element for the form of the NetworkPort
@@ -84,27 +80,25 @@ class NetworkPortInstantiation extends CommonDBChild
      *                                     (usefull, for instance to get network port attributs
      * @param array       $options         array of options given to NetworkPort::showForm
      * @param array       $recursiveItems  list of the items on which this port is attached
-     *
-     * @return void
-     */
+     **/
     public function showInstantiationForm(NetworkPort $netport, $options, $recursiveItems)
     {
-        echo "<div class='alert alert-info'>" . __s('No options available for this port type.') . "</div>";
+
+        echo "<tr><td colspan='4' class='center'>" . __('No options available for this port type.') .
+           "</td></tr>";
     }
 
-    /**
-     * @param array $input
-     *
-     * @return array
-     */
+
     public function prepareInput($input)
     {
+
         // Try to get mac address from the instantiation ...
         if (!empty($input['mac'])) {
             $input['mac'] = strtolower($input['mac']);
         }
         return $input;
     }
+
 
     public function prepareInputForAdd($input)
     {
@@ -126,12 +120,9 @@ class NetworkPortInstantiation extends CommonDBChild
         $this->manageSocket();
     }
 
-    /**
-     * @return void
-     */
     public function manageSocket()
     {
-        // add link to define
+        //add link to define
         if (isset($this->input['sockets_id']) && $this->input['sockets_id'] > 0) {
             $networkport = new NetworkPort();
             if ($networkport->getFromDB($this->fields['networkports_id'])) {
@@ -159,23 +150,306 @@ class NetworkPortInstantiation extends CommonDBChild
     }
 
     /**
+     * Get all the instantiation specific options to display
+     *
+     * @return array containing the options
+     **/
+    public static function getInstantiationNetworkPortDisplayOptions()
+    {
+        return [];
+    }
+
+
+    /**
+     * Get the instantiation specific options to display that applies for all instantiations
+     *
+     * @return array containing the options
+     **/
+    public static function getGlobalInstantiationNetworkPortDisplayOptions()
+    {
+        return ['mac'           => ['name'    => __('MAC'),
+            'default' => true,
+        ],
+            'vlans'         => ['name'    => Vlan::getTypeName(1),
+                'default' => false,
+            ],
+            'virtual_ports' => ['name'    => __('Virtual ports'),
+                'default' => false,
+            ],
+            'port_opposite' => ['name'    => __('Opposite link'),
+                'default' => false,
+            ],
+        ];
+    }
+
+
+    /**
+     * Get HTMLTable columns headers for a given item type
+     * Beware : the internet information are "sons" of each instantiation ...
+     *
+     * @param HTMLTableGroup       $group           HTMLTableGroup object
+     * @param HTMLTableSuperHeader $super           HTMLTableSuperHeader object
+     * @param HTMLTableSuperHeader $internet_super  HTMLTableSuperHeader object for the internet sub part (default NULL)
+     * @param HTMLTableHeader      $father          HTMLTableHeader object (default NULL)
+     * @param array                $options   array of possible options:
+     *       - 'dont_display' : array of the columns that must not be display
+     *
+     * @return null
+     **/
+    public function getInstantiationHTMLTableHeaders(
+        HTMLTableGroup $group,
+        HTMLTableSuperHeader $super,
+        ?HTMLTableSuperHeader $internet_super = null,
+        ?HTMLTableHeader $father = null,
+        array $options = []
+    ) {
+
+        $display_options = &$options['display_options'];
+
+        if (($this->canHaveVirtualPort) && ($display_options['virtual_ports'])) {
+            $father = $group->addHeader(
+                'VirtualPorts',
+                '<i>' . __('Virtual ports') . '</i>',
+                $super,
+                $father
+            );
+        }
+
+        if (($this->canHaveVLAN) && ($display_options['vlans'])) {
+            NetworkPort_Vlan::getHTMLTableHeader('NetworkPort', $group, $super, $father, $options);
+        }
+
+        if (($this->haveMAC) && ($display_options['mac'])) {
+            $group->addHeader('MAC', __('MAC'), $super, $father);
+        }
+
+        if (($internet_super !== null) && ($display_options['internet'])) {
+            NetworkName::getHTMLTableHeader('NetworkPort', $group, $internet_super, $father, $options);
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Get HTMLTable row for a given network port and a given extremity when two ports are
+     * existing on a link (NetworkPort_NetworkPort).
+     *
+     * @param NetworkPort   $netport  NetworkPort object (contains item)
+     * @param HTMLTableRow  $row      HTMLTableRow object
+     * @param HTMLTableCell $father   HTMLTableCell object (default NULL)
+     * @param array         $options  array of possible options:
+     *       - 'dont_display' : array of the elements that must not be display
+     *       - 'withtemplate' : integer withtemplate param
+     *
+     * @return null
+     **/
+    protected function getPeerInstantiationHTMLTable(
+        NetworkPort $netport,
+        HTMLTableRow $row,
+        ?HTMLTableCell $father = null,
+        array $options = []
+    ) {
+
+        self::getInstantiationHTMLTable($netport, $row, $father, $options);
+        return null;
+    }
+
+
+    /**
+     * Replacement of NetworkPortInstantiation::getInstantiationHTMLTable() method when two ports
+     * share the same link (NetworkPort_NetworkPort). Used, for instance by Dialup and Ethernet.
+     *
+     * @see NetworkPortInstantiation::getInstantiationHTMLTable()
+     *
+     * @param NetworkPort   $netport  NetworkPort object (contains item)
+     * @param HTMLTableRow  $row      HTMLTableRow object
+     * @param HTMLTableCell $father   HTMLTableCell object (default NULL)
+     * @param array         $options  array of possible options:
+     *       - 'dont_display' : array of the elements that must not be display
+     *       - 'withtemplate' : integer withtemplate param
+     *
+     * @return HTMLTableCell  the father cell for the Internet Information ...
+     **/
+    public function getInstantiationHTMLTableWithPeer(
+        NetworkPort $netport,
+        HTMLTableRow $row,
+        ?HTMLTableCell $father = null,
+        array $options = []
+    ) {
+
+        $connect_cell_value = [['function'   => [__CLASS__, 'showConnection'],
+            'parameters' => [clone $netport],
+        ],
+        ];
+
+        $oppositePort = NetworkPort_NetworkPort::getOpposite($netport);
+        if ($oppositePort !== false) {
+            $opposite_options            = $options;
+            $opposite_options['canedit'] = false;
+            $display_options             = $options['display_options'];
+
+            if ($display_options['port_opposite']) {
+                $cell          = $row->addCell(
+                    $row->getHeaderByName('Instantiation', 'Connected'),
+                    __('Local network port')
+                );
+
+                $opposite_cell = $row->addCell(
+                    $row->getHeaderByName('Instantiation', 'Connected'),
+                    $connect_cell_value
+                );
+                $opposite_cell->setAttributForTheRow(['class' => 'htmltable_upper_separation_cell']);
+
+                $oppositeInstantiationPort = $oppositePort->getInstantiation();
+                if ($oppositeInstantiationPort !== false) {
+                    $oppositeInstantiationPort->getPeerInstantiationHTMLTable(
+                        $oppositePort,
+                        $row,
+                        $opposite_cell,
+                        $opposite_options
+                    );
+                }
+            } else {
+                $cell = $row->addCell(
+                    $row->getHeaderByName('Instantiation', 'Connected'),
+                    $connect_cell_value
+                );
+            }
+        } else {
+            $cell = $row->addCell(
+                $row->getHeaderByName('Instantiation', 'Connected'),
+                $connect_cell_value
+            );
+        }
+
+        $this->getPeerInstantiationHTMLTable($netport, $row, $cell, $options);
+        return $cell;
+    }
+
+
+    /**
+     * Get HTMLTable row for a given item
+     *
+     * @param NetworkPort    $netport  NetworkPort object (contains item)
+     * @param HTMLTableRow   $row      HTMLTableRow object
+     * @param HTMLTableCell  $father   HTMLTableCell object (default NULL)
+     * @param array          $options  array of possible options:
+     *       - 'dont_display' : array of the elements that must not be display
+     *       - 'withtemplate' : integer withtemplate param
+     *
+     * @return null
+     **/
+    public function getInstantiationHTMLTable(
+        NetworkPort $netport,
+        HTMLTableRow $row,
+        ?HTMLTableCell $father = null,
+        array $options = []
+    ) {
+        /** @var \DBmysql $DB */
+        global $DB;
+
+        $display_options = $options['display_options'];
+
+        if (($this->canHaveVirtualPort) && ($display_options['virtual_ports'])) {
+            $virtual_header = $row->getHeaderByName('Instantiation', 'VirtualPorts');
+
+            $iterator = $DB->request([
+                'FROM' => new \QueryUnion(
+                    [
+                        [
+                            'SELECT' => 'networkports_id',
+                            'FROM'   => 'glpi_networkportaliases',
+                            'WHERE'  => ['networkports_id_alias' => $netport->getID()],
+                        ], [
+                            'SELECT' => 'networkports_id',
+                            'FROM'   => 'glpi_networkportaggregates',
+                            'WHERE'  => ['networkports_id_list' => ['LIKE', '%"' . $netport->getID() . '"%']],
+                        ],
+                    ],
+                    false,
+                    'networkports'
+                ),
+            ]);
+
+            if (count($iterator)) {
+                $new_father = $row->addCell($virtual_header, __('this port'), $father);
+            } else {
+                $new_father = $row->addCell($virtual_header, '', $father);
+            }
+
+            foreach ($iterator as $networkports_ids) {
+                $virtualPort = new NetworkPort();
+
+                if ($virtualPort->getFromDB($networkports_ids['networkports_id'])) {
+                    $cell_value = '<i>' . $virtualPort->getLink() . '</i>';
+
+                    $virtual_cell = $row->addCell($virtual_header, $cell_value, $father);
+                    $virtual_cell->setAttributForTheRow(['class' => 'htmltable_upper_separation_cell']);
+
+                    if (($this->canHaveVLAN) && ($display_options['vlans'])) {
+                        NetworkPort_Vlan::getHTMLTableCellsForItem(
+                            $row,
+                            $virtualPort,
+                            $virtual_cell,
+                            $options
+                        );
+                    }
+
+                    if ($display_options['internet']) {
+                        NetworkName::getHTMLTableCellsForItem(
+                            $row,
+                            $virtualPort,
+                            $virtual_cell,
+                            $options
+                        );
+                    }
+                }
+                unset($virtualPort);
+            }
+
+            $father = $new_father;
+        }
+
+        if (($this->canHaveVLAN) && ($display_options['vlans'])) {
+            NetworkPort_Vlan::getHTMLTableCellsForItem($row, $netport, $father, $options);
+        }
+
+        if (($this->haveMAC) && ($display_options['mac']) && (!empty($netport->fields["mac"]))) {
+            $row->addCell(
+                $row->getHeaderByName('Instantiation', 'MAC'),
+                $netport->fields["mac"],
+                $father
+            );
+        }
+
+        if ($display_options['internet']) {
+            NetworkName::getHTMLTableCellsForItem($row, $netport, $father, $options);
+        }
+
+        return null;
+    }
+
+
+    /**
      * Get all NetworkPort and NetworkEquipments that have a specific MAC address
      *
      * @param string  $mac              address to search
-     * @param bool $wildcard_search  true if we search with wildcard (false by default)
+     * @param boolean $wildcard_search  true if we search with wildcard (false by default)
      *
      * @return array  each value of the array (corresponding to one NetworkPort) is an array of the
      *                items from the master item to the NetworkPort
      **/
     public static function getItemsByMac($mac, $wildcard_search = false)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $mac = strtolower($mac);
         if ($wildcard_search) {
             $count = 0;
             $mac = str_replace('*', '%', $mac, $count);
-            if ($count === 0) {
+            if ($count == 0) {
                 $mac = '%' . $mac . '%';
             }
             $relation = ['LIKE', $mac];
@@ -185,31 +459,38 @@ class NetworkPortInstantiation extends CommonDBChild
 
         $macItemWithItems = [];
 
-        $netport = new NetworkPort();
+        foreach (['NetworkPort'] as $netporttype) {
+            $netport = new $netporttype();
 
-        $iterator = $DB->request([
-            'SELECT' => 'id',
-            'FROM'   => NetworkPort::getTable(),
-            'WHERE'  => ['mac' => $relation],
-        ]);
+            $iterator = $DB->request([
+                'SELECT' => 'id',
+                'FROM'   => $netport->getTable(),
+                'WHERE'  => ['mac' => $relation],
+            ]);
 
-        foreach ($iterator as $element) {
-            if ($netport->getFromDB($element['id'])) {
-                $macItemWithItems[] = array_merge(
-                    array_reverse($netport->recursivelyGetItems()),
-                    [clone $netport]
-                );
+            foreach ($iterator as $element) {
+                if ($netport->getFromDB($element['id'])) {
+                    if ($netport instanceof CommonDBChild) {
+                        $macItemWithItems[] = array_merge(
+                            array_reverse($netport->recursivelyGetItems()),
+                            [clone $netport]
+                        );
+                    } else {
+                        $macItemWithItems[] = [clone $netport];
+                    }
+                }
             }
         }
 
         return $macItemWithItems;
     }
 
+
     /**
      * Get an Object ID by its MAC address (only if one result is found in the entity)
      *
      * @param string  $value   the mac address
-     * @param int $entity  the entity to look for
+     * @param integer $entity  the entity to look for
      *
      * @return array containing the object ID
      *         or an empty array is no value of serverals ID where found
@@ -253,39 +534,41 @@ class NetworkPortInstantiation extends CommonDBChild
      * In case of NetworkPort attached to a network card, list the fields that must be duplicate
      * from the network card to the network port (mac address, port type, ...)
      *
-     * @return array Array with SQL field (for instance : device.type) => form field (type)
+     * @return array with SQL field (for instance : device.type) => form field (type)
      **/
     public function getNetworkCardInterestingFields()
     {
         return [];
     }
 
+
     /**
      * Select which network card to attach to the current NetworkPort (for the moment, only ethernet
-     * and Wi-Fi ports). Whenever a card is attached, its information (mac, type, ...) are
-     * automatically set to the required field.
+     * and wifi ports). Whenever a card is attached, its information (mac, type, ...) are
+     * autmatically set to the required field.
      *
      * @param NetworkPort $netport   NetworkPort object :the port that owns this instantiation
-     *                               (useful for instance to get network port attributs)
+     *                               (usefull, for instance to get network port attributs
      * @param array $options         array of options given to NetworkPort::showForm
      * @param array $recursiveItems  list of the items on which this port is attached
-     *
-     * @return void
-     */
+     **/
     public function showNetworkCardField(NetworkPort $netport, $options = [], $recursiveItems = [])
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
-        $alert = '';
-        $device_attributes = [];
-        $device_names = [];
+        echo "<td>" . DeviceNetworkCard::getTypeName(1) . "</td>\n";
+        echo "<td>";
 
-        if (count($recursiveItems) > 0) {
+        if (count($recursiveItems)  > 0) {
             $lastItem = $recursiveItems[count($recursiveItems) - 1];
 
             if (
-                !$options['several']
-                && in_array($lastItem::class, $CFG_GLPI["itemdevicenetworkcard_types"], true)
+                in_array($lastItem->getType(), $CFG_GLPI["itemdevicenetworkcard_types"])
+                && !$options['several']
             ) {
                 // Query each link to network cards
                 $criteria = [
@@ -304,7 +587,7 @@ class NetworkPortInstantiation extends CommonDBChild
                     ],
                     'WHERE'     => [
                         'link.items_id'   => $lastItem->getID(),
-                        'link.itemtype'   => $lastItem::class,
+                        'link.itemtype'   => $lastItem->getType(),
                     ],
                 ];
 
@@ -317,87 +600,81 @@ class NetworkPortInstantiation extends CommonDBChild
 
                 $iterator = $DB->request($criteria);
 
-                foreach ($iterator as $available_device) {
-                    $linkid               = $available_device['link_id'];
-                    $device_names[$linkid] = $available_device['name'];
-                    $device_attributes[$linkid] = [];
-                    if (isset($available_device['mac'])) {
-                        $device_names[$linkid] = sprintf(
+                // Add the javascript to update each field
+                echo "\n<script type=\"text/javascript\">
+   var deviceAttributs = [];\n";
+
+                $deviceNames = [0 => ""]; // First option : no network card
+                foreach ($iterator as $availableDevice) {
+                    $linkid               = $availableDevice['link_id'];
+                    $deviceNames[$linkid] = $availableDevice['name'];
+                    if (isset($availableDevice['mac'])) {
+                        $deviceNames[$linkid] = sprintf(
                             __('%1$s - %2$s'),
-                            $device_names[$linkid],
-                            $available_device['mac']
+                            $deviceNames[$linkid],
+                            $availableDevice['mac']
                         );
                     }
+
                     // get fields that must be copied from those of the network card
+                    $deviceInformations = [];
                     foreach ($deviceFields as $field) {
-                        // Each field is actually a path in dot notation, so we need to use the array path helper to set the value.
-                        ArrayPathAccessor::setElementByArrayPath($device_attributes[$linkid], $field, $available_device[$field]);
+                        // No gettext here
+                        $deviceInformations[] = "$field: '" . $availableDevice[$field] . "'";
                     }
+                    //addslashes_deep($deviceInformations);
+                    // Fill the javascript array
+                    echo "  deviceAttributs[$linkid] = {" . implode(', ', $deviceInformations) . "};\n";
+                }
+
+                // And add the javascript function that updates the other fields
+                echo "
+   function updateNetworkPortForm(devID) {
+      for (var fieldName in deviceAttributs[devID]) {
+         var field=document.getElementsByName(fieldName)[0];
+         if ((field == undefined) || (deviceAttributs[devID][fieldName] == undefined))
+            continue;
+         field.value = deviceAttributs[devID][fieldName];
+      }
+   }
+</script>\n";
+
+                if (count($deviceNames) > 0) {
+                    $options = ['value'
+                              => $this->fields['items_devicenetworkcards_id'],
+                        'on_change'
+                              => 'updateNetworkPortForm(this.options[this.selectedIndex].value)',
+                    ];
+                    Dropdown::showFromArray('items_devicenetworkcards_id', $deviceNames, $options);
+                } else {
+                    echo __('No network card available');
                 }
             } else {
-                $alert = __('Equipment without network card');
+                echo __('Equipment without network card');
             }
         } else {
-            $alert = __('Item not linked to an object');
+            echo __('Item not linked to an object');
         }
-
-        $twig_params = [
-            'device_attributes' => $device_attributes,
-            'device_names'      => $device_names,
-            'alert'             => $alert,
-            'item'              => $this,
-        ];
-        // language=Twig
-        echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            {% import 'components/form/fields_macros.html.twig' as fields %}
-            {% if alert is not empty %}
-                {% set alert_field %}
-                    <div class="alert alert-info mb-0">{{ alert }}</div>
-                {% endset %}
-                {{ fields.htmlField('', alert_field, 'DeviceNetworkCard'|itemtype_name) }}
-            {% else %}
-                {{ fields.dropdownArrayField(
-                    'items_devicenetworkcards_id',
-                    item.fields['items_devicenetworkcards_id'],
-                    device_names,
-                    'DeviceNetworkCard'|itemtype_name,
-                    {
-                        display_emptychoice: true,
-                    }
-                ) }}
-                <script>
-                    $(`select[name="items_devicenetworkcards_id"]`).on('change', (e) => {
-                        const val = e.target.value;
-                        const fields = {{ device_attributes|json_encode|raw }};
-                        Object.keys(fields[val]).forEach((fieldName) => {
-                            const field = document.getElementsByName(fieldName)[0];
-                            if (field && fields[val][fieldName]) {
-                                field.value = fields[val][fieldName];
-                            }
-                        });
-                    });
-                </script>
-            {% endif %}
-TWIG, $twig_params);
+        echo "</td>";
     }
+
 
     /**
      * Display the MAC field. Used by Ethernet, Wifi, Aggregate and alias NetworkPorts
      *
-     * @param NetworkPort $netport object : the port that owns this instantiation
+     * @param $netport         NetworkPort object : the port that owns this instantiation
      *                         (usefull, for instance to get network port attributs
-     * @param array $options Array of options given to NetworkPort::showForm
-     *
-     * @return void
-     */
+     * @param $options   array of options given to NetworkPort::showForm
+     **/
     public function showMacField(NetworkPort $netport, $options = [])
     {
-        // language=Twig
-        echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            {% import 'components/form/fields_macros.html.twig' as fields %}
-            {{ fields.textField('mac', mac, label) }}
-TWIG, ['label' => __('MAC'), 'mac' => $netport->fields['mac']]);
+
+        // Show device MAC adresses
+        echo "<td>" . __('MAC') . "</td>\n<td>";
+        echo Html::input('mac', ['value' => $netport->fields['mac']]);
+        echo "</td>\n";
     }
+
 
     /**
      * Display the Socket field. Used by Ethernet, and Migration
@@ -406,62 +683,93 @@ TWIG, ['label' => __('MAC'), 'mac' => $netport->fields['mac']]);
      *                                     (usefull, for instance to get network port attributs
      * @param array       $options         array of options given to NetworkPort::showForm
      * @param array       $recursiveItems  list of the items on which this port is attached
-     *
-     * @return void
-     */
+     **/
     public function showSocketField(NetworkPort $netport, $options = [], $recursiveItems = [])
     {
-        $socket_id = 0;
+
+        echo "<td>" . _n('Network socket', 'Network sockets', 1) . "</td>\n";
+        echo "<td>";
         if (count($recursiveItems) > 0) {
-            // find socket attached to NetworkPortEthernet
+            $lastItem = $recursiveItems[count($recursiveItems) - 1];
+
+            //find socket attached to NetworkPortEthernet
             $socket = new Socket();
+            $value = 0;
             if ($netport->getID() && $socket->getFromDBByCrit(["networkports_id" => $netport->getID()])) {
-                $socket_id = $socket->getID();
+                $value = $socket->getID();
             }
+
+            Socket::dropdown(['name'      => 'sockets_id',
+                'value'     => $value,
+            ]);
+        } else {
+            echo __('item not linked to an object');
         }
-        $twig_params = [
-            'socket_id' => $socket_id,
-            'recursive_items' => $recursiveItems,
-            'label' => _n('Network socket', 'Network sockets', 1),
-            'no_link_label' => __('Item not linked to an object'),
-        ];
-        // language=Twig
-        echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            {% import 'components/form/fields_macros.html.twig' as fields %}
-            {% if recursive_items|length > 0 %}
-                {{ fields.dropdownField('Glpi\\\\Socket', 'sockets_id', socket_id, label) }}
-            {% else %}
-                <div class="alert alert-info">{{ no_link_label }}</div>
-            {% endif %}
-TWIG, $twig_params);
+        echo "</td>";
     }
 
+
     /**
-     * Select which NetworkPort to attach
+     * \brief display the attached NetworkPort
+     *
+     * NetworkPortAlias and NetworkPortAggregate are based on other physical network ports
+     * (Ethernet or Wifi). This method displays the physical network ports.
+     **/
+    public function getInstantiationNetworkPortHTMLTable()
+    {
+
+        $netports = [];
+
+        // Manage alias
+        if (isset($this->fields['networkports_id_alias'])) {
+            $links_id = $this->fields['networkports_id_alias'];
+            $netport  = new NetworkPort();
+            if ($netport->getFromDB($links_id)) {
+                $netports[] = $netport->getLink();
+            }
+        }
+        // Manage aggregate
+        if (isset($this->fields['networkports_id_list'])) {
+            $links_id = $this->fields['networkports_id_list'];
+            $netport  = new NetworkPort();
+            foreach ($links_id as $id) {
+                if ($netport->getFromDB($id)) {
+                    $netports[] = $netport->getLink();
+                }
+            }
+        }
+
+        if (count($netports) > 0) {
+            return implode('<br>', $netports);
+        }
+
+        return "&nbsp;";
+    }
+
+
+    /**
+     * \brief select which NetworkPort to attach
      *
      * NetworkPortAlias and NetworkPortAggregate ara based on other physical network ports
      * (Ethernet or Wifi). This method Allows us to select which one to select.
      *
-     * @param array $recursiveItems
-     * @param 'NetworkPortAlias'|'NetworkPortAggregate' $origin
-     * <ul>
-     *     <li>NetworkPortAlias are based on one NetworkPort wherever</li>
-     *     <li>NetworkPortAggregate are based on several NetworkPort</li>
-     * </ul>
-     *
-     * @return void
+     * @param $recursiveItems
+     * @param $origin          NetworkPortAlias are based on one NetworkPort wherever
+     *                         NetworkPortAggregate are based on several NetworkPort.
      **/
     public function showNetworkPortSelector($recursiveItems, $origin)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        if (count($recursiveItems) === 0) {
+        if (count($recursiveItems) == 0) {
             return;
         }
 
         $lastItem = $recursiveItems[count($recursiveItems) - 1];
 
-        echo "<td>" . __s('Origin port') . "</td><td>\n";
+        echo "<td>" . __('Origin port') . "</td><td>\n";
+        $links_id      = [];
         $netport_types = ['NetworkPortEthernet', 'NetworkPortWifi'];
         $selectOptions = [];
         $possible_ports = [];
@@ -483,7 +791,8 @@ TWIG, $twig_params);
                 break;
 
             default:
-                throw new RuntimeException(sprintf('Unexpected origin `%s`.', $origin));
+                throw new \RuntimeException(sprintf('Unexpected origin `%s`.', $origin));
+                break;
         }
 
         if (isset($this->fields[$field_name])) {
@@ -534,46 +843,47 @@ TWIG, $twig_params);
         }
 
         if (!$selectOptions['multiple']) {
-            $js = 'var device_mac_addresses = [];';
+            echo "\n<script type=\"text/javascript\">
+        var device_mac_addresses = [];\n";
             foreach ($macAddresses as $port_id => $macAddress) {
-                $js .= sprintf('device_mac_addresses[%d] = "%s";', (int) $port_id, jsescape($macAddress));
+                echo "  device_mac_addresses[$port_id] = '$macAddress'\n";
             }
-            $js .= "
-                function updateForm(devID) {
-                    var field = document.getElementsByName('mac')[0];
-                    if ((field != undefined) && (device_mac_addresses[devID] != undefined)) {
-                        field.value = device_mac_addresses[devID];
-                    }
-                }
-            ";
-            echo Html::scriptBlock($js);
+            echo "   function updateForm(devID) {
+      var field=document.getElementsByName('mac')[0];
+      if ((field != undefined) && (device_mac_addresses[devID] != undefined))
+         field.value = device_mac_addresses[devID];
+   }
+</script>\n";
         }
 
         Dropdown::showFromArray($field_name, $possible_ports, $selectOptions);
-        echo "</td>";
+        echo "</td>\n";
     }
+
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
-        if ($item::class === NetworkPort::class) {
+
+        if (get_class($item) == NetworkPort::class) {
             $instantiation = $item->getInstantiation();
             if ($instantiation !== false) {
                 $log = new Log();
                 //TRANS: %1$s is a type, %2$s is a table
-
-                return $log::createTabEntry(sprintf(
+                return sprintf(
                     __('%1$s - %2$s'),
-                    $log::getTypeName(),
-                    $instantiation::getTypeName()
-                ), 0, $item::class);
+                    $instantiation->getTypeName(),
+                    $log->getTabNameForItem($instantiation)
+                );
             }
         }
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if ($item::class === NetworkPort::class) {
+
+        if (get_class($item) == NetworkPort::class) {
             $instantiation = $item->getInstantiation();
             if ($instantiation !== false) {
                 Log::displayTabContentForItem($instantiation, $tabnum, $withtemplate);
@@ -582,11 +892,10 @@ TWIG, $twig_params);
         return true;
     }
 
+
     /**
-     * @param array $tab
-     * @param array $joinparams
-     *
-     * @return void
+     * @param $tab          array
+     * @param $joinparams   array
      **/
     public static function getSearchOptionsToAddForInstantiation(array &$tab, array $joinparams) {}
 
@@ -595,14 +904,13 @@ TWIG, $twig_params);
      * Display a connection of a networking port
      *
      * @param NetworkPort $netport  to be displayed
-     * @param bool     $edit     permit to edit ? (false by default)
-     *
-     * @return void|false
-     */
+     * @param boolean     $edit     permit to edit ? (false by default)
+     **/
     public static function showConnection($netport, $edit = false)
     {
-        $ID = $netport->getID();
-        if (static::isNewID($ID)) {
+
+        $ID = $netport->fields["id"];
+        if (empty($ID)) {
             return false;
         }
 
@@ -615,16 +923,16 @@ TWIG, $twig_params);
         $relations_id = 0;
         $oppositePort = NetworkPort_NetworkPort::getOpposite($netport, $relations_id);
 
-        if ($oppositePort instanceof NetworkPort) {
+        if ($oppositePort !== false) {
             $device2 = $oppositePort->getItem();
 
             if ($device2->can($device2->fields["id"], READ)) {
                 echo $oppositePort->getLink();
-                if ($device1->fields["entities_id"] !== $device2->fields["entities_id"]) {
-                    echo "<br>(" . htmlescape(Dropdown::getDropdownName(
+                if ($device1->fields["entities_id"] != $device2->fields["entities_id"]) {
+                    echo "<br>(" . Dropdown::getDropdownName(
                         "glpi_entities",
                         $device2->getEntityID()
-                    )) . ")";
+                    ) . ")";
                 }
 
                 // write rights on dev1 + READ on dev2 OR READ on dev1 + write rights on dev2
@@ -634,7 +942,7 @@ TWIG, $twig_params);
                 ) {
                     echo "&nbsp;";
                     Html::showSimpleForm(
-                        $oppositePort::getFormURL(),
+                        $oppositePort->getFormURL(),
                         'disconnect',
                         _x('button', 'Disconnect'),
                         ['id' => $relations_id],
@@ -643,22 +951,23 @@ TWIG, $twig_params);
                     );
                 }
             } else {
-                if (rtrim($oppositePort->fields["name"]) !== "") {
+                if (rtrim($oppositePort->fields["name"]) != "") {
                     $netname = $oppositePort->fields["name"];
                 } else {
                     $netname = __('Without name');
                 }
                 printf(
-                    __s('%1$s on %2$s'),
-                    "<span class='b'>" . htmlescape($netname) . "</span>",
-                    "<span class='b'>" . htmlescape($device2->getName()) . "</span>"
+                    __('%1$s on %2$s'),
+                    "<span class='b'>" . $netname . "</span>",
+                    "<span class='b'>" . $device2->getName() . "</span>"
                 );
-                echo "<br>(" . htmlescape(Dropdown::getDropdownName(
+                echo "<br>(" . Dropdown::getDropdownName(
                     "glpi_entities",
                     $device2->getEntityID()
-                )) . ")";
+                ) . ")";
             }
         } else {
+            echo "<div id='not_connected_display$ID'>" . __('Not connected.') . "</div>";
             if ($canedit) {
                 if (!$device1->isTemplate()) {
                     if ($edit) {
@@ -670,13 +979,11 @@ TWIG, $twig_params);
                             ]
                         );
                     } else {
-                        echo "<a href=\"" . htmlescape($netport->getFormURLWithID($ID)) . "\">" . _sx('button', 'Connect') . "</a>";
+                        echo "<a href=\"" . $netport->getFormURLWithID($ID) . "\">" . _x('button', 'Connect') . "</a>";
                     }
                 } else {
                     echo "&nbsp;";
                 }
-            } else {
-                echo "<div id='not_connected_display$ID'>" . __s('Not connected.') . "</div>";
             }
         }
     }
@@ -685,7 +992,7 @@ TWIG, $twig_params);
     /**
      * Make a select box for  connected port
      *
-     * @param int $ID        ID of the current port to connect
+     * @param integer $ID        ID of the current port to connect
      * @param array   $options   array of possible options:
      *    - name : string / name of the select (default is networkports_id)
      *    - comments : boolean / is the comments displayed near the dropdown (default true)
@@ -694,10 +1001,11 @@ TWIG, $twig_params);
      *    - entity_sons : boolean / if entity restrict specified auto select its sons
      *                   only available if entity is a single value not an array (default false)
      *
-     * @return int random part of elements id
+     * @return integer random part of elements id
      **/
     public static function dropdownConnect($ID, $options = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $p['name']        = 'networkports_id';
@@ -712,7 +1020,7 @@ TWIG, $twig_params);
         }
 
         // Manage entity_sons
-        if ($p['entity'] >= 0 && $p['entity_sons']) {
+        if (!($p['entity'] < 0) && $p['entity_sons']) {
             if (is_array($p['entity'])) {
                 echo "entity_sons options is not available with entity option as array";
             } else {
@@ -720,7 +1028,7 @@ TWIG, $twig_params);
             }
         }
 
-        echo "<input type='hidden' name='NetworkPortConnect_networkports_id_1'value='" . htmlescape($ID) . "'>";
+        echo "<input type='hidden' name='NetworkPortConnect_networkports_id_1'value='$ID'>";
         $rand = Dropdown::showItemTypes('NetworkPortConnect_itemtype', $CFG_GLPI["networkport_types"]);
 
         $params = ['itemtype'           => '__VALUE__',
@@ -728,18 +1036,18 @@ TWIG, $twig_params);
             'networkports_id'    => $ID,
             'comments'           => $p['comments'],
             'myname'             => $p['name'],
-            'instantiation_type' => static::class,
+            'instantiation_type' => get_called_class(),
         ];
 
         Ajax::updateItemOnSelectEvent(
             "dropdown_NetworkPortConnect_itemtype$rand",
             "show_" . $p['name'] . "$rand",
-            $CFG_GLPI["root_doc"]
-                                       . "/ajax/dropdownConnectNetworkPortDeviceType.php",
+            $CFG_GLPI["root_doc"] .
+                                       "/ajax/dropdownConnectNetworkPortDeviceType.php",
             $params
         );
 
-        echo "<span id='show_" . htmlescape($p['name']) . "$rand'>&nbsp;</span>";
+        echo "<span id='show_" . $p['name'] . "$rand'>&nbsp;</span>\n";
 
         return $rand;
     }

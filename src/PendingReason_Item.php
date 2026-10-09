@@ -33,13 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QuerySubQuery;
-use Glpi\DBAL\QueryUnion;
-use Safe\DateTime;
-
 class PendingReason_Item extends CommonDBRelation
 {
-    public static $itemtype_1 = PendingReason::class;
+    public static $itemtype_1 = 'PendingReason';
     public static $items_id_1 = 'pendingreasons_id';
     public static $take_entity_1 = false;
 
@@ -52,12 +48,6 @@ class PendingReason_Item extends CommonDBRelation
         return _n('Item', 'Items', $nb);
     }
 
-    /**
-     * @param CommonDBTM $item
-     * @param bool $get_empty
-     *
-     * @return false|PendingReason_Item
-     */
     public static function getForItem(CommonDBTM $item, bool $get_empty = false)
     {
         $em = new self();
@@ -112,8 +102,6 @@ class PendingReason_Item extends CommonDBRelation
         $success = $em->add($fields);
         if (!$success) {
             trigger_error("Failed to create PendingReason_Item", E_USER_WARNING);
-        } else {
-            NotificationEvent::raiseEvent('pendingreason_add', $item);
         }
 
         return $success;
@@ -175,8 +163,6 @@ class PendingReason_Item extends CommonDBRelation
 
         if (!$success) {
             trigger_error("Failed to delete PendingReason_Item", E_USER_WARNING);
-        } else {
-            NotificationEvent::raiseEvent('pendingreason_del', $item);
         }
 
         return $success;
@@ -193,32 +179,13 @@ class PendingReason_Item extends CommonDBRelation
             return false;
         }
 
-        if (
-            $this->fields['followups_before_resolution'] != 0
-            && $this->fields['followups_before_resolution'] <= $this->fields['bump_count']
-        ) {
+        if ($this->fields['followups_before_resolution'] > 0 && $this->fields['followups_before_resolution'] <= $this->fields['bump_count']) {
             return false;
         }
 
-        $calendar = Calendar::getById(
-            PendingReason::getById($this->fields['pendingreasons_id'])->fields['calendars_id']
-        );
-
-        if ($calendar instanceof Calendar) {
-            return $calendar->computeEndDate(
-                $this->fields['last_bump_date'],
-                $this->fields['followup_frequency'],
-                0,
-                true
-            );
-        }
-
-        $lastBumpDate = new DateTime($this->fields['last_bump_date']);
-        $lastBumpDate->add(DateInterval::createFromDateString(
-            $this->fields['followup_frequency'] . ' seconds'
-        ));
-
-        return $lastBumpDate->format('Y-m-d H:i:s');
+        $date = new DateTime($this->fields['last_bump_date']);
+        $date->setTimestamp($date->getTimestamp() + $this->fields['followup_frequency']);
+        return $date->format("Y-m-d H:i:s");
     }
 
     /**
@@ -232,29 +199,11 @@ class PendingReason_Item extends CommonDBRelation
             return false;
         }
 
-        // -1 = auto resolution without bumps
-        $expected_bumps = max($this->fields['followups_before_resolution'], 0);
-        $remaining_bumps = $expected_bumps - $this->fields['bump_count'] + 1;
+        // If there was a bump, calculate from last_bump_date
+        $date = new DateTime($this->fields['last_bump_date']);
+        $date->setTimestamp($date->getTimestamp() + $this->fields['followup_frequency'] * ($this->fields['followups_before_resolution'] + 1 - $this->fields['bump_count']));
 
-        $calendar = Calendar::getById(
-            PendingReason::getById($this->fields['pendingreasons_id'])->fields['calendars_id']
-        );
-
-        if ($calendar instanceof Calendar) {
-            return $calendar->computeEndDate(
-                $this->fields['last_bump_date'],
-                $this->fields['followup_frequency'] * $remaining_bumps,
-                0,
-                true
-            );
-        }
-
-        $lastBumpDate = new DateTime($this->fields['last_bump_date']);
-        $lastBumpDate->add(DateInterval::createFromDateString(
-            $this->fields['followup_frequency'] * $remaining_bumps . ' seconds'
-        ));
-
-        return $lastBumpDate->format('Y-m-d H:i:s');
+        return $date->format("Y-m-d H:i:s");
     }
 
     /**
@@ -265,6 +214,7 @@ class PendingReason_Item extends CommonDBRelation
      */
     public static function getLastPendingTimelineItemDataForItem(CommonITILObject $item)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $task_class = $item::getTaskClass();
@@ -315,7 +265,7 @@ class PendingReason_Item extends CommonDBRelation
      *
      * @param CommonITILObject $item
      * @param CommonDBTM       $timeline_item
-     * @return bool
+     * @return boolean
      */
     public static function isLastPendingForItem(
         CommonITILObject $item,
@@ -338,10 +288,11 @@ class PendingReason_Item extends CommonDBRelation
      * parent timeline
      *
      * @param CommonDBTM $timeline_item
-     * @return bool
+     * @return boolean
      */
     public static function isLastTimelineItem(CommonDBTM $timeline_item): bool
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if ($timeline_item instanceof ITILFollowup) {
@@ -381,7 +332,7 @@ class PendingReason_Item extends CommonDBRelation
             ],
         ]);
 
-        $union = new QueryUnion([$followups_query, $tasks_query], false, 'timelinevents');
+        $union = new \QueryUnion([$followups_query, $tasks_query], false, 'timelinevents');
         $data = $DB->request([
             'SELECT' => ['MAX' => 'date_creation AS max_date_creation'],
             'FROM'   => $union,
@@ -400,7 +351,7 @@ class PendingReason_Item extends CommonDBRelation
      * Determines if a pending reason can be displayed for a given item.
      *
      * @param CommonDBTM $item
-     * @return bool
+     * @return boolean
      */
     public static function canDisplayPendingReasonForItem(CommonDBTM $item): bool
     {
@@ -504,8 +455,7 @@ class PendingReason_Item extends CommonDBRelation
         if (self::getForItem($timeline_item)) {
             // Event was already marked as pending
 
-            $is_pending = $timeline_item->input['pending'] ?? 0;
-            if ($is_pending) {
+            if ($timeline_item->input['pending'] ?? 0) {
                 // Still pending, check for update
                 $pending_updates = [];
                 if (isset($timeline_item->input['pendingreasons_id'])) {
@@ -529,7 +479,7 @@ class PendingReason_Item extends CommonDBRelation
                         self::updateForItem($timeline_item->input['_job'], $pending_updates);
                     }
                 }
-            } elseif (!$is_pending) {
+            } elseif (!$timeline_item->input['pending'] ?? 1) {
                 // Change status of parent if needed
                 if ($timeline_item->input["_job"]->fields['status'] == CommonITILObject::WAITING) {
                     // get previous stored status for parent
@@ -545,7 +495,7 @@ class PendingReason_Item extends CommonDBRelation
         } else {
             // Not pending yet; did it change ?
             if (
-                ($timeline_item->input['pending'] ?? 0)
+                $timeline_item->input['pending'] ?? 0
                 && isset($timeline_item->input['pendingreasons_id'])
                 && $timeline_item->input['pendingreasons_id'] > 0
             ) {
@@ -570,60 +520,60 @@ class PendingReason_Item extends CommonDBRelation
         return $timeline_item->input;
     }
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return ITILFollowup::canUpdate() || TicketTask::canUpdate() || ChangeTask::canUpdate() || ProblemTask::canUpdate();
     }
 
-    public static function canView(): bool
+    public static function canView()
     {
         return ITILFollowup::canView() || TicketTask::canView() || ChangeTask::canView() || ProblemTask::canView();
     }
 
-    public static function canUpdate(): bool
+    public static function canUpdate()
     {
         return ITILFollowup::canUpdate() || TicketTask::canUpdate() || ChangeTask::canUpdate() || ProblemTask::canUpdate();
     }
 
-    public static function canDelete(): bool
+    public static function canDelete()
     {
         return ITILFollowup::canUpdate() || TicketTask::canUpdate() || ChangeTask::canUpdate() || ProblemTask::canUpdate();
     }
 
-    public static function canPurge(): bool
+    public static function canPurge()
     {
         return ITILFollowup::canUpdate() || TicketTask::canUpdate() || ChangeTask::canUpdate() || ProblemTask::canUpdate();
     }
 
-    public function canCreateItem(): bool
+    public function canCreateItem()
     {
         $itemtype = $this->fields['itemtype'];
         $item = $itemtype::getById($this->fields['items_id']);
         return $item->canUpdateItem();
     }
 
-    public function canViewItem(): bool
+    public function canViewItem()
     {
         $itemtype = $this->fields['itemtype'];
         $item = $itemtype::getById($this->fields['items_id']);
         return $item->canViewItem();
     }
 
-    public function canUpdateItem(): bool
+    public function canUpdateItem()
     {
         $itemtype = $this->fields['itemtype'];
         $item = $itemtype::getById($this->fields['items_id']);
         return $item->canUpdateItem();
     }
 
-    public function canDeleteItem(): bool
+    public function canDeleteItem()
     {
         $itemtype = $this->fields['itemtype'];
         $item = $itemtype::getById($this->fields['items_id']);
         return $item->canUpdateItem();
     }
 
-    public function canPurgeItem(): bool
+    public function canPurgeItem()
     {
         $itemtype = $this->fields['itemtype'];
         $item = $itemtype::getById($this->fields['items_id']);

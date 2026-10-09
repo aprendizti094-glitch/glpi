@@ -31,26 +31,18 @@
  * ---------------------------------------------------------------------
  */
 
-@import "includes/tabler_compat";
+$is-dark: false !default;
+
+@import "palettes/defaults";
+@import "includes/palette_light";
 @import "includes/base";
+@import "includes/global-variables";
 @import "includes/components/select2";
 
-/*  ############# Definition of install and update styles ############# */
+/*  ############# Definition des styles de l'install et de l'update ############# */
 
-:root {
-    --tblr-body-bg: #1b2f62 !important;
-    --tblr-body-color: #fff !important;
-    --tblr-link-color: #fec95c !important;
-    --tblr-info: #c3ddff !important;
-    --tblr-info-fg: #1b2f62 !important;
-    --tblr-muted-rgb: 238, 238, 238 !important;
-    --tblr-secondary-fg: var(--tblr-body-color) !important;
-}
-
-.select2-container {
-    --tblr-body-color: #000;
-
-    color: var(--tblr-body-color);
+body {
+    background-color: #1b2f62;
 }
 
 #principal {
@@ -58,9 +50,11 @@
     text-align: center;
     margin: auto;
     padding: 40px;
+    color: #fff;
 }
 
 a {
+    color: #fec95c;
     font-weight: bold;
 }
 
@@ -154,11 +148,6 @@ h3 {
 
 .alert:not(.alert-important) {
     color: #000;
-
-    .text-muted,
-    .alert-icon {
-        color: inherit !important;
-    }
 }
 
 /** Tabler override for install **/
@@ -168,17 +157,6 @@ h3 {
 
 .form-control {
     color: rgb(32, 32, 32) !important;
-
-    &:autofill,
-    &:-webkit-autofill {
-        &, &:hover, &:focus, &:active {
-            /* stylelint-disable-next-line property-no-vendor-prefix */
-            -webkit-text-fill-color: rgb(32, 32, 32) !important;
-            /* stylelint-disable-next-line property-no-vendor-prefix */
-            -webkit-box-shadow: 0 0 0 30px #fff inset !important;
-            box-shadow: 0 0 0 30px #fff inset !important;
-        }
-    }
 }
 
 .popover.validation-messages {

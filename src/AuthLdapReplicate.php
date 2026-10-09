@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-
 /**
  *  Class used to manage LDAP replicate config
  */
@@ -42,18 +40,19 @@ class AuthLdapReplicate extends CommonDBTM
 {
     public static $rightname = 'config';
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return static::canUpdate();
     }
 
-    public static function canPurge(): bool
+    public static function canPurge()
     {
         return static::canUpdate();
     }
 
     public function getForbiddenStandardMassiveAction()
     {
+
         $forbidden   = parent::getForbiddenStandardMassiveAction();
         $forbidden[] = 'update';
         return $forbidden;
@@ -61,53 +60,55 @@ class AuthLdapReplicate extends CommonDBTM
 
     public function prepareInputForAdd($input)
     {
-        return $this->prepareInput($input);
+
+        if (isset($input["port"]) && (intval($input["port"]) == 0)) {
+            $input["port"] = 389;
+        }
+        return $input;
     }
 
     public function prepareInputForUpdate($input)
     {
-        return $this->prepareInput($input);
-    }
 
-    /**
-     * @param array<mixed> $input
-     * @return array<mixed>|false
-     */
-    private function prepareInput(array $input): array|false
-    {
-        if (
-            ($this->isNewItem() && (!isset($input['host']) || trim((string) $input['host']) === ''))
-            || (!$this->isNewItem() && isset($input['host']) && trim((string) $input['host']) === '')
-        ) {
-            Session::addMessageAfterRedirect(
-                htmlescape(
-                    sprintf(
-                        __('Mandatory fields are not filled. Please correct: %s'),
-                        __('Server')
-                    )
-                ),
-                false,
-                ERROR
-            );
-            return false;
-        }
-
-        return $input;
+        return $this->prepareInputForAdd($input);
     }
 
     /**
      * Form to add a replicate to a ldap server
      *
      * @param string  $target    target page for add new replicate
-     * @param int $master_id master ldap server ID
+     * @param integer $master_id master ldap server ID
      *
      * @return void
      */
     public static function addNewReplicateForm($target, $master_id)
     {
-        TemplateRenderer::getInstance()->display('pages/setup/authentication/ldap_replicate.html.twig', [
-            'target' => $target,
-            'authldaps_id' => $master_id,
+
+        echo "<form action='$target' method='post' name='add_replicate_form' id='add_replicate_form'>";
+        echo "<div class='center'>";
+        echo "<table class='tab_cadre_fixe'>";
+
+        echo "<tr><th colspan='5'>" . __('Add a LDAP directory replica') . "</th></tr>";
+        echo "<tr class='tab_bg_1'><td class='center'>" . __('Name') . "</td>";
+        echo "<td class='center'>" . __('Server') . "</td>";
+        echo "<td class='center'>" . _n('Port', 'Ports', 1) . "</td>";
+        echo "<td class='center'>" . __('Timeout') . "</td><td></td></tr>";
+        echo "<tr class='tab_bg_1'>";
+        echo "<td class='center'><input type='text' class='form-control' name='name'></td>";
+        echo "<td class='center'><input type='text' class='form-control' name='host'></td>";
+        echo "<td class='center'><input type='text' class='form-control' name='port'></td>";
+        echo "<td class='center'>";
+        Dropdown::showNumber('timeout', ['value'  => 10,
+            'min'    => 1,
+            'max'    => 30,
+            'step'   => 1,
+            'toadd'  => [0 => __('No timeout')],
         ]);
+        echo "</td>";
+        echo "<td class='center'><input type='hidden' name='next' value='extauth_ldap'>";
+        echo "<input type='hidden' name='authldaps_id' value='$master_id'>";
+        echo "<input type='submit' name='add_replicate' value='" . _sx('button', 'Add') . "' class='btn btn-primary'></td>";
+        echo "</tr></table></div>";
+        Html::closeForm();
     }
 }

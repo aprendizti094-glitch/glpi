@@ -33,15 +33,13 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\PlanningEvent;
-
 /**
  * Template for PlanningExternalEvent
  * @since 9.5
  **/
 class PlanningExternalEventTemplate extends CommonDropdown
 {
-    use PlanningEvent {
+    use Glpi\Features\PlanningEvent {
         prepareInputForAdd as protected prepareInputForAddTrait;
         prepareInputForUpdate as protected prepareInputForUpdateTrait;
         rawSearchOptions as protected trait_rawSearchOptions;
@@ -111,7 +109,6 @@ class PlanningExternalEventTemplate extends CommonDropdown
                     'itemtype'       => self::getType(),
                     'items_id'       => $this->fields['id'],
                     '_display_dates' => false,
-                    'before_time'    => $this->fields['before_time'] ?? 0,
                 ]);
                 break;
 
@@ -130,7 +127,7 @@ class PlanningExternalEventTemplate extends CommonDropdown
 
         switch ($field) {
             case 'state':
-                return htmlescape(Planning::getState($values[$field]));
+                return Planning::getState($values[$field]);
         }
 
         return parent::getSpecificValueToDisplay($field, $values, $options);
@@ -146,12 +143,7 @@ class PlanningExternalEventTemplate extends CommonDropdown
 
         switch ($field) {
             case 'state':
-                return Planning::dropdownState(
-                    name: $name,
-                    value: $values[$field],
-                    display: false,
-                    options: $options
-                );
+                return Planning::dropdownState($name, $values[$field], $options);
         }
 
         return parent::getSpecificValueToSelect($field, $name, $values, $options);
@@ -167,11 +159,6 @@ class PlanningExternalEventTemplate extends CommonDropdown
     }
 
 
-    /**
-     * @param array $input
-     *
-     * @return array
-     */
     public function prepareInputForupdate($input)
     {
         $saved_input = $input;
@@ -180,12 +167,6 @@ class PlanningExternalEventTemplate extends CommonDropdown
         return $this->parseExtraInput($saved_input, $input);
     }
 
-    /**
-     * @param array $orig_input
-     * @param array $input
-     *
-     * @return array
-     */
     public function parseExtraInput(array $orig_input = [], array $input = [])
     {
         if (
@@ -213,6 +194,6 @@ class PlanningExternalEventTemplate extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-stack-2-filled";
+        return "fas fa-layer-group";
     }
 }

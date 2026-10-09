@@ -33,8 +33,10 @@
  */
 
 /**
- * @var Migration $migration
+ * @var \Migration $migration
  */
+
+$migration->displayMessage('Add new configurations / user preferences');
 $migration->addConfig([
     'use_flat_dropdowntree_on_search_result'   => 1,
 ]);

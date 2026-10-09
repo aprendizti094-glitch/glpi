@@ -38,9 +38,9 @@
 class Entity_KnowbaseItem extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = KnowbaseItem::class;
+    public static $itemtype_1          = 'KnowbaseItem';
     public static $items_id_1          = 'knowbaseitems_id';
-    public static $itemtype_2 = Entity::class;
+    public static $itemtype_2          = 'Entity';
     public static $items_id_2          = 'entities_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Entity_KnowbaseItem extends CommonDBRelation
     /**
      * Get entities for a knowbaseitem
      *
-     * @param int $knowbaseitems_id ID of the knowbaseitem
+     * @param integer $knowbaseitems_id ID of the knowbaseitem
      *
      * @return array of entities linked to a knowbaseitem
      **/
     public static function getEntities($knowbaseitems_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $ent   = [];

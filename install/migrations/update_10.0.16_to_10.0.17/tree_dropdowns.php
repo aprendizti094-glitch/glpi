@@ -32,12 +32,11 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 // Drop the ancestors/sons cache that may have been corrupted by bugs that have now been resolved.
 $tree_dropdown_tables = [
     'glpi_businesscriticities',
@@ -63,7 +62,7 @@ foreach ($tree_dropdown_tables as $table) {
                 'sons_cache' => null,
             ],
             [
-                new QueryExpression('true'),
+                new QueryExpression(true),
             ]
         )
     );

@@ -33,17 +33,21 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Exception\Http\BadRequestHttpException;
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 
 // Send UTF8 Headers
 header("Content-Type: text/html; charset=UTF-8");
 Html::header_nocache();
 
+Session::checkLoginUser();
+
 if (
     (!isset($_REQUEST['params']['_idor_token']) || empty($_REQUEST['params']['_idor_token'])) || !isset($_REQUEST['itemtype'])
     || !isset($_REQUEST['widget'])
 ) {
-    throw new BadRequestHttpException();
+    http_response_code(400);
+    die();
 }
 
 $idor = $_REQUEST['params']['_idor_token'];
@@ -55,10 +59,11 @@ if (
         '_idor_token'  => $idor,
     ] + $_REQUEST['params'])
 ) {
-    throw new BadRequestHttpException();
+    http_response_code(400);
+    die();
 }
 
-/** @var class-string<CommonGLPI> $itemtype */
+/** @var class-string<CommonDBTM> $itemtype */
 $itemtype = $_REQUEST['itemtype'];
 $params = $_REQUEST['params'];
 
@@ -82,12 +87,8 @@ switch ($_REQUEST['widget']) {
         } elseif ($itemtype === Reminder::class) {
             $personal = ($params['personal'] ?? true) !== 'false';
             $itemtype::showListForCentral($personal);
-        } elseif ($itemtype === Project::class) {
-            $itemtype::showListForCentral($params['itemtype']);
-        } elseif ($itemtype === ProjectTask::class) {
-            $itemtype::showListForCentral($params['itemtype']);
         }
         break;
     default:
-        echo __s('Invalid widget');
+        echo __('Invalid widget');
 }

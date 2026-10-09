@@ -49,7 +49,7 @@
       {% endif %}
       {% set warranty_expiration %}
          <span title="{{ end_title|default('') }}" data-bs-toggle="tooltip">
-            <i class="ti ti-arrow-right"></i>
+            <i class="fas fa-arrow-right"></i>
             {{ call('Infocom::getWarrantyExpir', [
                item.fields['begin_date'],
                item.fields['duration'],
@@ -73,15 +73,15 @@
 
    {% if item.fields['begin_date'] is not empty and item.fields['notice'] > 0 and item.fields['duration'] is not empty %}
       {% set notice_info %}
-         <span title="{{ __('Start date of notice period') }}" data-bs-toggle="tooltip">
+          <span title="{{ __('Start date of notice period') }}" data-bs-toggle="tooltip">
             <i class="ti ti-arrow-right"></i>
             {{ call('Infocom::getWarrantyExpir', [
-               item.fields['begin_date'],
-               item.fields['duration'],
-               item.fields['notice'],
-               true,
-               item.fields['renewal'] == constant('Contract::RENEWAL_TACIT'),
-               item.fields['periodicity']
+                item.fields['begin_date'],
+                item.fields['duration'],
+                item.fields['notice'],
+                true,
+                item.fields['renewal'] == constant('Contract::RENEWAL_TACIT'),
+                item.fields['periodicity']
             ])|raw }}
          </span>
       {% endset %}
@@ -104,22 +104,30 @@
 
    {{ fields.dropdownNumberField('periodicity', item.fields['periodicity'], __('Contract renewal period'), {
       'rand': rand,
-      'min': 1,
+      'min': 12,
       'max': 60,
-      'step': 1,
+      'step': 12,
       'toadd': {
          0: constant('Dropdown::EMPTY_VALUE'),
+         1: _n('%d month', '%d months', 1)|format(1),
+         2: _n('%d month', '%d months', 2)|format(2),
+         3: _n('%d month', '%d months', 3)|format(3),
+         6: _n('%d month', '%d months', 6)|format(6),
       },
       'unit': 'month',
    }) }}
 
    {{ fields.dropdownNumberField('billing', item.fields['billing'], __('Invoice period'), {
       'rand': rand,
-      'min': 1,
+      'min': 12,
       'max': 60,
-      'step': 1,
+      'step': 12,
       'toadd': {
          0: constant('Dropdown::EMPTY_VALUE'),
+         1: _n('%d month', '%d months', 1)|format(1),
+         2: _n('%d month', '%d months', 2)|format(2),
+         3: _n('%d month', '%d months', 3)|format(3),
+         6: _n('%d month', '%d months', 6)|format(6),
       },
       'unit': 'month',
    }) }}

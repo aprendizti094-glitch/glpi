@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -61,7 +61,7 @@ if (isset($_POST["add"])) {
     Html::redirect($url);
 } elseif (isset($_POST["purge"])) {
     $notificationtemplate->check($_POST["id"], PURGE);
-    $notificationtemplate->delete($_POST, true);
+    $notificationtemplate->delete($_POST, 1);
 
     Event::log(
         $_POST["id"],
@@ -86,6 +86,6 @@ if (isset($_POST["add"])) {
     );
     Html::back();
 } else {
-    $menus = ["config", "notification", "NotificationTemplate"];
+    $menus = ["config", "notification", "notificationtemplate"];
     NotificationTemplate::displayFullPageForItem($_GET["id"], $menus);
 }

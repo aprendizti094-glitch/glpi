@@ -54,12 +54,16 @@ class SsoVariable extends CommonDropdown
     }
 
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return static::canUpdate();
     }
 
-    public static function canPurge(): bool
+
+    /**
+     * @since 0.85
+     **/
+    public static function canPurge()
     {
         return static::canUpdate();
     }
@@ -97,7 +101,7 @@ class SsoVariable extends CommonDropdown
     /**
      * Check if variable is used in auth process.
      *
-     * @return bool
+     * @return boolean
      */
     private function isUsedInAuth()
     {

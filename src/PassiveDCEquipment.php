@@ -33,24 +33,16 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
 use Glpi\Features\Clonable;
-use Glpi\Features\DCBreadcrumb;
-use Glpi\Features\DCBreadcrumbInterface;
-use Glpi\Features\StateInterface;
 use Glpi\Socket;
 
 /**
  * PassiveDCEquipment Class
  **/
-class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, DCBreadcrumbInterface, StateInterface
+class PassiveDCEquipment extends CommonDBTM
 {
-    use AssignableItem;
-    /** @use Clonable<static> */
     use Clonable;
-    use DCBreadcrumb;
-    use Glpi\Features\State;
+    use Glpi\Features\DCBreadcrumb;
 
     // From CommonDBTM
     public $dohistory = true;
@@ -61,29 +53,19 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
         return _n('Passive device', 'Passive devices', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['assets', self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'inventory';
-    }
-
     public function defineTabs($options = [])
     {
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
          ->addStandardTab(Socket::class, $ong, $options)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Contract_Item::class, $ong, $options)
-         ->addStandardTab(Document_Item::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Contract_Item', $ong, $options)
+         ->addStandardTab('Document_Item', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
         return $ong;
     }
 
@@ -142,35 +124,6 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
         $tab = array_merge($tab, Location::rawSearchOptionsToAdd());
 
         $tab[] = [
-            'id'                 => '70',
-            'table'              => 'glpi_users',
-            'field'              => 'name',
-            'name'               => User::getTypeName(1),
-            'datatype'           => 'dropdown',
-            'right'              => 'all',
-        ];
-
-        $tab[] = [
-            'id'                 => '71',
-            'table'              => 'glpi_groups',
-            'field'              => 'completename',
-            'name'               => Group::getTypeName(1),
-            'condition'          => ['is_itemgroup' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_NORMAL],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
-            'datatype'           => 'dropdown',
-        ];
-
-        $tab[] = [
             'id'                 => '19',
             'table'              => $this->getTable(),
             'field'              => 'date_mod',
@@ -189,11 +142,11 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
 
         $tab[] = [
             'id'                 => '31',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_passivedcequipment' => 1],
         ];
 
         $tab[] = [
@@ -218,20 +171,9 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
             'id'                 => '49',
             'table'              => 'glpi_groups',
             'field'              => 'completename',
-            'linkfield'          => 'groups_id',
+            'linkfield'          => 'groups_id_tech',
             'name'               => __('Group in charge'),
             'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
@@ -267,25 +209,11 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
 
         $tab = array_merge($tab, Rack::rawSearchOptionsToAdd(get_class($this)));
 
-        $tab = array_merge($tab, PassiveDCEquipmentModel::rawSearchOptionsToAdd());
+        $tab = array_merge($tab, Socket::rawSearchOptionsToAdd());
 
         $tab = array_merge($tab, DCRoom::rawSearchOptionsToAdd());
 
         return $tab;
-    }
-
-    public function getFormOptionsFromUrl(array $query_params): array
-    {
-        $options = [];
-
-        if (isset($query_params['position'])) {
-            $options['position'] = $query_params['position'];
-        }
-        if (isset($query_params['room'])) {
-            $options['room'] = $query_params['room'];
-        }
-
-        return $options;
     }
 
     public static function getIcon()
@@ -299,7 +227,6 @@ class PassiveDCEquipment extends CommonDBTM implements AssignableItemInterface, 
             Contract_Item::class,
             Document_Item::class,
             Infocom::class,
-            Socket::class,
         ];
     }
 }

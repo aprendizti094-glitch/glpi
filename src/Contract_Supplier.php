@@ -33,54 +33,53 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
+use Glpi\Toolbox\Sanitizer;
 use Glpi\Toolbox\URL;
 
 // Relation between Contracts and Suppliers
 class Contract_Supplier extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = Contract::class;
+    public static $itemtype_1 = 'Contract';
     public static $items_id_1 = 'contracts_id';
 
-    public static $itemtype_2 = Supplier::class;
+    public static $itemtype_2 = 'Supplier';
     public static $items_id_2 = 'suppliers_id';
+
 
     public function getForbiddenStandardMassiveAction()
     {
+
         $forbidden   = parent::getForbiddenStandardMassiveAction();
         $forbidden[] = 'update';
         return $forbidden;
     }
 
+
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
-        if (!$item instanceof CommonDBTM) {
-            return '';
-        }
 
         if (!$withtemplate) {
             $nb = 0;
-            switch ($item::class) {
-                case Supplier::class:
+            switch ($item->getType()) {
+                case 'Supplier':
                     if (Contract::canView()) {
                         if ($_SESSION['glpishow_count_on_tabs']) {
                             $nb =  self::countForItem($item);
                         }
                         return self::createTabEntry(
                             Contract::getTypeName(Session::getPluralNumber()),
-                            $nb,
-                            $item::class
+                            $nb
                         );
                     }
                     break;
 
-                case Contract::class:
+                case 'Contract':
                     if (Session::haveRight("contact_enterprise", READ)) {
                         if ($_SESSION['glpishow_count_on_tabs']) {
                             $nb = self::countForItem($item);
                         }
-                        return self::createTabEntry(Supplier::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+                        return self::createTabEntry(Supplier::getTypeName(Session::getPluralNumber()), $nb);
                     }
                     break;
             }
@@ -88,23 +87,22 @@ class Contract_Supplier extends CommonDBRelation
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if (!$item instanceof CommonDBTM) {
-            return false;
-        }
 
-        switch ($item::class) {
-            case Supplier::class:
+        switch ($item->getType()) {
+            case 'Supplier':
                 self::showForSupplier($item);
                 break;
 
-            case Contract::class:
+            case 'Contract':
                 self::showForContract($item);
                 break;
         }
         return true;
     }
+
 
     /**
      * Print an HTML array with contracts associated to the enterprise
@@ -117,6 +115,7 @@ class Contract_Supplier extends CommonDBRelation
      **/
     public static function showForSupplier(Supplier $supplier)
     {
+
         $ID = $supplier->fields['id'];
         if (
             !Contract::canView()
@@ -128,6 +127,7 @@ class Contract_Supplier extends CommonDBRelation
         $rand    = mt_rand();
 
         $iterator = self::getListForItem($supplier);
+        $number = count($iterator);
 
         $contracts = [];
         $used      = [];
@@ -137,108 +137,117 @@ class Contract_Supplier extends CommonDBRelation
         }
 
         if ($canedit) {
-            $twig_params = [
-                'supplier' => $supplier,
-                'used' => $used,
-                'btn_label' => _x('button', 'Add'),
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                {% import 'components/form/fields_macros.html.twig' as fields %}
-                <div class="mb-3">
-                    <form method="post" action="{{ 'Contract_Supplier'|itemtype_form_path }}">
-                        <div class="d-flex">
-                            <input type="hidden" name="suppliers_id" value="{{ supplier.getID() }}">
-                            <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-                            {{ fields.dropdownField('Contract', 'contracts_id', 0, __('Add a contract'), {
-                                used: used,
-                                entity: supplier.fields['entities_id'],
-                                entity_sons: supplier.fields['is_recursive'],
-                                nochecklimit: true
-                            }) }}
-                            {% set btn %}
-                                <button type="submit" name='add' class="btn btn-primary"><i class="ti ti-link"></i><span>{{ btn_label }}</span></button>
-                            {% endset %}
-                            {{ fields.htmlField('', btn, null) }}
-                        </div>
-                    </form>
-                </div>
-TWIG, $twig_params);
+            echo "<div class='firstbloc'>";
+            echo "<form name='contractsupplier_form$rand' id='contractsupplier_form$rand' method='post'
+                action='" . Toolbox::getItemTypeFormURL(__CLASS__) . "'>";
+            echo "<input type='hidden' name='suppliers_id' value='$ID'>";
+
+            echo "<table class='tab_cadre_fixe'>";
+            echo "<tr class='tab_bg_2'><th colspan='2'>" . __('Add a contract') . "</th></tr>";
+
+            echo "<tr class='tab_bg_1'><td class='right'>";
+            Contract::dropdown(['used'         => $used,
+                'entity'       => $supplier->fields["entities_id"],
+                'entity_sons'  => $supplier->fields["is_recursive"],
+                'nochecklimit' => true,
+            ]);
+
+            echo "</td><td class='center'>";
+            echo "<input type='submit' name='add' value=\"" . _sx('button', 'Add') . "\" class='btn btn-primary'>";
+            echo "</td></tr>";
+            echo "</table>";
+            Html::closeForm();
+            echo "</div>";
         }
 
-        $entries = [];
-        $entity_cache = [];
-        $type_cache = [];
+        echo "<div class='spaced'>";
+        if ($canedit && $number) {
+            Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+            $massiveactionparams = ['container'     => 'mass' . __CLASS__ . $rand,
+                'num_displayed' => min($_SESSION['glpilist_limit'], $number),
+            ];
+            Html::showMassiveActions($massiveactionparams);
+        }
+        echo "<table class='tab_cadre_fixe'>";
+
+        $header_begin  = "<tr>";
+        $header_top    = '';
+        $header_bottom = '';
+        $header_end    = '';
+        if ($canedit && $number) {
+            $header_top    .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_top    .= "</th>";
+            $header_bottom .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_bottom .= "</th>";
+        }
+        $header_end .= "<th>" . __('Name') . "</th>";
+        $header_end .= "<th>" . Entity::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . _x('phone', 'Number') . "</th>";
+        $header_end .= "<th>" . ContractType::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . __('Start date') . "</th>";
+        $header_end .= "<th>" . __('Initial contract period') . "</th>";
+        $header_end .= "</tr>";
+        echo $header_begin . $header_top . $header_end;
+
         foreach ($contracts as $data) {
-            $item = new Contract();
-            $item->getFromResultSet($data);
-            $entry = [
-                'itemtype' => self::class,
-                'id'       => $data['linkid'],
-                'row_class' => $data['is_deleted'] ? 'table-deleted' : '',
-                'name'     => $item->getLink(),
-                'num'      => $data['num'],
-                'begin_date' => $data['begin_date'],
-            ];
+            $cID        = $data["id"];
+            $assocID    = $data["linkid"];
 
-            if (!isset($entity_cache[$data['entity']])) {
-                $entity_cache[$data['entity']] = Dropdown::getDropdownName("glpi_entities", $data['entity']);
+            echo "<tr class='tab_bg_1" . ($data["is_deleted"] ? "_2" : "") . "'>";
+            if ($canedit) {
+                echo "<td>";
+                Html::showMassiveActionCheckBox(__CLASS__, $assocID);
+                echo "</td>";
             }
-            $entry['entity'] = $entity_cache[$data['entity']];
-
-            if (!isset($type_cache[$data['contracttypes_id']])) {
-                $type_cache[$data['contracttypes_id']] = Dropdown::getDropdownName("glpi_contracttypes", $data['contracttypes_id']);
+            $name = $data["name"];
+            if (
+                $_SESSION["glpiis_ids_visible"]
+                || empty($data["name"])
+            ) {
+                $name = sprintf(__('%1$s (%2$s)'), $name, $data["id"]);
             }
-            $entry['type'] = $type_cache[$data['contracttypes_id']];
+            echo "<td class='center b'>
+               <a href='" . Contract::getFormURLWithID($cID) . "'>" . $name . "</a>";
+            echo "</td>";
+            echo "<td class='center'>" . Dropdown::getDropdownName("glpi_entities", $data["entity"]);
+            echo "</td><td class='center'>" . $data["num"] . "</td>";
+            echo "<td class='center'>" .
+                Dropdown::getDropdownName("glpi_contracttypes", $data["contracttypes_id"]) . "</td>";
+            echo "<td class='center'>" . Html::convDate($data["begin_date"]) . "</td>";
+            echo "<td class='center'>";
+            sprintf(_n('%d month', '%d months', $data["duration"]), $data["duration"]);
 
-            $duration = sprintf(_n('%d month', '%d months', $data["duration"]), $data["duration"]);
-
-            if (!empty($data["begin_date"])) {
-                $duration .= " -> " . Infocom::getWarrantyExpir($data["begin_date"], $data["duration"], 0, true);
+            if (($data["begin_date"] != '') && !empty($data["begin_date"])) {
+                echo " -> " . Infocom::getWarrantyExpir($data["begin_date"], $data["duration"], 0, true);
             }
-            $entry['duration'] = $duration;
-            $entries[] = $entry;
+            echo "</td>";
+            echo "</tr>";
         }
-
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'nosort' => true,
-            'columns' => [
-                'name' => __('Name'),
-                'entity' => Entity::getTypeName(1),
-                'num' => _x('phone', 'Number'),
-                'type' => ContractType::getTypeName(1),
-                'begin_date' => __('Start date'),
-                'duration' => __('Initial contract period'),
-            ],
-            'formatters' => [
-                'name' => 'raw_html',
-                'begin_date' => 'date',
-                'duration' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => count($entries),
-                'container'     => 'mass' . static::class . $rand,
-            ],
-        ]);
+        if ($number) {
+            echo $header_begin . $header_bottom . $header_end;
+        }
+        echo "</table>";
+        if ($canedit && $number) {
+            $massiveactionparams['ontop'] = false;
+            Html::showMassiveActions($massiveactionparams);
+            Html::closeForm();
+        }
+        echo "</div>";
     }
+
 
     /**
      * Print the HTML array of suppliers for this contract
      *
      * @since 0.84
      *
-     * @param Contract $contract object
+     * @param $contract Contract object
      *
      * @return void
      **/
     public static function showForContract(Contract $contract)
     {
+
         $instID = $contract->fields['id'];
 
         if (
@@ -251,6 +260,7 @@ TWIG, $twig_params);
         $rand    = mt_rand();
 
         $iterator = self::getListForItem($contract);
+        $number = count($iterator);
 
         $suppliers = [];
         $used      = [];
@@ -260,94 +270,104 @@ TWIG, $twig_params);
         }
 
         if ($canedit) {
-            $twig_params = [
-                'contract' => $contract,
-                'used' => $used,
-                'btn_label' => _x('button', 'Add'),
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                {% import 'components/form/fields_macros.html.twig' as fields %}
-                <div class="mb-3">
-                    <form method="post" action="{{ 'Contract_Supplier'|itemtype_form_path }}">
-                        <div class="d-flex">
-                            <input type="hidden" name="contracts_id" value="{{ contract.getID() }}">
-                            <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-                            {{ fields.dropdownField('Supplier', 'suppliers_id', 0, __('Add a supplier'), {
-                                used: used,
-                                entity: contract.fields['entities_id'],
-                                entity_sons: contract.fields['is_recursive']
-                            }) }}
-                            {% set btn %}
-                                <button type="submit" name='add' class="btn btn-primary"><i class="ti ti-link"></i><span>{{ btn_label }}</span></button>
-                            {% endset %}
-                            {{ fields.htmlField('', btn, null) }}
-                        </div>
-                    </form>
-                </div>
-TWIG, $twig_params);
+            echo "<div class='firstbloc'>";
+            echo "<form name='contractsupplier_form$rand' id='contractsupplier_form$rand' method='post'
+                action='" . Toolbox::getItemTypeFormURL(__CLASS__) . "'>";
+            echo "<input type='hidden' name='contracts_id' value='$instID'>";
+
+            echo "<table class='tab_cadre_fixe'>";
+            echo "<tr class='tab_bg_2'><th colspan='2'>" . __('Add a supplier') . "</th></tr>";
+
+            echo "<tr class='tab_bg_1'><td class='right'>";
+
+            Supplier::dropdown(['used'         => $used,
+                'entity'       => $contract->fields["entities_id"],
+                'entity_sons'  => $contract->fields["is_recursive"],
+            ]);
+            echo "</td><td class='center'>";
+            echo "<input type='submit' name='add' value=\"" . _sx('button', 'Add') . "\" class='btn btn-primary'>";
+            echo "</td></tr>";
+            echo "</table>";
+            Html::closeForm();
+            echo "</div>";
         }
 
-        $entries = [];
-        $entity_cache = [];
-        $type_cache = [];
-        foreach ($suppliers as $data) {
-            $item = new Supplier();
-            $item->getFromResultSet($data);
-            $entry = [
-                'itemtype' => self::class,
-                'id'       => $data['linkid'],
-                'name' => $item->getLink(),
+        echo "<div class='spaced'>";
+        if ($canedit && $number) {
+            Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+            $massiveactionparams = ['num_displayed' => min($_SESSION['glpilist_limit'], $number),
+                'container'     => 'mass' . __CLASS__ . $rand,
             ];
+            Html::showMassiveActions($massiveactionparams);
+        }
+        echo "<table class='tab_cadre_fixe'>";
+        $header_begin  = "<tr>";
+        $header_top    = '';
+        $header_bottom = '';
+        $header_end    = '';
+        if ($canedit && $number) {
+            $header_top    .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_top    .= "</th>";
+            $header_bottom .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_bottom .= "</th>";
+        }
+        $header_end .= "<th>" . Supplier::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . Entity::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . SupplierType::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . Phone::getTypeName(1) . "</th>";
+        $header_end .= "<th>" . __('Website') . "</th>";
+        $header_end .= "</tr>";
+        echo $header_begin . $header_top . $header_end;
+
+        foreach ($suppliers as $data) {
+            $assocID = $data['linkid'];
 
             $website = '';
             if (!empty($data["website"])) {
                 $website_url = URL::sanitizeURL(
                     Toolbox::formatOutputWebLink(
-                        $data["website"]
+                        Sanitizer::unsanitize($data["website"])
                     )
                 );
                 $website = $website_url !== ''
-                    ? "<a target=_blank href='" . htmlescape($website_url) . "'>" . htmlescape($data["website"]) . "</a>"
-                    : htmlescape($data["website"]);
+                    ? "<a target=_blank href='" . htmlspecialchars($website_url) . "'>" . $data["website"] . "</a>"
+                    : $data["website"];
             }
 
-            if (!isset($entity_cache[$data['entity']])) {
-                $entity_cache[$data['entity']] = Dropdown::getDropdownName("glpi_entities", $data['entity']);
+            $entID         = $data['id'];
+            $entity        = $data['entity'];
+            $entname       = Dropdown::getDropdownName("glpi_suppliers", $entID);
+            echo "<tr class='tab_bg_1'>";
+            if ($canedit) {
+                echo "<td>";
+                Html::showMassiveActionCheckBox(__CLASS__, $assocID);
+                echo "</td>";
             }
-            $entry['entity'] = $entity_cache[$data['entity']];
-            if (!isset($type_cache[$data['suppliertypes_id']])) {
-                $type_cache[$data['suppliertypes_id']] = Dropdown::getDropdownName("glpi_suppliertypes", $data['suppliertypes_id']);
+            echo "<td class='center'>";
+            if (
+                $_SESSION["glpiis_ids_visible"]
+                || empty($entname)
+            ) {
+                $entname = sprintf(__('%1$s (%2$s)'), $entname, $entID);
             }
-            $entry['type'] = $type_cache[$data['suppliertypes_id']];
-            $entry['phonenumber'] = $data['phonenumber'];
-            $entry['website'] = $website;
-            $entries[] = $entry;
+            echo "<a href='" . Supplier::getFormURLWithID($entID) . "'>" . $entname;
+            echo "</a></td>";
+            echo "<td class='center'>" . Dropdown::getDropdownName("glpi_entities", $entity) . "</td>";
+            echo "<td class='center'>";
+            echo Dropdown::getDropdownName("glpi_suppliertypes", $data['suppliertypes_id']) . "</td>";
+            echo "<td class='center'>" . $data['phonenumber'] . "</td>";
+            echo "<td class='center'>" . $website . "</td>";
+            echo "</tr>";
         }
-
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'nosort' => true,
-            'columns' => [
-                'name' => __('Name'),
-                'entity' => Entity::getTypeName(1),
-                'type' => SupplierType::getTypeName(1),
-                'phonenumber' => Phone::getTypeName(1),
-                'website' => __('Website'),
-            ],
-            'formatters' => [
-                'name' => 'raw_html',
-                'website' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => count($entries),
-                'container'     => 'mass' . static::class . $rand,
-            ],
-        ]);
+        if ($number) {
+            echo $header_begin . $header_bottom . $header_end;
+        }
+        echo "</table>";
+        if ($canedit && $number) {
+            $massiveactionparams['ontop'] = false;
+            Html::showMassiveActions($massiveactionparams);
+            Html::closeForm();
+        }
+        echo "</div>";
     }
 }

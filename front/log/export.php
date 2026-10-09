@@ -33,11 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/../_check_webserver_config.php');
-
 use Glpi\Csv\CsvResponse;
 use Glpi\Csv\LogCsvExport;
-use Glpi\Exception\Http\BadRequestHttpException;
+use Glpi\Http\Response;
+
+include('../../inc/includes.php');
 
 // Read params
 $itemtype = $_GET['itemtype']   ?? null;
@@ -48,18 +48,18 @@ Session::checkRight(Log::$rightname, READ);
 
 // Validate itemtype
 if (!is_a($itemtype, CommonDBTM::class, true)) {
-    throw new BadRequestHttpException("Invalid itemtype");
+    Response::sendError(400, "Invalid itemtype", Response::CONTENT_TYPE_TEXT_PLAIN);
 }
 
 // Validate id
 $item = $itemtype::getById($id);
 if (!$item || !$item->can($id, READ)) {
-    throw new BadRequestHttpException("No item found for given id");
+    Response::sendError(400, "No item found for given id", Response::CONTENT_TYPE_TEXT_PLAIN);
 }
 
 // Validate filter
 if (!is_array($filter)) {
-    throw new BadRequestHttpException("Invalid filter");
+    Response::sendError(400, "Invalid filter", Response::CONTENT_TYPE_TEXT_PLAIN);
 }
 
 CsvResponse::output(new LogCsvExport($item, $filter));

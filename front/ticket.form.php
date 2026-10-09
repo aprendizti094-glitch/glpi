@@ -33,15 +33,18 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\AccessDeniedHttpException;
+use Glpi\Toolbox\Sanitizer;
 
-use function Safe\json_decode;
-
+/**
+ * @var array $CFG_GLPI
+ * @var \DBmysql $DB
+ */
 global $CFG_GLPI, $DB;
 
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 $track = new Ticket();
 
 if (!isset($_GET['id'])) {
@@ -66,15 +69,13 @@ foreach ($date_fields as $date_field) {
     }
 }
 
-// as _actors virtual field stores json, bypass automatic escaping
-if (isset($_POST['_actors'])) {
-    $_POST['_actors'] = json_decode($_POST['_actors'], true);
+if (isset($_UPOST['_actors'])) {
+    $_POST['_actors'] = Sanitizer::sanitize(json_decode($_UPOST['_actors'], true));
     $_REQUEST['_actors'] = $_POST['_actors'];
 }
 
 if (isset($_POST["add"])) {
     $track->check(-1, CREATE, $_POST);
-    $_POST = $track->enforceReadonlyFields($_POST, true);
 
     if ($track->add($_POST)) {
         if ($_SESSION['glpibackcreated']) {
@@ -84,9 +85,8 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST['update'])) {
     if (!$track::canUpdate()) {
-        throw new AccessDeniedHttpException();
+        Html::displayRightError();
     }
-    $_POST = $track->enforceReadonlyFields($_POST);
     $track->update($_POST);
 
     if (isset($_POST['kb_linked_id'])) {
@@ -96,10 +96,10 @@ if (isset($_POST["add"])) {
             'itemtype'         => $track->getType(),
             'items_id'         => $track->getID(),
         ];
-        $existing = $DB->request([
-            'FROM' => 'glpi_knowbaseitems_items',
-            'WHERE' => $params,
-        ]);
+        $existing = $DB->request(
+            'glpi_knowbaseitems_items',
+            $params
+        );
         if ($existing->numrows() == 0) {
             $kb_item_item = new KnowbaseItem_Item();
             $kb_item_item->add($params);
@@ -124,7 +124,7 @@ if (isset($_POST["add"])) {
         Html::redirect(Ticket::getFormURLWithID($_POST["id"]) . $toadd);
     }
     Session::addMessageAfterRedirect(
-        __s('You have been redirected because you no longer have access to this ticket'),
+        __('You have been redirected because you no longer have access to this ticket'),
         true,
         ERROR
     );
@@ -144,7 +144,7 @@ if (isset($_POST["add"])) {
     $track->redirectToList();
 } elseif (isset($_POST['purge'])) {
     $track->check($_POST['id'], PURGE);
-    if ($track->delete($_POST, true)) {
+    if ($track->delete($_POST, 1)) {
         Event::log(
             $_POST["id"],
             "ticket",
@@ -199,7 +199,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST['addme_as_actor'])) {
     $id = (int) $_POST['id'];
     $track->check($id, READ);
-    $input = array_merge($track->fields, [
+    $input = array_merge(Toolbox::addslashes_deep($track->fields), [
         'id' => $id,
         '_itil_' . $_POST['actortype'] => [
             '_type' => "user",
@@ -228,7 +228,7 @@ if (isset($_POST["add"])) {
             'documents_id' => $doc->getID(),
         ]);
         foreach ($found_document_items as $item) {
-            $document_item->delete($item, true);
+            $document_item->delete(Toolbox::addslashes_deep($item), true);
         }
     }
     Html::back();
@@ -236,7 +236,7 @@ if (isset($_POST["add"])) {
 
 $id = (int) $_GET['id'];
 if ($id > 0) {
-    $available_options = ['_openfollowup'];
+    $available_options = ['load_kb_sol', '_openfollowup'];
     $options = [];
 
     foreach ($available_options as $key) {
@@ -245,15 +245,9 @@ if ($id > 0) {
         }
     }
 
-    $menus = [
-        'central'  => ['helpdesk', 'ticket'],
-        'helpdesk' => ["tickets", "ticket"],
-    ];
-    Ticket::displayFullPageForItem($_GET["id"], $menus, $options);
-
     $url = KnowbaseItem::getFormURLWithParam($_GET) . '&_in_modal=1&item_itemtype=Ticket&item_items_id=' . $id;
-    if (str_contains($url, '_to_kb=')) {
-        echo Ajax::createIframeModalWindow(
+    if (strpos($url, '_to_kb=') !== false) {
+        $options['after_display'] = Ajax::createIframeModalWindow(
             'savetokb',
             $url,
             [
@@ -264,9 +258,16 @@ if ($id > 0) {
             ]
         );
     }
+
+    $menus = [
+        'central'  => ['helpdesk', 'ticket'],
+        'helpdesk' => ["tickets", "ticket"],
+    ];
+    Ticket::displayFullPageForItem($_GET["id"], $menus, $options);
 } else {
     if (Session::getCurrentInterface() != 'central') {
-        Html::redirect($CFG_GLPI["root_doc"] . "/ServiceCatalog");
+        Html::redirect($CFG_GLPI["root_doc"] . "/front/helpdesk.public.php?create_ticket=1");
+        die;
     }
 
     unset($_REQUEST['id']);
@@ -284,13 +285,7 @@ if ($id > 0) {
         && isset($_REQUEST['itemtype'])
         && isset($_REQUEST['items_id'])
     ) {
-        if ($_REQUEST['itemtype'] === User::class) {
-            $_REQUEST['_users_id_requester'] = $_REQUEST['items_id'];
-            unset($_REQUEST['itemtype']);
-            unset($_REQUEST['items_id']);
-        } else {
-            $_REQUEST['items_id'] = [$_REQUEST['itemtype'] => [$_REQUEST['items_id']]];
-        }
+        $_REQUEST['items_id'] = [$_REQUEST['itemtype'] => [$_REQUEST['items_id']]];
     }
 
     if (isset($_GET['showglobalkanban']) && $_GET['showglobalkanban']) {

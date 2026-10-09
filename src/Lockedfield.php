@@ -34,11 +34,6 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QuerySubQuery;
-use Glpi\DBAL\QueryUnion;
-use Glpi\Features\AssignableItem;
-use Glpi\Inventory\Inventory;
-use Glpi\Search\SearchOption;
 
 /**
  *  Locked fields for inventory
@@ -58,32 +53,22 @@ class Lockedfield extends CommonDBTM
         return _n('Locked field', 'Locked fields', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['admin', Inventory::class, self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'inventory';
-    }
-
-    public static function canView(): bool
+    public static function canView()
     {
         return self::canUpdate();
     }
 
-    public static function canPurge(): bool
+    public static function canPurge()
     {
         return Session::haveRight(self::$rightname, UPDATE);
     }
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return Session::haveRight(self::$rightname, UPDATE);
     }
 
-    public function canCreateItem(): bool
+    public function canCreateItem()
     {
         if (empty($this->fields['itemtype'])) {
             return true;
@@ -91,12 +76,12 @@ class Lockedfield extends CommonDBTM
         return $this->canAccessItemEntity($this->fields['itemtype'], $this->fields['items_id']);
     }
 
-    public function canUpdateItem(): bool
+    public function canUpdateItem()
     {
         return $this->canAccessItemEntity($this->fields['itemtype'], $this->fields['items_id']);
     }
 
-    public function canPurgeItem(): bool
+    public function canPurgeItem()
     {
         return $this->canAccessItemEntity($this->fields['itemtype'], $this->fields['items_id']);
     }
@@ -111,12 +96,6 @@ class Lockedfield extends CommonDBTM
         return false;
     }
 
-    public static function getPostFormAction(string $form_action, bool $action_success): ?string
-    {
-        // Always return to the locked fields list page
-        return 'list';
-    }
-
     /**
      * Check if user can access main item entity
      *
@@ -127,9 +106,7 @@ class Lockedfield extends CommonDBTM
      */
     private function canAccessItemEntity(string $itemtype, int $items_id): bool
     {
-        if (!($item = getItemForItemtype($itemtype))) {
-            return false;
-        }
+        $item = new $itemtype();
         if (
             $item->getFromDB($items_id) //not a global lock
             && $item->isEntityAssign()
@@ -214,7 +191,7 @@ class Lockedfield extends CommonDBTM
      *
      * @param CommonDBTM $item Item instance
      *
-     * @return bool
+     * @retrun boolean
      */
     public function isHandled(CommonGLPI $item)
     {
@@ -225,23 +202,11 @@ class Lockedfield extends CommonDBTM
         return (bool) $item->isDynamic();
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param int $items_id
-     *
-     * @return array
-     */
     public function getLockedNames($itemtype, $items_id)
     {
         return $this->getLocks($itemtype, $items_id, true);
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param int $items_id
-     *
-     * @return array
-     */
     public function getLockedValues($itemtype, $items_id)
     {
         return $this->getLocks($itemtype, $items_id, false);
@@ -252,29 +217,27 @@ class Lockedfield extends CommonDBTM
      * Get locked fields
      *
      * @param string  $itemtype Item type
-     * @param int $items_id Item ID
+     * @param integer $items_id Item ID
      *
      * return array
      */
     final public function getFullLockedFields($itemtype, $items_id): array
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        $query_item = new QuerySubQuery([
-            'FROM'  => $this->getTable(),
-            'WHERE' => [
-                'itemtype' => $itemtype,
-                'items_id' => $items_id,
-            ],
-        ]);
-        $query_global = new QuerySubQuery([
-            'FROM'  => $this->getTable(),
-            'WHERE' => [
+        $iterator = $DB->request([
+            'FROM'   => $this->getTable(),
+            'WHERE'  => [
                 'itemtype'  => $itemtype,
-                'is_global' => 1,
+                [
+                    'OR' => [
+                        'items_id'  => $items_id,
+                        'is_global' => 1,
+                    ],
+                ],
             ],
         ]);
-        $iterator = $DB->request(['FROM' => new QueryUnion([$query_item, $query_global])]);
 
         $locks = [];
         foreach ($iterator as $row) {
@@ -287,30 +250,27 @@ class Lockedfield extends CommonDBTM
      * Get locked fields
      *
      * @param string  $itemtype Item type
-     * @param int $items_id Item ID
-     * @param bool $fields_only
+     * @param integer $items_id Item ID
      *
-     * @return array
+     * return array
      */
     public function getLocks($itemtype, $items_id, bool $fields_only = true)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        $query_item = new QuerySubQuery([
-            'FROM'  => $this->getTable(),
-            'WHERE' => [
-                'itemtype' => $itemtype,
-                'items_id' => $items_id,
-            ],
-        ]);
-        $query_global = new QuerySubQuery([
-            'FROM'  => $this->getTable(),
-            'WHERE' => [
+        $iterator = $DB->request([
+            'FROM'   => $this->getTable(),
+            'WHERE'  => [
                 'itemtype'  => $itemtype,
-                'is_global' => 1,
+                [
+                    'OR' => [
+                        'items_id'  => $items_id,
+                        'is_global' => 1,
+                    ],
+                ],
             ],
         ]);
-        $iterator = $DB->request(['FROM' => new QueryUnion([$query_item, $query_global])]);
 
         $locks = [];
         foreach ($iterator as $row) {
@@ -326,10 +286,11 @@ class Lockedfield extends CommonDBTM
     /**
      * Item has been deleted, remove all locks
      *
-     * @return bool
+     * @return boolean
      */
     public function itemDeleted()
     {
+        /** @var \DBmysql $DB */
         global $DB;
         return $DB->delete(
             $this->getTable(),
@@ -343,15 +304,11 @@ class Lockedfield extends CommonDBTM
     /**
      * Store value from inventory on locked fields
      *
-     * @param class-string<CommonDBTM> $itemtype
-     * @param int $items_id
-     * @param string $field
-     * @param mixed $value
-     *
-     * @return bool
+     * @return boolean
      */
     public function setLastValue($itemtype, $items_id, $field, $value)
     {
+        /** @var \DBmysql $DB */
         global $DB;
         return $DB->update(
             $this->getTable(),
@@ -377,7 +334,7 @@ class Lockedfield extends CommonDBTM
                 if (isset($values['items_id']) && !$values['items_id']) {
                     return '-';
                 }
-                if (isset($values['itemtype']) && is_a($values['itemtype'], CommonDBTM::class, true)) {
+                if (isset($values['itemtype'])) {
                     $itemtype = $values['itemtype'];
                     $item = new $itemtype();
                     $item->getFromDB($values['items_id']);
@@ -403,11 +360,6 @@ class Lockedfield extends CommonDBTM
         return $this->prepareInput($input);
     }
 
-    /**
-     * @param array $input
-     *
-     * @return array
-     */
     protected function prepareInput($input)
     {
         if (isset($input['item'])) {
@@ -432,12 +384,6 @@ class Lockedfield extends CommonDBTM
         return true;
     }
 
-    public function getFormFields(): array
-    {
-        $fields = parent::getFormFields();
-        return array_filter($fields, static fn($field) => $field !== 'is_global');
-    }
-
 
     /**
      * List of itemtypes/fields that can be locked globally
@@ -446,6 +392,10 @@ class Lockedfield extends CommonDBTM
      */
     public function getFieldsToLock(?string $specific_itemtype = null): array
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $iterator = $DB->request([
@@ -477,25 +427,20 @@ class Lockedfield extends CommonDBTM
             'uuid',
             'comment',
         ];
-        $itemtypes = array_values(array_unique(array_merge(
-            $CFG_GLPI['inventory_types'],
-            $CFG_GLPI['inventory_lockable_objects']
-        )));
+        $itemtypes = $CFG_GLPI['inventory_types'] + $CFG_GLPI['inventory_lockable_objects'];
 
         if ($specific_itemtype !== null && in_array($specific_itemtype, $itemtypes)) {
             $itemtypes = [$specific_itemtype];
         }
 
         foreach ($itemtypes as $itemtype) {
-            $search_options = SearchOption::getOptionsForItemtype($itemtype);
+            $search_options = Search::getOptions($itemtype);
             $fields = $std_fields;
             $fields[] = strtolower($itemtype) . 'models_id'; //model relation field
             $fields[] = strtolower($itemtype) . 'types_id'; //type relation field
 
             foreach ($fields as $field) {
-                $field_lockable = $DB->fieldExists($itemtype::getTable(), $field)
-                    || (in_array($field, ['groups_id', 'groups_id_tech'], true) && Toolbox::hasTrait($itemtype, AssignableItem::class));
-                if ($field_lockable && !isset($lockeds[$itemtype][$field])) {
+                if ($DB->fieldExists($itemtype::getTable(), $field) && !isset($lockeds[$itemtype][$field])) {
                     $name = sprintf(
                         '%1$s - %2$s',
                         $itemtype,
@@ -516,7 +461,7 @@ class Lockedfield extends CommonDBTM
                     if ($field_name === $field) {
                         //name not found :(
                         $table = getTableNameForForeignKeyField($field);
-                        if ($table !== '') {
+                        if ($table !== '' && $table !== 'UNKNOWN') {
                             $type = getItemTypeForTable($table);
                             $field_name = $type::getTypeName(1);
                         }

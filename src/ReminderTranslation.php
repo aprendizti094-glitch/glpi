@@ -33,7 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
 use Glpi\RichText\RichText;
 
 /**
@@ -43,22 +42,20 @@ use Glpi\RichText\RichText;
  **/
 class ReminderTranslation extends CommonDBChild
 {
-    public static $itemtype = Reminder::class;
+    public static $itemtype = 'Reminder';
     public static $items_id = 'reminders_id';
     public $dohistory       = true;
     public static $logs_for_parent = false;
 
     public static $rightname       = 'reminder_public';
 
+
+
     public static function getTypeName($nb = 0)
     {
         return _n('Translation', 'Translations', $nb);
     }
 
-    public static function getIcon()
-    {
-        return 'ti ti-language';
-    }
 
     public function getForbiddenStandardMassiveAction()
     {
@@ -68,135 +65,157 @@ class ReminderTranslation extends CommonDBChild
         return $forbidden;
     }
 
+
+    /**
+     * @param \CommonGLPI $item
+     * @param int         $withtemplate
+     *
+     * @return array|string
+     * @see CommonGLPI::getTabNameForItem()
+     */
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         if (
-            $item instanceof Reminder
+            self::canBeTranslated($item)
             && Session::getCurrentInterface() != "helpdesk"
         ) {
             $nb = 0;
             if ($_SESSION['glpishow_count_on_tabs']) {
                 $nb = self::getNumberOfTranslationsForItem($item);
             }
-            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::getType());
+            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
         }
 
         return '';
     }
 
+
+    /**
+     * @param $item            CommonGLPI object
+     * @param $tabnum (default 1)
+     * @param $withtemplate (default 0)
+     **
+     *
+     * @return bool
+     */
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if ($item instanceof Reminder) {
+
+        if (
+            $item->getType() == "Reminder"
+            && self::canBeTranslated($item)
+        ) {
             self::showTranslations($item);
         }
         return true;
     }
 
+
     /**
-     * Display all translated field for a Reminder
+     * Display all translated field for an Reminder
      *
-     * @param Reminder $item a Reminder item
+     * @param $item a Reminder item
      *
-     * @return true
+     * @return true;
      **/
     public static function showTranslations(Reminder $item)
     {
+        /** @var array $CFG_GLPI */
+        global $CFG_GLPI;
+
         $canedit = $item->can($item->getID(), UPDATE);
         $rand    = mt_rand();
         if ($canedit) {
-            $twig_params = [
-                'item' => $item,
-                'rand' => $rand,
-                'button_msg' => __('Add a new translation'),
+            echo "<div id='viewtranslation" . $item->getID() . "$rand'></div>\n";
+            echo "<script type='text/javascript' >\n";
+            echo "function addTranslation" . $item->getID() . "$rand() {\n";
+            $params = ['type'             => __CLASS__,
+                'parenttype'       => get_class($item),
+                'reminders_id' => $item->fields['id'],
+                'id'               => -1,
             ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                <div class="text-center">
-                    <button class="btn btn-primary" onclick="showTranslation{{ item.getID() ~ rand }}(-1)">{{ button_msg }}</button>
-                </div>
-                <div id="viewtranslation{{ item.getID() ~ rand }}" class="mb-3"></div>
-                <script>
-                    function showTranslation{{ item.getID() ~ rand }}(translations_id) {
-                        $.ajax({
-                            url: CFG_GLPI.root_doc + '/ajax/viewsubitem.php',
-                            method: 'POST',
-                            data: {
-                                type: 'ReminderTranslation',
-                                parenttype: '{{ item.getType()|e('js') }}',
-                                reminders_id: {{ item.getID() }},
-                                id: translations_id
-                            },
-                            success: (data) => {
-                                $('#viewtranslation{{ item.getID() ~ rand }}').html(data);
-                            }
-                        });
-                    }
-                    $(() => {
-                        $('#translationlist{{ rand }} tbody tr').on('click', function() {
-                            showTranslation{{ item.getID() ~ rand }}($(this).attr('data-id'));
-                        });
-                    });
-                </script>
-TWIG, $twig_params);
+            Ajax::updateItemJsCode(
+                "viewtranslation" . $item->getID() . "$rand",
+                $CFG_GLPI["root_doc"] . "/ajax/viewsubitem.php",
+                $params
+            );
+            echo "};";
+            echo "</script>\n";
+
+            echo "<div class='center'>" .
+              "<a class='btn btn-primary' href='javascript:addTranslation" . $item->getID() . "$rand();'>" .
+              __('Add a new translation') . "</a></div><br>";
         }
 
         $obj   = new self();
         $found = $obj->find(['reminders_id' => $item->getID()], "language ASC");
 
-        $entries = [];
-        foreach ($found as $data) {
-            $entry = [
-                'itemtype' => self::class,
-                'id' => $data['id'],
-            ];
+        if (count($found) > 0) {
             if ($canedit) {
-                $entry['row_class'] = 'cursor-pointer';
+                Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+                $massiveactionparams = ['container' => 'mass' . __CLASS__ . $rand];
+                Html::showMassiveActions($massiveactionparams);
             }
-            $entry['language'] = Dropdown::getLanguageName($data['language']);
 
+            Session::initNavigateListItems('ReminderTranslation', __('Entry translations list'));
+
+            echo "<div class='center'>";
+            echo "<table class='tab_cadre_fixehov'><tr class='tab_bg_2'>";
+            echo "<th colspan='4'>" . __("List of translations") . "</th></tr>";
             if ($canedit) {
-                $entry['subject'] = sprintf(
-                    '<a href="%s">%s</a>',
-                    htmlescape(self::getFormURLWithID($data['id'])),
-                    htmlescape($data['name'])
-                );
-            } else {
-                $entry['subject'] = htmlescape($data['name']);
+                echo "<th width='10'>";
+                echo Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+                echo "</th>";
             }
-            if (!empty($data['text'])) {
-                $entry['subject'] .= Html::showToolTip(RichText::getEnhancedHtml($data['text']), ['display' => false]);
+            echo "<th>" . __("Language") . "</th>";
+            echo "<th>" . __("Subject") . "</th>";
+            foreach ($found as $data) {
+                echo "<tr class='tab_bg_1'>";
+                if ($canedit) {
+                    echo "<td class='center'>";
+                    Html::showMassiveActionCheckBox(__CLASS__, $data["id"]);
+                    echo "</td>";
+                }
+                echo "<td>";
+                echo Dropdown::getLanguageName($data['language']);
+                echo "</td><td>";
+                if ($canedit) {
+                    echo "<a href=\"" . ReminderTranslation::getFormURLWithID($data["id"]) . "\">{$data['name']}</a>";
+                } else {
+                    echo  $data["name"];
+                }
+                if (isset($data['text']) && !empty($data['text'])) {
+                    echo "&nbsp;";
+                    Html::showToolTip(RichText::getEnhancedHtml($data['text']));
+                }
+                echo "</td></tr>";
             }
-            $entries[] = $entry;
+            echo "</table>";
+            if ($canedit) {
+                $massiveactionparams['ontop'] = false;
+                Html::showMassiveActions($massiveactionparams);
+                Html::closeForm();
+            }
+        } else {
+            echo "<table class='tab_cadre_fixe'><tr class='tab_bg_2'>";
+            echo "<th class='b'>" . __("No translation found") . "</th></tr></table>";
         }
-
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'datatable_id' => 'translationlist' . $rand,
-            'is_tab' => true,
-            'nofilter' => true,
-            'columns' => [
-                'language' => __('Language'),
-                'subject' => __('Subject'),
-            ],
-            'formatters' => [
-                'subject' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => min($_SESSION['glpilist_limit'], count($entries)),
-                'container'     => 'mass' . static::class . $rand,
-                'specific_actions' => ['purge' => _x('button', 'Delete permanently')],
-            ],
-        ]);
 
         return true;
     }
 
+
+    /**
+     * Display translation form
+     *
+     * @param integer $ID
+     * @param array   $options
+     */
     public function showForm($ID = -1, array $options = [])
     {
-        if ($this->getID() > 0) {
+
+        if ($ID > 0) {
             $this->check($ID, READ);
         } else {
             // Create item
@@ -205,16 +224,45 @@ TWIG, $twig_params);
             $options['reminders_id'] = $item->getID();
             $this->check(-1, CREATE, $options);
         }
-        $options['canedit'] = $this->can($ID, UPDATE);
+        $this->showFormHeader($options);
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Language') . "&nbsp;:</td>";
+        echo "<td>";
+        echo "<input type='hidden' name='users_id' value=\"" . Session::getLoginUserID() . "\">";
+        echo "<input type='hidden' name='reminders_id' value='" . $this->fields['reminders_id'] . "'>";
+        if ($ID > 0) {
+            echo Dropdown::getLanguageName($this->fields['language']);
+        } else {
+            Dropdown::showLanguages(
+                "language",
+                ['display_none' => false,
+                    'value'        => $_SESSION['glpilanguage'],
+                    'used'         => self::getAlreadyTranslatedForItem($item),
+                ]
+            );
+        }
+        echo "</td><td colspan='2'>&nbsp;</td></tr>";
 
-        TemplateRenderer::getInstance()->display('pages/tools/reminder_translation.html.twig', [
-            'item' => $this,
-            'used_langs' => isset($item) ? self::getAlreadyTranslatedForItem($item) : [],
-            'params' => $options,
-            'no_header' => true,
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Name') . "</td>";
+        echo "<td colspan='3'>";
+        echo Html::input('name', ['value' => $this->fields['name'], 'size' => '80']);
+        echo "</td></tr>\n";
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Description') . "</td>";
+        echo "<td colspan='3'>";
+        Html::textarea(['name'              => 'text',
+            'value'             => RichText::getSafeHtml($this->fields["text"], true),
+            'enable_richtext'   => true,
+            'enable_fileupload' => false,
         ]);
+        echo "</td></tr>\n";
+
+        $this->showFormButtons($options);
         return true;
     }
+
 
     /**
      * Get a translation for a value
@@ -237,43 +285,76 @@ TWIG, $twig_params);
             && in_array($field, ['name', 'text'])
         ) {
             $first = array_shift($found);
-            if ($first[$field] !== null && $first[$field] !== "") {
-                return $first[$field];
-            }
+            return $first[$field];
         }
-        return $item->fields[$field] ?? "";
+        return $item->fields[$field];
     }
+
+
+    /**
+     * Is reminder translation functionality active
+     *
+     * @return boolean
+     **/
+    public static function isReminderTranslationActive()
+    {
+        /** @var array $CFG_GLPI */
+        global $CFG_GLPI;
+
+        return $CFG_GLPI['translate_reminders'];
+    }
+
+
+    /**
+     * Check if an item can be translated
+     * It be translated if translation if globally on and item is an instance of CommonDropdown
+     * or CommonTreeDropdown and if translation is enabled for this class
+     *
+     * @param CommonGLPI $item the item to check
+     *
+     * @return boolean true if item can be translated, false otherwise
+     **/
+    public static function canBeTranslated(CommonGLPI $item)
+    {
+
+        return (self::isReminderTranslationActive()
+              && $item instanceof Reminder);
+    }
+
 
     /**
      * Return the number of translations for an item
      *
      * @param Reminder $item
      *
-     * @return int  the number of translations for this item
+     * @return integer  the number of translations for this item
      **/
     public static function getNumberOfTranslationsForItem($item)
     {
+
         return countElementsInTable(
-            getTableForItemType(self::class),
+            getTableForItemType(__CLASS__),
             ['reminders_id' => $item->getID()]
         );
     }
 
+
     /**
      * Get already translated languages for item
      *
-     * @param Reminder $item
+     * @param CommonDBTM $item
      *
      * @return array of already translated languages
      **/
     public static function getAlreadyTranslatedForItem($item)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $tab = [];
 
         $iterator = $DB->request([
-            'FROM'   => self::getTable(),
+            'FROM'   => getTableForItemType(__CLASS__),
             'WHERE'  => ['reminders_id' => $item->getID()],
         ]);
 

@@ -33,19 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
-use Glpi\Kernel\Kernel;
-use Glpi\Plugin\Hooks;
-use Glpi\Search\Output\Csv;
-use Glpi\Search\Output\HTMLSearchOutput;
-use Glpi\Search\Output\Pdf;
-use Glpi\Search\SearchEngine;
 use Glpi\Stat\StatData;
-
-use function Safe\mktime;
-use function Safe\strtotime;
 
 /**
  *  Stat class
@@ -54,9 +42,6 @@ class Stat extends CommonGLPI
 {
     public static $rightname = 'statistic';
 
-    /**
-     * @var array
-     */
     public static $cache = [];
 
     public static function getTypeName($nb = 0)
@@ -64,78 +49,65 @@ class Stat extends CommonGLPI
         return __('Statistics');
     }
 
+
+    /**
+     * @see CommonGLPI::getMenuShorcut()
+     *
+     * @since 0.85
+     **/
     public static function getMenuShorcut()
     {
         return 'a';
     }
 
+
     /**
-     * @param class-string<CommonGLPI> $itemtype
-     * @param string $date1
-     * @param string $date2
-     * @param string $type
-     * @param int $parent (default 0)
-     * @return array
-     */
+     * @param $itemtype
+     * @param $date1
+     * @param $date2
+     * @param $type
+     * @param $parent    (default 0)
+     **/
     public static function getItems($itemtype, $date1, $date2, $type, $parent = 0)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (!$item = getItemForItemtype($itemtype)) {
-            return [];
+            return;
         }
         $val  = [];
 
         switch ($type) {
-            case 'technician':
+            case "technicien":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedTechBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = User::class;
-                    return $item;
-                }, $val);
                 break;
 
-            case "technician_followup":
+            case "technicien_followup":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedTechTaskBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = User::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "suppliers_id_assign":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedSupplierBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = Supplier::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "user":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedAuthorBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = User::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "users_id_recipient":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedRecipientBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = User::class;
-                    return $item;
-                }, $val);
                 break;
 
             case 'group_tree':
             case 'groups_tree_assign':
                 // Get all groups
-                $is_field = ($type === 'group_tree') ? 'is_requester' : 'is_assign';
+                $is_field = ($type == 'group_tree') ? 'is_requester' : 'is_assign';
                 $iterator = $DB->request([
                     'SELECT' => ['id', 'name'],
                     'FROM'   => 'glpi_groups',
@@ -149,18 +121,18 @@ class Stat extends CommonGLPI
                     'ORDER'  => 'completename',
                 ]);
 
+                $val    = [];
                 foreach ($iterator as $line) {
                     $val[] = [
-                        'itemtype' => Group::class,
                         'id'     => $line['id'],
-                        'link'   => htmlescape($line['name']),
+                        'link'   => $line['name'],
                     ];
                 }
                 break;
 
             case "itilcategories_tree":
             case "itilcategories_id":
-                $is_tree = $type === 'itilcategories_tree';
+                $is_tree = $type == 'itilcategories_tree';
                 // Get all ticket categories for tree merge management
                 $criteria = [
                     'SELECT'    => [
@@ -182,18 +154,18 @@ class Stat extends CommonGLPI
 
                 $iterator = $DB->request($criteria);
 
+                $val    = [];
                 foreach ($iterator as $line) {
                     $val[] = [
-                        'itemtype' => ITILCategory::class,
                         'id'     => $line['id'],
-                        'link'   => htmlescape($line['category']),
+                        'link'   => $line['category'],
                     ];
                 }
                 break;
 
             case 'locations_tree':
             case 'locations_id':
-                $is_tree = $type === 'locations_tree';
+                $is_tree = $type == 'locations_tree';
                 // Get all locations for tree merge management
                 $criteria = [
                     'SELECT'    => [
@@ -215,25 +187,21 @@ class Stat extends CommonGLPI
 
                 $iterator = $DB->request($criteria);
 
+                $val    = [];
                 foreach ($iterator as $line) {
                     $val[] = [
-                        'itemtype' => Location::class,
                         'id'     => $line['id'],
-                        'link'   => htmlescape($line['location']),
+                        'link'   => $line['location'],
                     ];
                 }
                 break;
 
             case "type":
-                // TODO: would be better to use an interface + instanceof here.
-                if (!method_exists($item, "getTypes")) {
-                    throw new RuntimeException("Given item doesn't support getTypes() operation");
-                }
-
-                $types = $item::getTypes(); // @phpstan-ignore method.staticCall (phpstan seems to think that method_exist = non static method, which is not true)
+                $types = $item->getTypes();
+                $val   = [];
                 foreach ($types as $id => $v) {
                     $tmp['id']   = $id;
-                    $tmp['link'] = htmlescape($v);
+                    $tmp['link'] = $v;
                     $val[]       = $tmp;
                 }
                 break;
@@ -241,19 +209,11 @@ class Stat extends CommonGLPI
             case "group":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedGroupBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = Group::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "groups_id_assign":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedAssignGroupBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = Group::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "priority":
@@ -274,37 +234,21 @@ class Stat extends CommonGLPI
             case "requesttypes_id":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedRequestTypeBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = RequestType::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "solutiontypes_id":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedSolutionTypeBetween($date1, $date2);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = SolutionType::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "usertitles_id":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedUserTitleOrTypeBetween($date1, $date2, true);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = UserTitle::class;
-                    return $item;
-                }, $val);
                 break;
 
             case "usercategories_id":
                 /** @var CommonITILObject $item */
                 $val = $item->getUsedUserTitleOrTypeBetween($date1, $date2, false);
-                $val = array_map(static function ($item) {
-                    $item['itemtype'] = UserCategory::class;
-                    return $item;
-                }, $val);
                 break;
 
                 // DEVICE CASE
@@ -313,7 +257,7 @@ class Stat extends CommonGLPI
                     ($item = getItemForItemtype($type))
                     && ($item instanceof CommonDevice)
                 ) {
-                    $device_table = $item::getTable();
+                    $device_table = $item->getTable();
 
                     //select devices IDs (table row)
                     $iterator = $DB->request([
@@ -327,9 +271,8 @@ class Stat extends CommonGLPI
 
                     foreach ($iterator as $line) {
                         $val[] = [
-                            'itemtype' => $item::class,
                             'id'     => $line['id'],
-                            'link'   => htmlescape($line['designation']),
+                            'link'   => $line['designation'],
                         ];
                     }
                 } else {
@@ -355,11 +298,11 @@ class Stat extends CommonGLPI
 
                     $iterator = $DB->request($criteria);
 
+                    $val    = [];
                     foreach ($iterator as $line) {
                         $val[] = [
-                            'itemtype' => $type,
                             'id'     => $line['id'],
-                            'link'   => htmlescape($line[$field]),
+                            'link'   => $line[$field],
                         ];
                     }
                 }
@@ -367,16 +310,16 @@ class Stat extends CommonGLPI
         return $val;
     }
 
+
     /**
-     * @param class-string<CommonITILObject> $itemtype
-     * @param string $type
-     * @param string $date1
-     * @param string $date2
-     * @param int $start
-     * @param array $value
-     * @param string $value2 (default '')
-     * @return array|mixed
-     */
+     * @param $itemtype
+     * @param $type
+     * @param $date1
+     * @param $date2
+     * @param $start
+     * @param $value     array
+     * @param $value2             (default '')
+     **/
     public static function getData($itemtype, $type, $date1, $date2, $start, array $value, $value2 = "")
     {
         $hash = md5(serialize(func_get_args()));
@@ -391,35 +334,77 @@ class Stat extends CommonGLPI
 
         $export_data = [];
 
-        $end_display = $start + $_SESSION['glpilist_limit'];
-        $numrows     = count($value);
+        if (is_array($value)) {
+            $end_display = $start + $_SESSION['glpilist_limit'];
+            $numrows     = count($value);
 
-        $fn_append_entry_values = static function (int $i, string $data_type, string $data_key) use ($itemtype, $date1, $date2, $type, $value, $value2, &$export_data) {
-            $values = self::constructEntryValues(
-                $itemtype,
-                $data_type,
-                $date1,
-                $date2,
-                $type,
-                $value[$i]["id"],
-                $value2
-            );
-            $export_data[$data_key][$value[$i]['link']] = array_sum($values);
-        };
+            for ($i = $start; $i < $numrows && $i < ($end_display); $i++) {
+                //le nombre d'intervention - the number of intervention
+                $opened    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_total",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_opened = array_sum($opened);
+                $export_data['opened'][$value[$i]['link']] = $nb_opened;
 
-        for ($i = $start; $i < $numrows && $i < ($end_display); $i++) {
-            // the number of intervention
-            $fn_append_entry_values($i, "inter_total", "opened");
-            // the number of solved intervention
-            $fn_append_entry_values($i, "inter_solved", "solved");
-            // the number of solved late intervention
-            $fn_append_entry_values($i, "inter_solved_late", "late");
-            // the number of closed intervention
-            $fn_append_entry_values($i, "inter_closed", "closed");
+                //le nombre d'intervention resolues - the number of solved intervention
+                $solved    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_solved",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_solved = array_sum($solved);
+                $export_data['solved'][$value[$i]['link']] = $nb_solved;
 
-            if ($itemtype === Ticket::class) {
-                // open satisfaction
-                $fn_append_entry_values($i, "inter_opensatisfaction", "opensatisfaction");
+                //le nombre d'intervention resolues - the number of solved late intervention
+                $late      = self::constructEntryValues(
+                    $itemtype,
+                    "inter_solved_late",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_late   = array_sum($late);
+                $export_data['late'][$value[$i]['link']] = $nb_late;
+
+                //le nombre d'intervention closes - the number of closed intervention
+                $closed    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_closed",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_closed = array_sum($closed);
+                $export_data['closed'][$value[$i]['link']] = $nb_closed;
+
+                if ($itemtype == 'Ticket') {
+                    //open satisfaction
+                    $opensatisfaction    = self::constructEntryValues(
+                        $itemtype,
+                        "inter_opensatisfaction",
+                        $date1,
+                        $date2,
+                        $type,
+                        $value[$i]["id"],
+                        $value2
+                    );
+                    $nb_opensatisfaction = array_sum($opensatisfaction);
+                    $export_data['opensatisfaction'][$value[$i]['link']] = $nb_opensatisfaction;
+                }
             }
         }
 
@@ -427,304 +412,409 @@ class Stat extends CommonGLPI
         return $export_data;
     }
 
+
     /**
-     * @param class-string<CommonITILObject> $itemtype
-     * @param string $type
-     * @param string $date1
-     * @param string $date2
-     * @param int $start
-     * @param array $value
-     * @param int|string $value2
-     * @return void
+     * @param $itemtype
+     * @param $type
+     * @param $date1
+     * @param $date2
+     * @param $start
+     * @param $value     array
+     * @param $value2          (default '')
      *
      * @since 0.85 (before show with same parameters)
      **/
-    public static function showTable($itemtype, $type, $date1, $date2, $start, array $value, $value2 = '')
+    public static function showTable($itemtype, $type, $date1, $date2, $start, array $value, $value2 = "")
     {
-        /** @var Kernel $kernel */
-        global $kernel;
+        /** @var array $CFG_GLPI */
+        global $CFG_GLPI;
 
-        $numrows = count($value);
         // Set display type for export if define
-        $output_type = $_GET["display_type"] ?? Search::HTML_OUTPUT;
-        $output = SearchEngine::getOutputForLegacyKey($output_type);
-        $is_html_output = $output instanceof HTMLSearchOutput;
-        $html_output = '';
-
-        if ($numrows === 0 && $is_html_output) {
-            echo $output::showHeader(0, 0);
-            echo '<div class="alert alert-info">' . __s('No statistics are available') . '</div>';
-            echo $output::showFooter('', 0);
-            return;
+        $output_type = Search::HTML_OUTPUT;
+        if (isset($_GET["display_type"])) {
+            $output_type = $_GET["display_type"];
         }
 
-        $headers = [];
-        $rows = [];
-
-        $end_display = $start + $_SESSION['glpilist_limit'];
-        if (isset($_GET['export_all'])) {
-            $start       = 0;
-            $end_display = $numrows;
+        if ($output_type == Search::HTML_OUTPUT) { // HTML display
+            echo "<div class ='center'>";
         }
 
-        $nbcols = 8;
-        if (!$is_html_output) {
-            $nbcols--;
-        }
+        if (is_array($value)) {
+            $end_display = $start + $_SESSION['glpilist_limit'];
+            $numrows     = count($value);
 
-        $request = $kernel->getMainRequest();
-
-        if ($is_html_output) {
-            $html_output .= $output::showHeader($end_display - $start + 1, $nbcols);
-        }
-        $subname = match ($type) {
-            'group_tree', 'groups_tree_assign' => Dropdown::getDropdownName('glpi_groups', $value2),
-            'itilcategories_tree' => Dropdown::getDropdownName('glpi_itilcategories', $value2),
-            'locations_tree' => Dropdown::getDropdownName('glpi_locations', $value2),
-            default => '',
-        };
-
-        $header_num = 1;
-        if ($is_html_output) {
-            $html_output .= $output::showNewLine();
-
-            if (str_contains($type, '_tree') && $value2) {
-                $url = $request->getBasePath() . $request->getPathInfo() . '?' . Toolbox::append_params(
-                    [
-                        'date1'    => $date1,
-                        'date2'    => $date2,
-                        'itemtype' => $itemtype,
-                        'type'     => $type,
-                        'value2'   => 0,
-                    ]
-                );
-                $html_output .= $output::showHeaderItem("<a href='" . htmlescape($url) . "'>" . __s('Back') . "</a>", $header_num);
-            } else {
-                $html_output .= $output::showHeaderItem("&nbsp;", $header_num);
-            }
-            $html_output .= $output::showHeaderItem('', $header_num);
-
-            $html_output .= $output::showHeaderItem(
-                value: _sx('quantity', 'Number'),
-                num: $header_num,
-                options: "colspan='4'"
-            );
-            if ($itemtype === Ticket::class) {
-                $html_output .= $output::showHeaderItem(
-                    value: __s('Satisfaction'),
-                    num: $header_num,
-                    options: "colspan='3'"
-                );
-            }
-            $html_output .= $output::showHeaderItem(
-                value: __s('Average time'),
-                num: $header_num,
-                options: $itemtype === Ticket::class ? "colspan='3'" : "colspan='2'"
-            );
-            $html_output .= $output::showHeaderItem(
-                value: __s('Real duration of treatment of the ticket'),
-                num: $header_num,
-                options: "colspan='2'"
-            );
-            $html_output .= $output::showNewLine();
-
-            $html_output .= $output::showHeaderItem(htmlescape($subname), $header_num);
-            $html_output .= $output::showHeaderItem('', $header_num);
-        }
-
-        if (!$is_html_output) {
-            $headers[] = $subname;
-            $headers[] = __('Number of opened tickets');
-            $headers[] = __('Number of solved tickets');
-            $headers[] = __('Number of late tickets');
-            $headers[] = __('Number of closed tickets');
-        } else {
-            $html_output .= $output::showHeaderItem(htmlescape(_nx('ticket', 'Opened', 'Opened', Session::getPluralNumber())), $header_num);
-            $html_output .= $output::showHeaderItem(
-                htmlescape(_nx('ticket', 'Solved', 'Solved', Session::getPluralNumber())),
-                $header_num
-            );
-            $html_output .= $output::showHeaderItem(__s('Late'), $header_num);
-            $html_output .= $output::showHeaderItem(__s('Closed'), $header_num);
-        }
-
-        if ($itemtype === Ticket::class) {
-            if (!$is_html_output) {
-                $headers[] = __('Number of opened satisfaction survey');
-                $headers[] = __('Number of answered satisfaction survey');
-                $headers[] = __('Average satisfaction');
-            } else {
-                $html_output .= $output::showHeaderItem(
-                    htmlescape(_nx('survey', 'Opened', 'Opened', Session::getPluralNumber())),
-                    $header_num
-                );
-                $html_output .= $output::showHeaderItem(
-                    htmlescape(_nx('survey', 'Answered', 'Answered', Session::getPluralNumber())),
-                    $header_num
-                );
-                $html_output .= $output::showHeaderItem(__s('Average'), $header_num);
-            }
-        }
-
-        if (!$is_html_output) {
-            if ($itemtype === Ticket::class) {
-                $headers[] = __('Average time to take into account');
-            }
-            $headers[] = __('Average time to resolution');
-            $headers[] = __('Average time to closure');
-        } else {
-            if ($itemtype === Ticket::class) {
-                $html_output .= $output::showHeaderItem(__s('Take into account'), $header_num);
-            }
-            $html_output .= $output::showHeaderItem(__s('Resolution'), $header_num);
-            $html_output .= $output::showHeaderItem(__s('Closure'), $header_num);
-        }
-
-        if (!$is_html_output) {
-            $headers[] = __('Average real duration of treatment of the ticket');
-            $headers[] = __('Total real duration of treatment of the ticket');
-        } else {
-            $html_output .= $output::showHeaderItem(__s('Average'), $header_num);
-            $html_output .= $output::showHeaderItem(__s('Total duration'), $header_num);
-        }
-        // End Line for column headers
-        if ($is_html_output) {
-            $html_output .= $output::showEndLine();
-        }
-        $row_num = 1;
-
-        for ($i = $start; ($i < $numrows) && ($i < $end_display); $i++) {
-            $row_num++;
-            $current_row = [];
-            $item_num = 1;
-            $colnum = 0;
-            if ($is_html_output) {
-                $html_output .= $output::showNewLine($i % 2 === 1);
-            }
-            $value_link = $value[$i]['link']; // `link` contains a safe HTML string (built in `Stat::getItems()`)
-            if (
-                $is_html_output
-                && str_contains($type, '_tree')
-                && ((int) $value[$i]['id'] !== (int) $value2)
-            ) {
-                // HTML display
-                $url = $request->getBasePath() . $request->getPathInfo() . '?' . Toolbox::append_params(
-                    [
-                        'date1'    => $date1,
-                        'date2'    => $date2,
-                        'itemtype' => $itemtype,
-                        'type'     => $type,
-                        'value2'  => $value[$i]['id'],
-                    ]
-                );
-                $html_output .= $output::showItem("<a href='" . htmlescape($url) . "'>" . $value_link . "</a>", $item_num, $row_num);
-            } else {
-                if ($is_html_output) {
-                    $html_output .= $output::showItem($value_link, $item_num, $row_num);
-                } else {
-                    $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $value[$i]['link']];
-                }
+            if (isset($_GET['export_all'])) {
+                $start       = 0;
+                $end_display = $numrows;
             }
 
-            if ($is_html_output) {
-                $link = "";
-                if ($value[$i]['id'] > 0) {
-                    $url = 'stat.graph.php?' . Toolbox::append_params(
+            $nbcols = 8;
+            if ($output_type != Search::HTML_OUTPUT) { // not HTML display
+                $nbcols--;
+            }
+
+            echo Search::showHeader($output_type, $end_display - $start + 1, $nbcols);
+            $subname = '';
+            switch ($type) {
+                case 'group_tree':
+                case 'groups_tree_assign':
+                    $subname = Dropdown::getDropdownName('glpi_groups', $value2);
+                    break;
+
+                case 'itilcategories_tree':
+                    $subname = Dropdown::getDropdownName('glpi_itilcategories', $value2);
+                    break;
+
+                case 'locations_tree':
+                    $subname = Dropdown::getDropdownName('glpi_locations', $value2);
+                    break;
+            }
+
+            if ($output_type == Search::HTML_OUTPUT) { // HTML display
+                echo Search::showNewLine($output_type);
+                $header_num = 1;
+
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    && strstr($type, '_tree')
+                    && $value2
+                ) {
+                    // HTML display
+                    $url = $_SERVER['PHP_SELF'] . '?' . Toolbox::append_params(
                         [
-                            'id' => $value[$i]['id'],
                             'date1'    => $date1,
                             'date2'    => $date2,
                             'itemtype' => $itemtype,
                             'type'     => $type,
-                            'champ'    => $value2,
-                        ]
+                            'value2'   => 0,
+                        ],
+                        '&amp;'
                     );
-                    $link = "<a href='" . htmlescape($url) . "' title='" . __s('View graph') . "'>"
-                      . "<i class='ti ti-graph fs-1'></i>"
-                      . "</a>";
+                    $link = "<a href='$url'>" . __('Back') . "</a>";
+                    echo Search::showHeaderItem($output_type, $link, $header_num);
+                } else {
+                    echo Search::showHeaderItem($output_type, "&nbsp;", $header_num);
                 }
-                $html_output .= $output::showItem($link, $item_num, $row_num);
+                echo Search::showHeaderItem($output_type, '', $header_num);
+
+                echo Search::showHeaderItem(
+                    $output_type,
+                    _x('quantity', 'Number'),
+                    $header_num,
+                    '',
+                    0,
+                    '',
+                    "colspan='4'"
+                );
+                if ($itemtype == 'Ticket') {
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        __('Satisfaction'),
+                        $header_num,
+                        '',
+                        0,
+                        '',
+                        "colspan='3'"
+                    );
+                }
+                echo Search::showHeaderItem(
+                    $output_type,
+                    __('Average time'),
+                    $header_num,
+                    '',
+                    0,
+                    '',
+                    $itemtype == 'Ticket' ? "colspan='3'" : "colspan='2'"
+                );
+                echo Search::showHeaderItem(
+                    $output_type,
+                    __('Real duration of treatment of the ticket'),
+                    $header_num,
+                    '',
+                    0,
+                    '',
+                    "colspan='2'"
+                );
             }
 
-            $fn_show_entry_values = static function (int $i, string $data_type) use ($itemtype, $date1, $date2, $type, $value, $value2, &$item_num, $row_num, $output, &$html_output, $is_html_output, &$current_row, &$colnum) {
-                $values = self::constructEntryValues(
-                    $itemtype,
-                    $data_type,
-                    $date1,
-                    $date2,
-                    $type,
-                    $value[$i]["id"],
-                    $value2
+            echo Search::showNewLine($output_type);
+            $header_num    = 1;
+            echo Search::showHeaderItem($output_type, $subname, $header_num);
+
+            if ($output_type == Search::HTML_OUTPUT) { // HTML display
+                echo Search::showHeaderItem($output_type, "", $header_num);
+            }
+            if ($output_type != Search::HTML_OUTPUT) {
+                echo Search::showHeaderItem($output_type, __('Number of opened tickets'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Number of solved tickets'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Number of late tickets'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Number of closed tickets'), $header_num);
+            } else {
+                echo Search::showHeaderItem($output_type, _nx('ticket', 'Opened', 'Opened', Session::getPluralNumber()), $header_num);
+                echo Search::showHeaderItem(
+                    $output_type,
+                    _nx('ticket', 'Solved', 'Solved', Session::getPluralNumber()),
+                    $header_num
                 );
-                $sum = array_sum($values);
-                if ($is_html_output) {
-                    $html_output .= $output::showItem((string) $sum, $item_num, $row_num);
+                echo Search::showHeaderItem($output_type, __('Late'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Closed'), $header_num);
+            }
+
+            if ($itemtype == 'Ticket') {
+                if ($output_type != Search::HTML_OUTPUT) {
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        __('Number of opened satisfaction survey'),
+                        $header_num
+                    );
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        __('Number of answered satisfaction survey'),
+                        $header_num
+                    );
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        __('Average satisfaction'),
+                        $header_num
+                    );
                 } else {
-                    $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $sum];
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        _nx('survey', 'Opened', 'Opened', Session::getPluralNumber()),
+                        $header_num
+                    );
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        _nx('survey', 'Answered', 'Answered', Session::getPluralNumber()),
+                        $header_num
+                    );
+                    echo Search::showHeaderItem($output_type, __('Average'), $header_num);
                 }
-                return [$values, $sum];
-            };
+            }
 
-            // the number of intervention
-            $fn_show_entry_values($i, 'inter_total');
+            if ($output_type != Search::HTML_OUTPUT) {
+                if ($itemtype == 'Ticket') {
+                    echo Search::showHeaderItem(
+                        $output_type,
+                        __('Average time to take into account'),
+                        $header_num
+                    );
+                }
+                echo Search::showHeaderItem($output_type, __('Average time to resolution'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Average time to closure'), $header_num);
+            } else {
+                if ($itemtype == 'Ticket') {
+                    echo Search::showHeaderItem($output_type, __('Take into account'), $header_num);
+                }
+                echo Search::showHeaderItem($output_type, __('Resolution'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Closure'), $header_num);
+            }
 
-            // the number of solved intervention
-            [$solved, $nb_solved] = $fn_show_entry_values($i, 'inter_solved');
-
-            // the number of late solved intervention
-            $fn_show_entry_values($i, 'inter_solved_late');
-
-            // the number of closed intervention
-            [, $nb_closed] = $fn_show_entry_values($i, 'inter_closed');
-
-            if ($itemtype === Ticket::class) {
-                // Satisfaction open
-                $fn_show_entry_values($i, 'inter_opensatisfaction');
-                // Satisfaction answer
-                [$answersatisfaction, $nb_answersatisfaction] = $fn_show_entry_values($i, 'inter_answersatisfaction');
-
-                // Satisfaction rate
-                $satisfaction = self::constructEntryValues(
-                    $itemtype,
-                    "inter_avgsatisfaction",
-                    $date1,
-                    $date2,
-                    $type,
-                    $value[$i]["id"],
-                    $value2
+            if ($output_type != Search::HTML_OUTPUT) {
+                echo Search::showHeaderItem(
+                    $output_type,
+                    __('Average real duration of treatment of the ticket'),
+                    $header_num
                 );
-                foreach (array_keys($satisfaction) as $key2) {
-                    $satisfaction[$key2] *= $answersatisfaction[$key2];
+                echo Search::showHeaderItem(
+                    $output_type,
+                    __('Total real duration of treatment of the ticket'),
+                    $header_num
+                );
+            } else {
+                echo Search::showHeaderItem($output_type, __('Average'), $header_num);
+                echo Search::showHeaderItem($output_type, __('Total duration'), $header_num);
+            }
+            // End Line for column headers
+            echo Search::showEndLine($output_type);
+            $row_num = 1;
+
+            for ($i = $start; ($i < $numrows) && ($i < $end_display); $i++) {
+                $row_num++;
+                $item_num = 1;
+                echo Search::showNewLine($output_type, $i % 2);
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    && strstr($type, '_tree')
+                    && ($value[$i]['id'] != $value2)
+                ) {
+                    // HTML display
+                    $url = $_SERVER['PHP_SELF'] . '?' . Toolbox::append_params(
+                        [
+                            'date1'    => $date1,
+                            'date2'    => $date2,
+                            'itemtype' => $itemtype,
+                            'type'     => $type,
+                            'value2'  => $value[$i]['id'],
+                        ],
+                        '&amp;'
+                    );
+                    $link = "<a href='$url'>" . $value[$i]['link'] . "</a>";
+                    echo Search::showItem($output_type, $link, $item_num, $row_num);
+                } else {
+                    echo Search::showItem($output_type, $value[$i]['link'], $item_num, $row_num);
                 }
-                if ($nb_answersatisfaction > 0) {
-                    $avgsatisfaction = round(array_sum($satisfaction) / $nb_answersatisfaction, 1);
-                    if ($is_html_output) {
-                        // Display using the max number of stars defined in the root entity
-                        $max_rate = Entity::getUsedConfig(
-                            'inquest_config',
-                            0,
-                            'inquest_max_rate' . TicketSatisfaction::getConfigSufix()
+
+                if ($output_type == Search::HTML_OUTPUT) { // HTML display
+                    $link = "";
+                    if ($value[$i]['id'] > 0) {
+                        $url = 'stat.graph.php?' . Toolbox::append_params(
+                            [
+                                'id' => $value[$i]['id'],
+                                'date1'    => $date1,
+                                'date2'    => $date2,
+                                'itemtype' => $itemtype,
+                                'type'     => $type,
+                                'champ'    => $value2,
+                            ],
+                            '&amp;'
                         );
-                        if (!$max_rate) {
-                            $max_rate = 5;
-                        }
-                        // Scale satisfaction accordingly
-                        $avgsatisfaction *= $max_rate / 5;
-                        $avgsatisfaction = TicketSatisfaction::displaySatisfaction($avgsatisfaction, 0);
+                        $link = "<a href='$url'>" .
+                          "<img src='" . $CFG_GLPI["root_doc"] . "/pics/stats_item.png' alt=''>" .
+                          "</a>";
                     }
-                } else {
-                    $avgsatisfaction = '&nbsp;';
-                }
-                if ($is_html_output) {
-                    $html_output .= $output::showItem($avgsatisfaction, $item_num, $row_num);
-                } else {
-                    $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $avgsatisfaction];
+                    echo Search::showItem($output_type, $link, $item_num, $row_num);
                 }
 
-                // The average time to take a ticket into account
+                //le nombre d'intervention - the number of intervention
+                $opened    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_total",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_opened = array_sum($opened);
+                echo Search::showItem($output_type, $nb_opened, $item_num, $row_num);
+
+                //le nombre d'intervention resolues - the number of solved intervention
+                $solved    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_solved",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_solved = array_sum($solved);
+                echo Search::showItem($output_type, $nb_solved, $item_num, $row_num);
+
+                //le nombre d'intervention resolues - the number of solved intervention
+                $solved_late    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_solved_late",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_solved_late = array_sum($solved_late);
+                echo Search::showItem($output_type, $nb_solved_late, $item_num, $row_num);
+
+                //le nombre d'intervention closes - the number of closed intervention
+                $closed    = self::constructEntryValues(
+                    $itemtype,
+                    "inter_closed",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_closed = array_sum($closed);
+
+                echo Search::showItem($output_type, $nb_closed, $item_num, $row_num);
+
+                if ($itemtype == 'Ticket') {
+                    //Satisfaction open
+                    $opensatisfaction    = self::constructEntryValues(
+                        $itemtype,
+                        "inter_opensatisfaction",
+                        $date1,
+                        $date2,
+                        $type,
+                        $value[$i]["id"],
+                        $value2
+                    );
+                    $nb_opensatisfaction = array_sum($opensatisfaction);
+                    echo Search::showItem($output_type, $nb_opensatisfaction, $item_num, $row_num);
+
+                    //Satisfaction answer
+                    $answersatisfaction    = self::constructEntryValues(
+                        $itemtype,
+                        "inter_answersatisfaction",
+                        $date1,
+                        $date2,
+                        $type,
+                        $value[$i]["id"],
+                        $value2
+                    );
+                    $nb_answersatisfaction = array_sum($answersatisfaction);
+                    echo Search::showItem($output_type, $nb_answersatisfaction, $item_num, $row_num);
+
+                    //Satisfaction rate
+                    $satisfaction = self::constructEntryValues(
+                        $itemtype,
+                        "inter_avgsatisfaction",
+                        $date1,
+                        $date2,
+                        $type,
+                        $value[$i]["id"],
+                        $value2
+                    );
+                    foreach (array_keys($satisfaction) as $key2) {
+                        $satisfaction[$key2] *= $answersatisfaction[$key2];
+                    }
+                    if ($nb_answersatisfaction > 0) {
+                        $avgsatisfaction = round(array_sum($satisfaction) / $nb_answersatisfaction, 1);
+                        if ($output_type == Search::HTML_OUTPUT) {
+                            $avgsatisfaction = TicketSatisfaction::displaySatisfaction($avgsatisfaction);
+                        }
+                    } else {
+                        $avgsatisfaction = '&nbsp;';
+                    }
+                    echo Search::showItem($output_type, $avgsatisfaction, $item_num, $row_num);
+
+                    //Le temps moyen de prise en compte du ticket - The average time to take a ticket into account
+                    $data = self::constructEntryValues(
+                        $itemtype,
+                        "inter_avgtakeaccount",
+                        $date1,
+                        $date2,
+                        $type,
+                        $value[$i]["id"],
+                        $value2
+                    );
+                    foreach (array_keys($data) as $key2) {
+                        $data[$key2] *= $solved[$key2];
+                    }
+
+                    if ($nb_solved > 0) {
+                        $timedisplay = array_sum($data) / $nb_solved;
+                    } else {
+                        $timedisplay = 0;
+                    }
+
+                    if (
+                        ($output_type == Search::HTML_OUTPUT)
+                        || ($output_type == Search::PDF_OUTPUT_LANDSCAPE)
+                        || ($output_type == Search::PDF_OUTPUT_PORTRAIT)
+                    ) {
+                        $timedisplay = Html::timestampToString($timedisplay, 0, false);
+                    } elseif ($output_type == Search::CSV_OUTPUT) {
+                        $timedisplay = Html::timestampToCsvString($timedisplay);
+                    }
+                    echo Search::showItem($output_type, $timedisplay, $item_num, $row_num);
+                }
+
+                //Le temps moyen de resolution - The average time to resolv
                 $data = self::constructEntryValues(
                     $itemtype,
-                    "inter_avgtakeaccount",
+                    "inter_avgsolvedtime",
                     $date1,
                     $date2,
                     $type,
@@ -732,213 +822,139 @@ class Stat extends CommonGLPI
                     $value2
                 );
                 foreach (array_keys($data) as $key2) {
-                    $data[$key2] *= $solved[$key2];
+                    $data[$key2] = round($data[$key2] * $solved[$key2]);
                 }
 
-                $timedisplay = $nb_solved > 0 ? array_sum($data) / $nb_solved : 0;
-
-                if ($is_html_output || $output instanceof Pdf) {
-                    $timedisplay = Html::timestampToString($timedisplay, false, false);
-                } elseif ($output instanceof Csv) {
+                if ($nb_solved > 0) {
+                    $timedisplay = array_sum($data) / $nb_solved;
+                } else {
+                    $timedisplay = 0;
+                }
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    || ($output_type == Search::PDF_OUTPUT_LANDSCAPE)
+                    || ($output_type == Search::PDF_OUTPUT_PORTRAIT)
+                ) {
+                    $timedisplay = Html::timestampToString($timedisplay, 0, false);
+                } elseif ($output_type == Search::CSV_OUTPUT) {
                     $timedisplay = Html::timestampToCsvString($timedisplay);
                 }
-                $timedisplay = htmlescape($timedisplay);
+                echo Search::showItem($output_type, $timedisplay, $item_num, $row_num);
 
-                if ($is_html_output) {
-                    $html_output .= $output::showItem($timedisplay, $item_num, $row_num);
-                } else {
-                    $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $timedisplay];
+                //Le temps moyen de cloture - The average time to close
+                $data = self::constructEntryValues(
+                    $itemtype,
+                    "inter_avgclosedtime",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                foreach (array_keys($data) as $key2) {
+                    $data[$key2] = round($data[$key2] * $solved[$key2]);
                 }
-            }
 
-            // The average time to resolve
-            $data = self::constructEntryValues(
-                $itemtype,
-                "inter_avgsolvedtime",
-                $date1,
-                $date2,
-                $type,
-                $value[$i]["id"],
-                $value2
-            );
-            foreach (array_keys($data) as $key2) {
-                $data[$key2] = round($data[$key2] * $solved[$key2]);
-            }
-
-            if ($nb_solved > 0) {
-                $timedisplay = array_sum($data) / $nb_solved;
-            } else {
-                $timedisplay = 0;
-            }
-            if ($is_html_output || $output instanceof Pdf) {
-                $timedisplay = Html::timestampToString($timedisplay, false, false);
-            } elseif ($output instanceof Csv) {
-                $timedisplay = Html::timestampToCsvString($timedisplay);
-            }
-            $timedisplay = htmlescape($timedisplay);
-
-            if ($is_html_output) {
-                $html_output .= $output::showItem($timedisplay, $item_num, $row_num);
-            } else {
-                $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $timedisplay];
-            }
-
-            // The average time to close
-            $data = self::constructEntryValues(
-                $itemtype,
-                "inter_avgclosedtime",
-                $date1,
-                $date2,
-                $type,
-                $value[$i]["id"],
-                $value2
-            );
-            foreach (array_keys($data) as $key2) {
-                $data[$key2] = round($data[$key2] * $solved[$key2]);
-            }
-
-            if ($nb_closed > 0) {
-                $timedisplay = array_sum($data) / $nb_closed;
-            } else {
-                $timedisplay = 0;
-            }
-            if ($is_html_output || $output instanceof Pdf) {
-                $timedisplay = Html::timestampToString($timedisplay, false, false);
-            } elseif ($output instanceof Csv) {
-                $timedisplay = Html::timestampToCsvString($timedisplay);
-            }
-            $timedisplay = htmlescape($timedisplay);
-
-            if ($is_html_output) {
-                $html_output .= $output::showItem($timedisplay, $item_num, $row_num);
-            } else {
-                $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $timedisplay];
-            }
-
-            //the number of solved interventions with a duration time
-            $solved_with_actiontime = self::constructEntryValues(
-                $itemtype,
-                "inter_solved_with_actiontime",
-                $date1,
-                $date2,
-                $type,
-                $value[$i]["id"],
-                $value2
-            );
-            $nb_solved_with_actiontime = array_sum($solved_with_actiontime);
-
-            // The average actiontime to resolve
-            $data = self::constructEntryValues(
-                $itemtype,
-                "inter_avgactiontime",
-                $date1,
-                $date2,
-                $type,
-                $value[$i]["id"],
-                $value2
-            );
-            foreach (array_keys($data) as $key2) {
-                if (isset($solved_with_actiontime[$key2])) {
-                    $data[$key2] *= $solved_with_actiontime[$key2];
+                if ($nb_closed > 0) {
+                    $timedisplay = array_sum($data) / $nb_closed;
                 } else {
-                    $data[$key2] *= 0;
+                    $timedisplay = 0;
                 }
-            }
-            $total_actiontime = array_sum($data);
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    || ($output_type == Search::PDF_OUTPUT_LANDSCAPE)
+                    || ($output_type == Search::PDF_OUTPUT_PORTRAIT)
+                ) {
+                    $timedisplay = Html::timestampToString($timedisplay, 0, false);
+                } elseif ($output_type == Search::CSV_OUTPUT) {
+                    $timedisplay = Html::timestampToCsvString($timedisplay);
+                }
+                echo Search::showItem($output_type, $timedisplay, $item_num, $row_num);
 
-            if ($nb_solved_with_actiontime > 0) {
-                $timedisplay = $total_actiontime / $nb_solved_with_actiontime;
-            } else {
-                $timedisplay = 0;
-            }
+                //the number of solved interventions with a duration time
+                $solved_with_actiontime = self::constructEntryValues(
+                    $itemtype,
+                    "inter_solved_with_actiontime",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                $nb_solved_with_actiontime = array_sum($solved_with_actiontime);
 
-            if ($is_html_output || $output instanceof Pdf) {
-                $timedisplay = Html::timestampToString($timedisplay, false, false);
-            } elseif ($output instanceof Csv) {
-                $timedisplay = Html::timestampToCsvString($timedisplay);
-            }
-            $timedisplay = htmlescape($timedisplay);
+                //Le temps moyen de l'intervention reelle - The average actiontime to resolv
+                $data = self::constructEntryValues(
+                    $itemtype,
+                    "inter_avgactiontime",
+                    $date1,
+                    $date2,
+                    $type,
+                    $value[$i]["id"],
+                    $value2
+                );
+                foreach (array_keys($data) as $key2) {
+                    if (isset($solved_with_actiontime[$key2])) {
+                        $data[$key2] *= $solved_with_actiontime[$key2];
+                    } else {
+                        $data[$key2] *= 0;
+                    }
+                }
+                $total_actiontime = array_sum($data);
 
-            if ($is_html_output) {
-                $html_output .= $output::showItem($timedisplay, $item_num, $row_num);
-            } else {
-                $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $timedisplay];
-            }
-            // The total actiontime to resolve
-            $timedisplay = $total_actiontime;
+                if ($nb_solved_with_actiontime > 0) {
+                    $timedisplay = $total_actiontime / $nb_solved_with_actiontime;
+                } else {
+                    $timedisplay = 0;
+                }
 
-            if ($is_html_output || $output instanceof Pdf) {
-                $timedisplay = Html::timestampToString($timedisplay, false, false);
-            } elseif ($output instanceof Csv) {
-                $timedisplay = Html::timestampToCsvString($timedisplay);
-            }
-            $timedisplay = htmlescape($timedisplay);
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    || ($output_type == Search::PDF_OUTPUT_LANDSCAPE)
+                    || ($output_type == Search::PDF_OUTPUT_PORTRAIT)
+                ) {
+                    $timedisplay = Html::timestampToString($timedisplay, 0, false);
+                } elseif ($output_type == Search::CSV_OUTPUT) {
+                    $timedisplay = Html::timestampToCsvString($timedisplay);
+                }
+                echo Search::showItem($output_type, $timedisplay, $item_num, $row_num);
+                //Le temps total de l'intervention reelle - The total actiontime to resolv
+                $timedisplay = $total_actiontime;
 
-            if ($is_html_output) {
-                $html_output .= $output::showItem($timedisplay, $item_num, $row_num);
-            } else {
-                $current_row[$itemtype . '_' . (++$colnum)] = ['displayname' => $timedisplay];
-            }
+                if (
+                    ($output_type == Search::HTML_OUTPUT)
+                    || ($output_type == Search::PDF_OUTPUT_LANDSCAPE)
+                    || ($output_type == Search::PDF_OUTPUT_PORTRAIT)
+                ) {
+                    $timedisplay = Html::timestampToString($timedisplay, 0, false);
+                } elseif ($output_type == Search::CSV_OUTPUT) {
+                    $timedisplay = Html::timestampToCsvString($timedisplay);
+                }
+                echo Search::showItem($output_type, $timedisplay, $item_num, $row_num);
 
-            $rows[$row_num] = $current_row;
-            if ($is_html_output) {
-                $html_output .= $output::showEndLine();
+                echo Search::showEndLine($output_type);
             }
-        }
-        if ($is_html_output) {
-            $html_output .= $output::showFooter('', $numrows);
-        }
-
-        if ($is_html_output) {
-            echo $html_output;
+            // Display footer
+            echo Search::showFooter($output_type, '', $numrows);
         } else {
-            $params = [
-                'start' => 0,
-                'is_deleted' => 0,
-                'as_map' => 0,
-                'browse' => 0,
-                'unpublished' => 1,
-                'criteria' => [],
-                'metacriteria' => [],
-                'display_type' => 0,
-                'hide_controls' => true,
-            ];
-            $stats_data = SearchEngine::prepareDataForSearch($itemtype, $params);
-            $stats_data = array_merge($stats_data, [
-                'itemtype' => $itemtype,
-                'data' => [
-                    'totalcount' => $numrows,
-                    'count' => $numrows,
-                    'search' => '',
-                    'cols' => [],
-                    'rows' => $rows,
-                ],
-            ]);
+            echo __('No statistics are available');
+        }
 
-            $colid = 0;
-            foreach ($headers as $header) {
-                $stats_data['data']['cols'][] = [
-                    'name' => $header,
-                    'itemtype' => $itemtype,
-                    'id' => ++$colid,
-                ];
-            }
-
-            $output->displayData($stats_data, []);
+        if ($output_type == Search::HTML_OUTPUT) { // HTML display
+            echo "</div>";
         }
     }
 
+
     /**
-     * @param class-string<CommonITILObject> $itemtype
-     * @param string $type
-     * @param string $begin
-     * @param string $end
-     * @param string $param
-     * @param string|array $value
-     * @param string $value2 (default '')
+     * @param $itemtype
+     * @param $type
+     * @param $begin              (default '')
+     * @param $end                (default '')
+     * @param $param              (default '')
+     * @param $value              (default '')
+     * @param $value2             (default '')
      * @param $add_criteria          (default [''])
-     *
-     * @return array|void
      */
     public static function constructEntryValues(
         $itemtype,
@@ -950,31 +966,30 @@ class Stat extends CommonGLPI
         $value2 = "",
         array $add_criteria = []
     ) {
-        global $CFG_GLPI;
-        $DB = DBConnection::getReadConnection();
+        $DB = \DBConnection::getReadConnection();
 
         if (!$item = getItemForItemtype($itemtype)) {
             return;
         }
         /** @var CommonITILObject $item */
-        $table          = $item::getTable();
-        $fkfield        = $item::getForeignKeyField();
+        $table          = $item->getTable();
+        $fkfield        = $item->getForeignKeyField();
 
         if (!($userlinkclass = getItemForItemtype($item->userlinkclass))) {
             return;
         }
-        $userlinktable  = $userlinkclass::getTable();
+        $userlinktable  = $userlinkclass->getTable();
         if (!$grouplinkclass = getItemForItemtype($item->grouplinkclass)) {
             return;
         }
-        $grouplinktable = $grouplinkclass::getTable();
+        $grouplinktable = $grouplinkclass->getTable();
 
         if (!($supplierlinkclass = getItemForItemtype($item->supplierlinkclass))) {
             return;
         }
-        $supplierlinktable = $supplierlinkclass::getTable();
+        $supplierlinktable = $supplierlinkclass->getTable();
 
-        $tasktable      = getTableForItemType($item::getTaskClass());
+        $tasktable      = getTableForItemType($item->getType() . 'Task');
 
         $closed_status  = $item->getClosedStatusArray();
         $solved_status  = array_merge($closed_status, $item->getSolvedStatusArray());
@@ -1013,13 +1028,13 @@ class Stat extends CommonGLPI
         ];
 
         switch ($param) {
-            case "technician":
+            case "technicien":
                 $LEFTJOIN = $LEFTJOINUSER;
                 $WHERE["$userlinktable.users_id"] = $value;
                 $WHERE["$userlinktable.type"] = CommonITILActor::ASSIGN;
                 break;
 
-            case "technician_followup":
+            case "technicien_followup":
                 $WHERE["$tasktable.users_id_tech"] = $value;
                 $LEFTJOIN = [
                     $tasktable => [
@@ -1065,7 +1080,7 @@ class Stat extends CommonGLPI
                 if ($value == $value2) {
                     $categories = [$value];
                 } else {
-                    $categories = getSonsOf("glpi_itilcategories", (int) $value);
+                    $categories = getSonsOf("glpi_itilcategories", $value);
                 }
                 $WHERE["$table.itilcategories_id"] = $categories;
                 break;
@@ -1074,7 +1089,7 @@ class Stat extends CommonGLPI
                 if ($value == $value2) {
                     $locations = [$value];
                 } else {
-                    $locations = getSonsOf('glpi_locations', (int) $value);
+                    $locations = getSonsOf('glpi_locations', $value);
                 }
                 $WHERE["$table.locations_id"] = $locations;
                 break;
@@ -1086,7 +1101,7 @@ class Stat extends CommonGLPI
                 if ($value == $value2) {
                     $groups = [$value];
                 } else {
-                    $groups = getSonsOf("glpi_groups", (int) $value);
+                    $groups = getSonsOf("glpi_groups", $value);
                 }
 
                 $LEFTJOIN  = $LEFTJOINGROUP;
@@ -1130,7 +1145,7 @@ class Stat extends CommonGLPI
                             'glpi_itilsolutions'   => 'items_id',
                             'glpi_tickets'               => 'id', [
                                 'AND' => [
-                                    'glpi_itilsolutions.itemtype' => Ticket::class,
+                                    'glpi_itilsolutions.itemtype' => 'Ticket',
                                 ],
                             ],
                         ],
@@ -1144,13 +1159,13 @@ class Stat extends CommonGLPI
                 $fkname   = getForeignKeyFieldForTable(getTableForItemType($value2));
                 //select computers IDs that are using this device;
                 $linkedtable = $table;
-                if (in_array($itemtype, $CFG_GLPI['itil_types'], true)) {
-                    $linkedtable = $itemtype::getItemsTable();
+                if ($itemtype == 'Ticket') {
+                    $linkedtable = 'glpi_items_tickets';
                     $LEFTJOIN = [
-                        $linkedtable => [
+                        'glpi_items_tickets' => [
                             'ON' => [
-                                $linkedtable => $itemtype::getForeignKeyField(),
-                                $table => 'id', [
+                                'glpi_items_tickets' => 'tickets_id',
+                                'glpi_tickets'       => 'id', [
                                     'AND' => [
                                         "$linkedtable.itemtype" => 'Computer',
                                     ],
@@ -1172,7 +1187,7 @@ class Stat extends CommonGLPI
                             $devtable         => 'items_id', [
                                 'AND' => [
                                     "$devtable.itemtype" => Computer::class,
-                                    "$devtable.$fkname" => $value,
+                                    "$devtable.$fkname"  => $value,
                                 ],
                             ],
                         ],
@@ -1186,13 +1201,13 @@ class Stat extends CommonGLPI
                 $ftable   = getTableForItemType($value2);
                 $champ    = getForeignKeyFieldForTable($ftable);
                 $linkedtable = $table;
-                if (in_array($itemtype, $CFG_GLPI['itil_types'], true)) {
-                    $linkedtable = $itemtype::getItemsTable();
+                if ($itemtype == 'Ticket') {
+                    $linkedtable = 'glpi_items_tickets';
                     $LEFTJOIN = [
-                        $linkedtable => [
+                        'glpi_items_tickets' => [
                             'ON' => [
-                                $linkedtable => $itemtype::getForeignKeyField(),
-                                $table => 'id', [
+                                'glpi_items_tickets' => 'tickets_id',
+                                'glpi_tickets'       => 'id', [
                                     'AND' => [
                                         "$linkedtable.itemtype" => 'Computer',
                                     ],
@@ -1211,7 +1226,7 @@ class Stat extends CommonGLPI
                 ];
 
                 $WHERE["glpi_computers.is_template"] = 0;
-                if (str_starts_with($champ, 'operatingsystem')) {
+                if (substr($champ, 0, strlen('operatingsystem')) === 'operatingsystem') {
                     $INNERJOIN['glpi_items_operatingsystems'] = [
                         'ON' => [
                             'glpi_computers'              => 'id',
@@ -1229,25 +1244,13 @@ class Stat extends CommonGLPI
                 break;
         }
 
-        $date_unix = QueryFunction::fromUnixtime(
-            expression: QueryFunction::unixTimestamp("$table.date"),
-            format: new QueryExpression($DB::quoteValue('%Y-%m')),
-            alias: 'date_unix'
-        );
-        $solvedate_unix = QueryFunction::fromUnixtime(
-            expression: QueryFunction::unixTimestamp("$table.solvedate"),
-            format: new QueryExpression($DB::quoteValue('%Y-%m')),
-            alias: 'date_unix'
-        );
-        $closedate_unix = QueryFunction::fromUnixtime(
-            expression: QueryFunction::unixTimestamp("$table.closedate"),
-            format: new QueryExpression($DB::quoteValue('%Y-%m')),
-            alias: 'date_unix'
-        );
-
         switch ($type) {
             case "inter_total":
                 $WHERE[] = getDateCriteria("$table.date", $begin, $end);
+
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.date") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
 
                 $criteria = [
                     'SELECT'    => [
@@ -1266,9 +1269,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.solvedate" => null]];
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1289,9 +1296,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
                 $WHERE[] = new QueryExpression("$table.solvedate > $table.time_to_resolve");
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1306,9 +1317,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.closedate" => null]];
                 $WHERE[] = getDateCriteria("$table.closedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.closedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $closedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1324,9 +1339,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.solvedate" => null]];
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1341,9 +1360,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.solvedate" => null]];
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'AVG' => "solve_delay_stat AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1358,9 +1381,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.closedate" => null]];
                 $WHERE[] = getDateCriteria("$table.closedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.closedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $closedate_unix,
+                        $date_unix,
                         'AVG'  => "close_delay_stat AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1371,7 +1398,7 @@ class Stat extends CommonGLPI
                 break;
 
             case "inter_avgactiontime":
-                if ($param === "technician_followup") {
+                if ($param == "technicien_followup") {
                     $actiontime_table = $tasktable;
                 } else {
                     $actiontime_table = $table;
@@ -1379,9 +1406,13 @@ class Stat extends CommonGLPI
                 $WHERE["$actiontime_table.actiontime"] = ['>', 0];
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'AVG'  => "$actiontime_table.actiontime AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1396,9 +1427,13 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.solvedate" => null]];
                 $WHERE[] = getDateCriteria("$table.solvedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.solvedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $criteria = [
                     'SELECT'    => [
-                        $solvedate_unix,
+                        $date_unix,
                         'AVG'  => "$table.takeintoaccount_delay_stat AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1413,6 +1448,10 @@ class Stat extends CommonGLPI
                 $WHERE[] = ['NOT' => ["$table.closedate" => null]];
                 $WHERE[] = getDateCriteria("$table.closedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.closedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $INNERJOIN['glpi_ticketsatisfactions'] = [
                     'ON' => [
                         'glpi_ticketsatisfactions' => 'tickets_id',
@@ -1422,7 +1461,7 @@ class Stat extends CommonGLPI
 
                 $criteria = [
                     'SELECT'    => [
-                        $closedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1441,6 +1480,10 @@ class Stat extends CommonGLPI
 
                 $WHERE[] = getDateCriteria("$table.closedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.closedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $INNERJOIN['glpi_ticketsatisfactions'] = [
                     'ON' => [
                         'glpi_ticketsatisfactions' => 'tickets_id',
@@ -1450,7 +1493,7 @@ class Stat extends CommonGLPI
 
                 $criteria = [
                     'SELECT'    => [
-                        $closedate_unix,
+                        $date_unix,
                         'COUNT DISTINCT'  => "$table.id AS total_visites",
                     ],
                     'FROM'      => $table,
@@ -1470,6 +1513,10 @@ class Stat extends CommonGLPI
                 ];
                 $WHERE[] = getDateCriteria("$table.closedate", $begin, $end);
 
+                $date_unix = new QueryExpression(
+                    "FROM_UNIXTIME(UNIX_TIMESTAMP(" . $DB->quoteName("$table.closedate") . "),'%Y-%m') AS " . $DB->quoteName('date_unix')
+                );
+
                 $INNERJOIN['glpi_ticketsatisfactions'] = [
                     'ON' => [
                         'glpi_ticketsatisfactions' => 'tickets_id',
@@ -1479,8 +1526,8 @@ class Stat extends CommonGLPI
 
                 $criteria = [
                     'SELECT'    => [
-                        $closedate_unix,
-                        'AVG'  => "glpi_ticketsatisfactions.satisfaction_scaled_to_5 AS total_visites",
+                        $date_unix,
+                        'AVG'  => "glpi_ticketsatisfactions.satisfaction AS total_visites",
                     ],
                     'FROM'      => $table,
                     'WHERE'     => $WHERE,
@@ -1510,7 +1557,8 @@ class Stat extends CommonGLPI
         $iterator = $DB->request($criteria);
         foreach ($iterator as $row) {
             $date             = $row['date_unix'];
-            $entrees[$date] = $row['total_visites'];
+            //$visites = round($row['total_visites']);
+            $entrees["$date"] = $row['total_visites'];
         }
 
         $end_time   = strtotime(date("Y-m", strtotime($end)) . "-01");
@@ -1520,12 +1568,12 @@ class Stat extends CommonGLPI
 
         while ($current <= $end_time) {
             $curentry = date("Y-m", $current);
-            if (!isset($entrees[$curentry])) {
-                $entrees[$curentry] = 0;
+            if (!isset($entrees["$curentry"])) {
+                $entrees["$curentry"] = 0;
             }
             $month   = date("m", $current);
             $year    = date("Y", $current);
-            $current = mktime(0, 0, 0, (int) $month + 1, 1, (int) $year);
+            $current = mktime(0, 0, 0, intval($month) + 1, 1, intval($year));
         }
         ksort($entrees);
 
@@ -1533,91 +1581,26 @@ class Stat extends CommonGLPI
     }
 
     /**
-     * @param DateTime|string $start_date
-     * @param DateTime|string $end_date
-     * @param class-string<CommonITILObject> $itil_type
-     * @return array
-     */
-    public static function getAssetsWithITIL($start_date, $end_date, $itil_type = Ticket::class): array
-    {
-        global $DB;
-
-        $itil_table = $itil_type::getTable();
-        $itil_fkfield = $itil_type::getForeignKeyField();
-        $item_link_table = $itil_type::getItemsTable();
-
-        $iterator = $DB->request([
-            'SELECT' => [
-                "$item_link_table.itemtype",
-                "$item_link_table.items_id",
-                'COUNT'  => '* AS NB',
-            ],
-            'FROM'   => $itil_table,
-            'LEFT JOIN' => [
-                $item_link_table => [
-                    'ON' => [
-                        $item_link_table => $itil_fkfield,
-                        $itil_table => 'id',
-                    ],
-                ],
-            ],
-            'WHERE'  => [
-                'date' => ['<=', $end_date],
-                "$itil_table.date" => ['>=', $start_date],
-                "$item_link_table.itemtype" => ['<>', ''],
-                "$item_link_table.items_id" => ['>', 0],
-            ] + getEntitiesRestrictCriteria($itil_table),
-            'GROUP'  => [
-                "$item_link_table.itemtype",
-                "$item_link_table.items_id",
-            ],
-            'ORDER'  => 'NB DESC',
-        ]);
-
-        $data = [];
-        $view_entities = Session::isMultiEntitiesMode();
-        if ($view_entities) {
-            $entities = getAllDataFromTable('glpi_entities');
-        }
-
-        foreach ($iterator as $row) {
-            $itemtype = $row['itemtype'];
-            $items_id = $row['items_id'];
-            $item     = getItemForItemtype($itemtype);
-            $data_row = $row;
-            if ($item && $item->getFromDB($items_id)) {
-                if ($view_entities) {
-                    $ent = $item->getEntityID();
-                    $data_row['entities_id'] = $ent;
-                    $data_row['entity_name'] = $entities[$ent]['completename'];
-                }
-                $data_row['name'] = $item->getName();
-                $data_row['link'] = $item->getLink();
-                $data_row['is_deleted'] = $item->isDeleted();
-                $data[] = $data_row;
-            }
-        }
-
-        return $data;
-    }
-
-    /**
      * @param string $target
      * @param string $date1
      * @param string $date2
      * @param int $start
-     * @param class-string<CommonITILObject>|null $itemtype
-     *
-     * @return void
-     */
-    public static function showItems($target, $date1, $date2, $start, $itemtype = null)
+     **/
+    public static function showItems($target, $date1, $date2, $start)
     {
+        /** @var \DBmysql $DB */
+        global $DB;
+
         $view_entities = Session::isMultiEntitiesMode();
 
-        $output_type = $_GET["display_type"] ?? Search::HTML_OUTPUT;
-        $output = SearchEngine::getOutputForLegacyKey($output_type);
-        $is_html_output = $output instanceof HTMLSearchOutput;
+        if ($view_entities) {
+            $entities = getAllDataFromTable('glpi_entities');
+        }
 
+        $output_type = Search::HTML_OUTPUT;
+        if (isset($_GET["display_type"])) {
+            $output_type = $_GET["display_type"];
+        }
         if (empty($date2)) {
             $date2 = date("Y-m-d");
         }
@@ -1625,15 +1608,41 @@ class Stat extends CommonGLPI
 
         // 1 an par defaut
         if (empty($date1)) {
-            $date1 = date("Y-m-d", mktime(0, 0, 0, (int) date("m"), (int) date("d"), ((int) date("Y")) - 1));
+            $date1 = date("Y-m-d", mktime(0, 0, 0, date("m"), date("d"), date("Y") - 1));
         }
         $date1 .= " 00:00:00";
 
-        $assets = self::getAssetsWithITIL($date1, $date2, $itemtype ?? Ticket::class);
-        $numrows = count($assets);
+        $iterator = $DB->request([
+            'SELECT' => [
+                'glpi_items_tickets.itemtype',
+                'glpi_items_tickets.items_id',
+                'COUNT'  => '* AS NB',
+            ],
+            'FROM'   => 'glpi_tickets',
+            'LEFT JOIN' => [
+                'glpi_items_tickets' => [
+                    'ON' => [
+                        'glpi_items_tickets' => 'tickets_id',
+                        'glpi_tickets'       => 'id',
+                    ],
+                ],
+            ],
+            'WHERE'  => [
+                'date'                        => ['<=', $date2],
+                'glpi_tickets.date'           => ['>=', $date1],
+                'glpi_items_tickets.itemtype' => ['<>', ''],
+                'glpi_items_tickets.items_id' => ['>', 0],
+            ] + getEntitiesRestrictCriteria('glpi_tickets'),
+            'GROUP'  => [
+                'glpi_items_tickets.itemtype',
+                'glpi_items_tickets.items_id',
+            ],
+            'ORDER'  => 'NB DESC',
+        ]);
+        $numrows = count($iterator);
 
         if ($numrows > 0) {
-            if ($is_html_output) {
+            if ($output_type == Search::HTML_OUTPUT) {
                 Html::printPager(
                     $start,
                     $numrows,
@@ -1644,29 +1653,27 @@ class Stat extends CommonGLPI
                             'date2'     => $date2,
                             'type'      => 'hardwares',
                             'start'     => $start,
-                        ]
+                        ],
+                        '&amp;'
                     ),
                     'Stat'
                 );
-                echo "<div class='text-center'>";
+                echo "<div class='center'>";
             }
 
             $end_display = $start + $_SESSION['glpilist_limit'];
             if (isset($_GET['export_all'])) {
                 $end_display = $numrows;
             }
-
+            echo Search::showHeader($output_type, $end_display - $start + 1, 2, 1);
             $header_num = 1;
-            if ($is_html_output) {
-                echo $output::showHeader($end_display - $start + 1, 2, true);
-                echo $output::showNewLine();
-                echo $output::showHeaderItem(_sn('Associated element', 'Associated elements', $numrows), $header_num);
-                if ($view_entities) {
-                    echo $output::showHeaderItem(htmlescape(Entity::getTypeName(1)), $header_num);
-                }
-                echo $output::showHeaderItem(__s('Number of tickets'), $header_num);
-                echo $output::showEndLine();
+            echo Search::showNewLine($output_type);
+            echo Search::showHeaderItem($output_type, _n('Associated element', 'Associated elements', Session::getPluralNumber()), $header_num);
+            if ($view_entities) {
+                echo Search::showHeaderItem($output_type, Entity::getTypeName(1), $header_num);
             }
+            echo Search::showHeaderItem($output_type, __('Number of tickets'), $header_num);
+            echo Search::showEndLine($output_type);
 
             $i = $start;
             if (isset($_GET['export_all'])) {
@@ -1674,34 +1681,45 @@ class Stat extends CommonGLPI
             }
 
             $i = $start;
-            foreach ($assets as $data) {
+            foreach ($iterator as $data) {
                 $item_num = 1;
                 // Get data and increment loop variables
-                if ($is_html_output) {
-                    echo $output::showNewLine($i % 2 === 1);
-                    $link = sprintf(__s('%1$s - %2$s'), htmlescape($data['itemtype']::getTypeName()), $data['link']);
-                    echo $output::showItem(
-                        $link,
+                if (!($item = getItemForItemtype($data["itemtype"]))) {
+                    continue;
+                }
+                if ($item->getFromDB($data["items_id"])) {
+                    echo Search::showNewLine($output_type, $i % 2);
+                    echo Search::showItem(
+                        $output_type,
+                        sprintf(
+                            __('%1$s - %2$s'),
+                            $item->getTypeName(),
+                            $item->getLink()
+                        ),
                         $item_num,
                         $i - $start + 1,
-                        "class='text-center'" . " " . ($data['is_deleted'] ? " class='deleted' "
-                            : "")
+                        "class='center'" . " " . ($item->isDeleted() ? " class='deleted' "
+                        : "")
                     );
                     if ($view_entities) {
-                        echo $output::showItem(
-                            htmlescape($data['entity_name']),
+                        $ent = $item->getEntityID();
+                        $ent = $entities[$ent]['completename'];
+                        echo Search::showItem(
+                            $output_type,
+                            $ent,
                             $item_num,
                             $i - $start + 1,
-                            "class='text-center'" . " " . ($data['is_deleted'] ? " class='deleted' "
-                                : "")
+                            "class='center'" . " " . ($item->isDeleted() ? " class='deleted' "
+                            : "")
                         );
                     }
-                    echo $output::showItem(
-                        htmlescape($data["NB"]),
+                    echo Search::showItem(
+                        $output_type,
+                        $data["NB"],
                         $item_num,
                         $i - $start + 1,
-                        "class='center'" . " " . ($data['is_deleted'] ? " class='deleted' "
-                            : "")
+                        "class='center'" . " " . ($item->isDeleted() ? " class='deleted' "
+                        : "")
                     );
                 }
 
@@ -1711,17 +1729,23 @@ class Stat extends CommonGLPI
                 }
             }
 
-            if ($is_html_output) {
-                echo $output::showFooter();
+            echo Search::showFooter($output_type);
+            if ($output_type == Search::HTML_OUTPUT) {
+                echo "</div>";
             }
         }
     }
 
+
     /**
-     * @return array
-     */
-    public static function getAvailableStatistics()
+     * @since 0.84
+     **/
+    public static function title()
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var array $PLUGIN_HOOKS
+         */
         global $CFG_GLPI, $PLUGIN_HOOKS;
 
         $opt_list["Ticket"]                             = __('Tickets');
@@ -1735,7 +1759,7 @@ class Stat extends CommonGLPI
         $stat_list["Ticket"]["Ticket_Location"]["name"] = __('By hardware characteristics');
         $stat_list["Ticket"]["Ticket_Location"]["file"] = "stat.location.php?itemtype=Ticket";
         $stat_list["Ticket"]["Ticket_Item"]["name"]     = __('By hardware');
-        $stat_list["Ticket"]["Ticket_Item"]["file"]     = "stat.item.php?itemtype=Ticket";
+        $stat_list["Ticket"]["Ticket_Item"]["file"]     = "stat.item.php";
 
         if (Problem::canView()) {
             $opt_list["Problem"]                               = Problem::getTypeName(Session::getPluralNumber());
@@ -1744,10 +1768,6 @@ class Stat extends CommonGLPI
             $stat_list["Problem"]["Problem_Global"]["file"]    = "stat.global.php?itemtype=Problem";
             $stat_list["Problem"]["Problem_Problem"]["name"]   = __('By problem');
             $stat_list["Problem"]["Problem_Problem"]["file"]   = "stat.tracking.php?itemtype=Problem";
-            $stat_list["Problem"]["Problem_Location"]["name"] = __('By hardware characteristics');
-            $stat_list["Problem"]["Problem_Location"]["file"] = "stat.location.php?itemtype=Problem";
-            $stat_list["Problem"]["Problem_Item"]["name"]     = __('By hardware');
-            $stat_list["Problem"]["Problem_Item"]["file"]     = "stat.item.php?itemtype=Problem";
         }
 
         if (Change::canView()) {
@@ -1757,35 +1777,39 @@ class Stat extends CommonGLPI
             $stat_list["Change"]["Change_Global"]["file"]   = "stat.global.php?itemtype=Change";
             $stat_list["Change"]["Change_Change"]["name"]   = __('By change');
             $stat_list["Change"]["Change_Change"]["file"]   = "stat.tracking.php?itemtype=Change";
-            $stat_list["Change"]["Change_Location"]["name"] = __('By hardware characteristics');
-            $stat_list["Change"]["Change_Location"]["file"] = "stat.location.php?itemtype=Change";
-            $stat_list["Change"]["Change_Item"]["name"]     = __('By hardware');
-            $stat_list["Change"]["Change_Item"]["file"]     = "stat.item.php?itemtype=Change";
         }
+
+        //Affichage du tableau de presentation des stats
+        echo "<table class='tab_cadre_fixe'>";
+        echo "<tr><th colspan='2'>" . __('Select statistics to be displayed') . "</th></tr>";
+        echo "<tr class='tab_bg_1'><td class='center'>";
 
         $values   = [$CFG_GLPI["root_doc"] . '/front/stat.php' => Dropdown::EMPTY_VALUE];
 
+        $selected = -1;
         foreach ($opt_list as $opt => $group) {
             foreach ($stat_list[$opt] as $data) {
                 $name    = $data['name'];
                 $file    = $data['file'];
                 $key                  = $CFG_GLPI["root_doc"] . "/front/" . $file;
                 $values[$group][$key] = $name;
+                if (stripos($_SERVER['REQUEST_URI'], $key) !== false) {
+                    $selected = $key;
+                }
             }
         }
 
         // Manage plugins
         $names    = [];
         $optgroup = [];
-        if (isset($PLUGIN_HOOKS[Hooks::STATS]) && is_array($PLUGIN_HOOKS[Hooks::STATS])) {
-            foreach ($PLUGIN_HOOKS[Hooks::STATS] as $plug => $pages) {
+        if (isset($PLUGIN_HOOKS["stats"]) && is_array($PLUGIN_HOOKS["stats"])) {
+            foreach ($PLUGIN_HOOKS["stats"] as $plug => $pages) {
                 if (!Plugin::isPluginActive($plug)) {
                     continue;
                 }
                 if (is_array($pages) && count($pages)) {
                     foreach ($pages as $page => $name) {
-                        $names["plugins/{$plug}/{$page}"] = [
-                            "name" => $name,
+                        $names[Plugin::getWebDir($plug, false) . '/' . $page] = ["name" => $name,
                             "plug" => $plug,
                         ];
                         $optgroup[$plug] = Plugin::getInfo($plug, 'name');
@@ -1801,115 +1825,38 @@ class Stat extends CommonGLPI
                 if ($opt == $val["plug"]) {
                     $file                  = $CFG_GLPI["root_doc"] . "/" . $key;
                     $values[$group][$file] = $val["name"];
-                }
-            }
-        }
-
-        return $values;
-    }
-
-    /**
-     * @param class-string<CommonITILObject> $itemtype
-     * @return array
-     */
-    public static function getITILStatFields(string $itemtype): array
-    {
-        $caract = [
-            'itilcategories_id'   => _n('Category', 'Categories', 1),
-            'itilcategories_tree' => __('Category tree'),
-            'urgency'             => __('Urgency'),
-            'impact'              =>  __('Impact'),
-            'priority'            => __('Priority'),
-            'solutiontypes_id'    => SolutionType::getTypeName(1),
-        ];
-
-        if ($itemtype === Ticket::class) {
-            $caract['type']            = _n('Type', 'Types', 1);
-            $caract['requesttypes_id'] = RequestType::getTypeName(1);
-            $caract['locations_id']    = Location::getTypeName(1);
-            $caract['locations_tree']  = __('Location tree');
-        }
-
-        return [
-            _n('Requester', 'Requesters', 1) => [
-                'user'               => _n('Requester', 'Requesters', 1),
-                'users_id_recipient' => __('Writer'),
-                'group'              => Group::getTypeName(1),
-                'group_tree'         => __('Group tree'),
-                'usertitles_id'      => _x('person', 'Title'),
-                'usercategories_id'  => _n('Category', 'Categories', 1),
-            ],
-            __('Characteristics') => $caract,
-            __('Assigned to') => [
-                'technician'          => __('Technician as assigned'),
-                'technician_followup' => __('Technician in tasks'),
-                'groups_id_assign'    => Group::getTypeName(1),
-                'groups_tree_assign'  => __('Group tree'),
-                'suppliers_id_assign' => Supplier::getTypeName(1),
-            ],
-        ];
-    }
-
-    public static function getItemCharacteristicStatFields(): array
-    {
-        $values = [
-            _n('Dropdown', 'Dropdowns', Session::getPluralNumber()) => [
-                'ComputerType'    => _n('Type', 'Types', 1),
-                'ComputerModel'   => _n('Model', 'Models', 1),
-                'OperatingSystem' => OperatingSystem::getTypeName(1),
-                'Location'        => Location::getTypeName(1),
-            ],
-        ];
-        $devices = Dropdown::getDeviceItemTypes();
-        foreach ($devices as $label => $dp) {
-            foreach ($dp as $i => $name) {
-                $values[$label][$i] = $name;
-            }
-        }
-        return $values;
-    }
-
-    /**
-     * @return void
-     */
-    public static function title()
-    {
-        $values = self::getAvailableStatistics();
-        $selected = -1;
-
-        foreach ($values as $reports) {
-            if (is_array($reports)) {
-                foreach (array_keys($reports) as $key) {
-                    if (stripos($_SERVER['REQUEST_URI'], (string) $key) !== false) {
-                        $selected = $key;
+                    if (stripos($_SERVER['REQUEST_URI'], $file) !== false) {
+                        $selected = $file;
                     }
                 }
             }
         }
 
-        TemplateRenderer::getInstance()->display('pages/assistance/stats/title.html.twig', [
-            'values'   => $values,
-            'selected' => $selected,
-        ]);
+        Dropdown::showFromArray(
+            'statmenu',
+            $values,
+            ['on_change' => "window.location.href=this.options[this.selectedIndex].value",
+                'value'     => $selected,
+            ]
+        );
+        echo "</td>";
+        echo "</tr>";
+        echo "</table>";
     }
 
+
     /**
-     * @param string $interface
-     *
-     * @return array
-     */
+     * @since 0.85
+     **/
     public function getRights($interface = 'central')
     {
+
         $values[READ] = __('Read');
         return $values;
     }
 
     /**
      * Call displayLineGraph with arguments from a StatData object
-     *
-     * @param StatData $stat_data
-     *
-     * @return void
      */
     public function displayLineGraphFromData(StatData $stat_data)
     {
@@ -1938,11 +1885,10 @@ class Stat extends CommonGLPI
      *                    ['name' => 'another name', 'data' => []]
      *                 ]
      * @param array    $options  Options
-     * @param bool  $display  Whether to display directly; defauts to true
-     * @param string|null $csv_link Link to download the dataset as csv
+     * @param boolean  $display  Whether to display directly; defauts to true
+     * @param string   $csv_link Link to download the dataset as csv
      *
-     * @return string|void
-     * @phpstan-return ($display is true ? void : string)
+     * @return void
      */
     public function displayLineGraph(
         $title,
@@ -1953,13 +1899,12 @@ class Stat extends CommonGLPI
         ?string $csv_link = null
     ) {
         $param = [
-            'width'   => 800,
+            'width'   => 900,
             'height'  => 300,
             'tooltip' => true,
             'legend'  => true,
             'animate' => true,
             'csv'     => true,
-            'img'     => true,
         ];
 
         if (is_array($options) && count($options)) {
@@ -1970,110 +1915,84 @@ class Stat extends CommonGLPI
 
         $slug = str_replace('-', '_', Toolbox::slugify($title));
         $this->checkEmptyLabels($labels);
-
-        $chart_options = [
-            'title' => ['text' => $title],
-            'tooltip' => [
-                'trigger'      => 'axis',
-                'appendToBody' => true,
-            ],
-            'grid' => [
-                'left'         => '3%',
-                'right'        => '4%',
-                'bottom'       => '3%',
-                'containLabel' => true,
-            ],
-            'toolbox' => [
-                'show'    => true,
-                'feature' => [],
-            ],
-            'legend' => [
-                'show' => true,
-            ],
-            'xAxis' => [
-                'type'        => 'category',
-                'data'        => $labels,
-                'boundaryGap' => false,
-            ],
-            'yAxis' => [
-                'type' => 'value',
-            ],
-            'series' => [],
-        ];
-
-        foreach ($series as $serie) {
-            $chart_options['series'][] = [
-                'type' => 'line',
-                'areaStyle' => [
-                    'opacity' => 0.3,
-                ],
-                'name' => $serie['name'],
-                'data' => array_values($serie['data']),
-                'smooth'          => 0.4,
-                'lineStyle'       => [
-                    'width'  => 4,
-                ],
-                'symbolSize'      => 8,
-                'legendHoverLink' => true,
-            ];
-        }
-
+        $out = "<h2 class='center'>$title";
         if ($param['csv'] && $csv_link) {
-            $chart_options['toolbox']['feature']['myCsvExport'] = [
-                'icon'    => 'path://M14,3v4a1,1,0,0,0,1,1h4 M17,21h-10a2,2,0,0,1,-2,-2v-14a2,2,0,0,1,2,-2h7l5,5v11a2,2,0,0,1,-2,2z M12,17v-6 M9.5,14.5l2.5,2.5l2.5,-2.5',
-                'title'   => __('Export to CSV'),
-            ];
+            $out .= " <a href='$csv_link' title='" . __s('CSV') . "' class='pointer fa fa-file-alt export-stat'><span class='sr-only'>" . __('CSV') . "</span></a>";
+        }
+        $out .= "</h2>";
+        $out .= "<div id='$slug' class='chart'></div>";
+        Html::requireJs('charts');
+        $out .= "<script type='text/javascript'>
+                  $(function() {
+                     var chart_$slug = new Chartist.Line('#$slug', {
+                        labels: ['" . implode('\', \'', Toolbox::addslashes_deep($labels)) . "'],
+                        series: [";
+
+        $first = true;
+        foreach ($series as $serie) {
+            if ($first === true) {
+                $first = false;
+            } else {
+                $out .= ",\n";
+            }
+            $serieData = implode(', ', $serie['data']);
+            if (isset($serie['name'])) {
+                $serieLabel = Toolbox::addslashes_deep($serie['name']);
+                $out .= "{'name': '$serieLabel', 'data': [$serieData]}";
+            } else {
+                $out .= "[$serieData]";
+            }
         }
 
-        if ($param['img']) {
-            $chart_options['toolbox']['feature']['saveAsImage'] = [
-                'icon'  => 'path://M15,8L15.01,8 M7,4h10s3,0,3,3v10s0,3,-3,3h-10s-3,0,-3,-3v-10s0,-3,3,-3 M4,15l4,-4a3,5,0,0,1,3,0l5,5 M14,14l1,-1a3,5,0,0,1,3,0l2,2',
-                'title' => __('Save as image'),
-            ];
+        $out .= "
+                        ]
+                     }, {
+                        low: 0,
+                        showArea: true,
+                        width: '{$param['width']}',
+                        height: '{$param['height']}',
+                        fullWidth: true,
+                        lineSmooth: Chartist.Interpolation.simple({
+                           divisor: 10,
+                           fillHoles: false
+                        }),
+                        axisX: {
+                           labelOffset: {
+                              x: -" . mb_strlen($labels[0]) * 7 . "
+                           }
+                        }";
+
+        if ($param['legend'] === true || $param['tooltip'] === true) {
+            $out .= ", plugins: [";
+            if ($param['legend'] === true) {
+                $out .= "Chartist.plugins.legend()";
+            }
+            if ($param['tooltip'] === true) {
+                $out .= ($param['legend'] === true ? ',' : '') . "Chartist.plugins.tooltip()";
+            }
+            $out .= "]";
         }
 
-        $height = ((int) $param['height']) . "px";
-        $width  = ((int) $param['width']) . "px";
-        $html = <<<HTML
-        <div class="card mb-3 d-inline-flex">
-            <div class="card-body">
-                <div class="chart" id='$slug' ></div>
-            </div>
-        </div>
+        $out .= "});";
 
-        <style>
-        #$slug {
-            width: $width;
-            height: $height;
+        if ($param['animate'] === true) {
+            $out .= "
+                     chart_$slug.on('draw', function(data) {
+                        if(data.type === 'line' || data.type === 'area') {
+                           data.element.animate({
+                              d: {
+                                 begin: 300 * data.index,
+                                 dur: 500,
+                                 from: data.path.clone().scale(1, 0).translate(0, data.chartRect.height()).stringify(),
+                                 to: data.path.clone().stringify(),
+                                 easing: Chartist.Svg.Easing.easeOutQuint
+                              }
+                           });
+                        }
+                     });
+                  });";
         }
-        </style>
-HTML;
-
-        $twig_params = [
-            'slug' => $slug,
-            'chart_options' => $chart_options,
-            'csv_link' => $csv_link,
-        ];
-        // language=Twig
-        $js = TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            <script type="module">
-                function exportToCSV() {
-                    location.href = '{{ csv_link|e('js') }}';
-                }
-                const chart_options = {{ chart_options|json_encode|raw }};
-                const myChart = echarts.init(document.getElementById('{{ slug }}'));
-
-                $.each(chart_options.series, function (index, serie) {
-                    serie.symbol = (value) => value > 0 ? 'circle': 'none';
-                });
-                if (chart_options['toolbox']['feature']['myCsvExport'] !== undefined) {
-                    chart_options['toolbox']['feature']['myCsvExport']['onclick'] = exportToCSV;
-                }
-                myChart.setOption(chart_options);
-            </script>
-TWIG, $twig_params);
-
-        $out = $html . $js;
+        $out .= "</script>";
 
         if ($display) {
             echo $out;
@@ -2084,8 +2003,6 @@ TWIG, $twig_params);
 
     /**
      * Call displayPieGraph with arguments from a StatData object
-     *
-     * @return void
      */
     public function displayPieGraphFromData(StatData $stat_data)
     {
@@ -2114,11 +2031,10 @@ TWIG, $twig_params);
      *                    ['name' => 'another name', 'data' => []]
      *                 ]
      * @param array    $options  Options
-     * @param bool  $display  Whether to display directly; defauts to true
-     * @param string|null $csv_link Link to download the dataset as csv
+     * @param boolean  $display  Whether to display directly; defauts to true
+     * @param string   $csv_link Link to download the dataset as csv
      *
-     * @return string|void
-     * @phpstan-return ($display is true ? void : string)
+     * @return void
      */
     public function displayPieGraph(
         $title,
@@ -2140,97 +2056,83 @@ TWIG, $twig_params);
 
         $slug = str_replace('-', '_', Toolbox::slugify($title));
         $this->checkEmptyLabels($labels);
+        $out = "<h2 class='center'>$title";
+        if ($param['csv']) {
+            $options['title'] = $title;
 
-        $chart_options = [
-            'title' => [
-                'text' => $title,
-                'left' => 'center',
-            ],
-            'tooltip' => [
-                'trigger'      => 'item',
-                'appendToBody' => true,
-            ],
-            'toolbox' => [
-                'show'    => true,
-                'feature' => [
-                    'myCsvExport'    => [
-                        'icon'    => 'path://M14,3v4a1,1,0,0,0,1,1h4 M17,21h-10a2,2,0,0,1,-2,-2v-14a2,2,0,0,1,2,-2h7l5,5v11a2,2,0,0,1,-2,2z M12,17v-6 M9.5,14.5l2.5,2.5l2.5,-2.5',
-                        'title'   => __('Export to CSV'),
-                    ],
-                    'saveAsImage' => [
-                        'icon'  => 'path://M15,8L15.01,8 M7,4h10s3,0,3,3v10s0,3,-3,3h-10s-3,0,-3,-3v-10s0,-3,3,-3 M4,15l4,-4a3,5,0,0,1,3,0l5,5 M14,14l1,-1a3,5,0,0,1,3,0l2,2',
-                        'title' => __('Save as image'),
-                    ],
-                ],
-            ],
-            'series' => [
-                [
-                    'type'              => 'pie',
-                    'avoidLabelOverlap' => true,
-                    'data'              => [],
-                    'radius'            => ['35%', '60%'],
-                    'itemStyle'         => [
-                        'borderRadius' => 2,
-                        'borderColor'  => 'rgba(255, 255, 255, 0.5)',
-                        'borderWidth'  => 2,
-                    ],
-                    'selectedMode'      => 'single',
-                    'selectedOffset'    => 10,
-                    'startAngle'        => 180,
-                    'label'             => [
-                        'show' => count($labels) < 10,
-                    ],
-                    'labelLine'         => [
-                        'showAbove' => true,
-                    ],
-                ],
-            ],
-        ];
+            if ($csv_link) {
+                $out .= " <a href='$csv_link' title='" . __s('CSV') . "' class='pointer fa fa-file-alt export-stat'><span class='sr-only'>" . __('CSV') . "</span></a>";
+            }
+        }
+        $out .= "</h2>";
+        $out .= "<div id='$slug' class='chart'></div>";
+        $out .= "<script type='text/javascript'>
+                  $(function() {
+                     var $slug = new Chartist.Pie('#$slug', {
+                        labels: ['" . implode('\', \'', Toolbox::addslashes_deep($labels)) . "'],
+                        series: [";
 
+        $first = true;
         foreach ($series as $serie) {
-            $chart_options['series'][0]['data'][] = [
-                'name' => $serie['name'],
-                'value' => $serie['data'],
-            ];
+            if ($first === true) {
+                $first = false;
+            } else {
+                $out .= ",\n";
+            }
+
+            $serieLabel = Toolbox::addslashes_deep($serie['name']);
+            $serieData = $serie['data'];
+            $out .= "{'meta': '$serieLabel', 'value': '$serieData'}";
         }
 
-        $html = <<<HTML
-        <div class="card d-inline-flex mx-auto mb-1">
-            <div class="card-body">
-                <div id='$slug' class='chart'></div>
-            </div>
-        </div>
+        $out .= "
+                        ]
+                     }, {
+                        donut: true,
+                        showLabel: false,
+                        height: 300,
+                        width: 300,
+                        plugins: [
+                           Chartist.plugins.legend(),
+                           Chartist.plugins.tooltip()
+                        ]
+                     });
 
-        <style>
-        #$slug {
-            width: 475px;
-            height: 300px;
-        }
-        </style>
-HTML;
+                     $slug.on('draw', function(data) {
+                        if(data.type === 'slice') {
+                           // Get the total path length in order to use for dash array animation
+                           var pathLength = data.element._node.getTotalLength();
 
-        $twig_params = [
-            'slug' => $slug,
-            'chart_options' => $chart_options,
-            'csv_link' => $csv_link,
-        ];
-        // language=Twig
-        $js = TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            <script type="module">
-                function exportToCSV() {
-                    location.href = '{{ csv_link|e('js') }}';
-                }
-                const chart_options = {{ chart_options|json_encode|raw }};
-                const myChart = echarts.init(document.getElementById('{{ slug }}'));
+                           // Set a dasharray that matches the path length as prerequisite to animate dashoffset
+                           data.element.attr({
+                              'stroke-dasharray': pathLength + 'px ' + pathLength + 'px'
+                           });
 
-                if (chart_options['toolbox']['feature']['myCsvExport'] !== undefined) {
-                    chart_options['toolbox']['feature']['myCsvExport']['onclick'] = exportToCSV;
-                }
-                myChart.setOption(chart_options);
-            </script>
-TWIG, $twig_params);
+                           // Create animation definition while also assigning an ID to the animation for later sync usage
+                           var animationDefinition = {
+                              'stroke-dashoffset': {
+                                 id: 'anim' + data.index,
+                                 dur: 300,
+                                 from: -pathLength + 'px',
+                                 to:  '0px',
+                                 easing: Chartist.Svg.Easing.easeOutQuint,
+                                 // We need to use `fill: 'freeze'` otherwise our animation will fall back to initial (not visible)
+                                 fill: 'freeze'
+                              }
+                           };
 
-        $out = $html . $js;
+                           // We need to set an initial value before the animation starts as we are not in guided mode which would do that for us
+                           data.element.attr({
+                              'stroke-dashoffset': -pathLength + 'px'
+                           });
+
+                           // We can't use guided mode as the animations need to rely on setting begin manually
+                           // See http://gionkunz.github.io/chartist-js/api-documentation.html#chartistsvg-function-animate
+                           data.element.animate(animationDefinition, false);
+                        }
+                     });
+                  });
+              </script>";
 
         if ($display) {
             echo $out;
@@ -2245,18 +2147,40 @@ TWIG, $twig_params);
      * @param string  $itemtype Item type
      * @param string  $date1    First date
      * @param string  $date2    Second date
-     * @param bool $display  Whether to display directly; defauts to true
+     * @param boolean $display  Whether to display directly; defauts to true
      *
      * @return void|string
-     * @phpstan-return ($display is true ? void : string)
      */
     public function displaySearchForm($itemtype, $date1, $date2, $display = true)
     {
-        $out = TemplateRenderer::getInstance()->render('pages/assistance/stats/global_form.html.twig', [
-            'itemtype' => $itemtype,
-            'date1'    => $date1,
-            'date2'    => $date2,
-        ]);
+        $out = "<form method='get' name='form' action='stat.global.php'><div class='center'>";
+        // Keep it at first parameter
+        $out .= "<input type='hidden' name='itemtype' value=\"" . htmlspecialchars($itemtype) . "\">";
+
+        $out .= "<table class='tab_cadre'>";
+        $out .= "<tr class='tab_bg_2'><td class='right'>" . __('Start date') . "</td><td>";
+        $out .= Html::showDateField(
+            'date1',
+            [
+                'value'   => $date1,
+                'display' => false,
+            ]
+        );
+        $out .= "</td><td rowspan='2' class='center'>";
+        $out .= "<input type='submit' class='btn btn-primary' value='" . __s('Display report') . "'></td></tr>";
+
+        $out .= "<tr class='tab_bg_2'><td class='right'>" . __('End date') . "</td><td>";
+        $out .= Html::showDateField(
+            'date2',
+            [
+                'value'   => $date2,
+                'display' => false,
+            ]
+        );
+        $out .= "</td></tr>";
+        $out .= "</table></div>";
+        // form using GET method : CRSF not needed
+        $out .= Html::closeForm(false);
 
         if ($display) {
             echo $out;
@@ -2281,9 +2205,6 @@ TWIG, $twig_params);
         }
     }
 
-    /**
-     * @return string
-     */
     public static function getIcon()
     {
         return "ti ti-chart-pie";

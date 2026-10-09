@@ -33,7 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -63,18 +63,18 @@ if (isset($_POST["add"])) {
     $record->redirectToList();
 } elseif (isset($_POST["purge"])) {
     $record->check($_POST['id'], PURGE);
-    $record->delete($_POST, true);
+    $record->delete($_POST, 1);
     $record->redirectToList();
 } elseif (isset($_POST["update"])) {
     $record->check($_POST['id'], UPDATE);
     $record->update($_POST);
     Html::back();
 } elseif (isset($_GET['_in_modal'])) {
-    Html::popHeader(DomainRecord::getTypeName(Session::getPluralNumber()), in_modal: true);
+    Html::popHeader(DomainRecord::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], true);
     $record->showForm($_GET["id"], ['domains_id' => $_GET['domains_id'] ?? null]);
     Html::popFooter();
 } else {
-    $menus = ["management", "domain", "DomainRecord"];
+    $menus = ["management", "domain", "domainrecord"];
     $options = [
         'withtemplate' => $_GET["withtemplate"],
     ];

@@ -33,15 +33,10 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
 /// Class Manufacturer
 /// @todo study if we should integrate getHTMLTableHeader and getHTMLTableCellsForItem ...
 class Manufacturer extends CommonDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
-
     public $can_be_translated = false;
 
 
@@ -56,7 +51,6 @@ class Manufacturer extends CommonDropdown
 
         switch ($field['type']) {
             case 'registeredIDChooser':
-                RegisteredID::showAddChildButtonForItemForm($this, '_registeredID');
                 RegisteredID::showChildsForItemForm($this, '_registeredID');
                 break;
         }
@@ -66,19 +60,23 @@ class Manufacturer extends CommonDropdown
     public function getAdditionalFields()
     {
 
-        return [
-            [
-                'name'  => 'none',
-                'label' => RegisteredID::getTypeName(Session::getPluralNumber()),
-                'type'  => 'registeredIDChooser',
-            ],
+        return [['name'  => 'none',
+            'label' => RegisteredID::getTypeName(Session::getPluralNumber()) .
+                                       RegisteredID::showAddChildButtonForItemForm(
+                                           $this,
+                                           '_registeredID',
+                                           null,
+                                           false
+                                       ),
+            'type'  => 'registeredIDChooser',
+        ],
         ];
     }
 
 
     /**
-     * @return void
-     */
+     * @since 0.85
+     **/
     public function post_workOnItem()
     {
 
@@ -136,9 +134,9 @@ class Manufacturer extends CommonDropdown
 
 
     /**
-     * @param null|string $old_name  Old name
+     * @param null|string $old_name  Old name (need to be addslashes)
      *
-     * @return null|string new name
+     * @return null|string new addslashes name
      **/
     public static function processName($old_name)
     {
@@ -150,11 +148,14 @@ class Manufacturer extends CommonDropdown
         $rulecollection = new RuleDictionnaryManufacturerCollection();
         $output         = [];
         $output         = $rulecollection->processAllRules(
-            ["name" => $old_name],
+            ["name" => stripslashes($old_name)],
             $output,
             []
         );
-        return $output["name"] ?? $old_name;
+        if (isset($output["name"])) {
+            return $output["name"];
+        }
+        return $old_name;
     }
 
 
@@ -166,14 +167,14 @@ class Manufacturer extends CommonDropdown
 
 
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param HTMLTableBase $base
-     * @param ?HTMLTableSuperHeader $super
-     * @param ?HTMLTableHeader $father
-     * @param array $options
+     * @since 0.84
      *
-     * @return void
-     */
+     * @param $itemtype
+     * @param $base                  HTMLTableBase object
+     * @param $super                 HTMLTableSuperHeader object (default NULL)
+     * @param $father                HTMLTableHeader object (default NULL)
+     * @param $options      array
+     **/
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -182,24 +183,24 @@ class Manufacturer extends CommonDropdown
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        $base->addHeader($column_name, htmlescape(Manufacturer::getTypeName(1)), $super, $father);
+        $base->addHeader($column_name, Manufacturer::getTypeName(1), $super, $father);
     }
 
 
     /**
-     * @param ?HTMLTableRow $row
-     * @param ?CommonDBTM $item
-     * @param ?HTMLTableCell $father
-     * @param array $options
+     * @since 0.84
      *
-     * @return void
-     */
+     * @param $row                HTMLTableRow object (default NULL)
+     * @param $item               CommonDBTM object (default NULL)
+     * @param $father             HTMLTableCell object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
@@ -207,7 +208,7 @@ class Manufacturer extends CommonDropdown
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
@@ -216,14 +217,12 @@ class Manufacturer extends CommonDropdown
         if (!empty($item->fields["manufacturers_id"])) {
             $row->addCell(
                 $row->getHeaderByName($column_name),
-                htmlescape(Dropdown::getDropdownName("glpi_manufacturers", $item->fields["manufacturers_id"])),
+                Dropdown::getDropdownName(
+                    "glpi_manufacturers",
+                    $item->fields["manufacturers_id"]
+                ),
                 $father
             );
         }
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [];
     }
 }

@@ -31,9 +31,7 @@
  * ---------------------------------------------------------------------
  */
 
-/* eslint no-var: 0 */
 /* global bootstrap */
-/* global _ */
 
 /**
  * Create a dialog window
@@ -66,7 +64,7 @@ var glpi_html_dialog = function({
     footer      = "",
     modalclass  = "",
     dialogclass = "",
-    id          = `modal_${Math.random().toString(36).substring(7)}`,
+    id          = "modal_" + Math.random().toString(36).substring(7),
     appendTo    = "body",
     autoShow    = true,
     show        = () => {},
@@ -77,19 +75,19 @@ var glpi_html_dialog = function({
     if (buttons.length > 0) {
         var buttons_html = "";
         buttons.forEach(button => {
-            var bid    = ("id" in button)    ? button.id    : `button_${Math.random().toString(36).substring(7)}`;
+            var bid    = ("id" in button)    ? button.id    : "button_"+Math.random().toString(36).substring(7);
             var label  = ("label" in button) ? button.label : __("OK");
             var bclass = ("class" in button) ? button.class : 'btn-secondary';
 
             buttons_html+= `
-            <button type="button" id="${_.escape(bid)}"
-                    class="btn ${_.escape(bclass)}" data-bs-dismiss="modal">
+            <button type="button" id="${bid}"
+                    class="btn ${bclass}" data-bs-dismiss="modal">
                ${label}
             </button>`;
 
             // add click event on button
             if ('click' in button) {
-                $(document).on('click', `#${CSS.escape(bid)}`, (event) => {
+                $(document).on('click', '#'+bid, function(event) {
                     button.click(event);
                 });
             }
@@ -106,11 +104,11 @@ var glpi_html_dialog = function({
 
     const data_bs_focus = !bs_focus ? 'data-bs-focus="false"' : '';
 
-    var modal = `<div class="modal fade ${_.escape(modalclass)}" id="${_.escape(id)}" role="dialog" ${data_bs_focus} aria-labelledby="${_.escape(id)}_title">
-         <div class="modal-dialog ${_.escape(dialogclass)}">
+    var modal = `<div class="modal fade ${modalclass}" id="${id}" role="dialog" ${data_bs_focus}>
+         <div class="modal-dialog ${dialogclass}">
             <div class="modal-content">
                <div class="modal-header">
-                  <h2 id="${_.escape(id)}_title" class="fs-4 modal-title" tabindex="-1">${title}</h2>
+                  <h4 class="modal-title">${title}</h4>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"
                            aria-label="${__("Close")}"></button>
                </div>
@@ -135,14 +133,14 @@ var glpi_html_dialog = function({
     }
 
     // create global events
-    myModalEl.addEventListener('shown.bs.modal', (event) => {
+    myModalEl.addEventListener('shown.bs.modal', function(event) {
         // focus first element in modal
-        $(`#${CSS.escape(id)}`).find("input, textarea, select").first().trigger("focus");
+        $('#'+id).find("input, textearea, select").first().trigger("focus");
 
         // call show event
         show(event);
     });
-    myModalEl.addEventListener('hidden.bs.modal', (event) => {
+    myModalEl.addEventListener('hidden.bs.modal', function(event) {
         // call close event
         close(event);
 
@@ -151,7 +149,7 @@ var glpi_html_dialog = function({
         }
 
         // remove html on modal close
-        $(`#${CSS.escape(id)}`).remove();
+        $('#'+id).remove();
     });
 
     return id;
@@ -195,7 +193,7 @@ var glpi_ajax_dialog = function({
     footer      = "",
     modalclass  = "",
     dialogclass = "",
-    id          = `modal_${Math.random().toString(36).substring(7)}`,
+    id          = "modal_" + Math.random().toString(36).substring(7),
     appendTo    = 'body',
     autoShow    = true,
     done        = () => {},
@@ -233,9 +231,9 @@ var glpi_ajax_dialog = function({
                 bs_focus: bs_focus
             });
         }
-    }).done((data) => {
+    }).done(function(data) {
         done(data);
-    }).fail((jqXHR, textStatus) => {
+    }).fail(function (jqXHR, textStatus) {
         fail(jqXHR, textStatus);
     });
 
@@ -255,7 +253,7 @@ var glpi_ajax_dialog = function({
 var glpi_alert = function({
     title    = _n('Information', 'Information', 1),
     message  = "",
-    id       = `modal_${Math.random().toString(36).substring(7)}`,
+    id       = "modal_" + Math.random().toString(36).substring(7),
     ok_callback = () => {},
 } = {}) {
     glpi_html_dialog({
@@ -264,7 +262,7 @@ var glpi_alert = function({
         id: id,
         buttons: [{
             label: __("OK"),
-            click: (event) => {
+            click: function(event) {
                 ok_callback(event);
             }
         }]
@@ -289,12 +287,11 @@ var glpi_alert = function({
 var glpi_confirm = function({
     title         = _n('Information', 'Information', 1),
     message       = "",
-    id            = `modal_${Math.random().toString(36).substring(7)}`,
+    id            = "modal_" + Math.random().toString(36).substring(7),
     confirm_callback = () => {},
     confirm_label = _x('button', 'Confirm'),
     cancel_callback  = () => {},
     cancel_label  = _x('button', 'Cancel'),
-    close_callback  = () => {},
 } = {}) {
 
     glpi_html_dialog({
@@ -303,16 +300,15 @@ var glpi_confirm = function({
         id: id,
         buttons: [{
             label: confirm_label,
-            click: (event) => {
+            click: function(event) {
                 confirm_callback(event);
             }
         }, {
             label: cancel_label,
-            click: (event) => {
+            click: function(event) {
                 cancel_callback(event);
             }
-        }],
-        close: close_callback
+        }]
     });
 
     return id;
@@ -350,15 +346,9 @@ const glpi_toast = (title, message, css_class, options = {}) => {
     }, options);
 
     const animation_classes = options.animated ? `animate__animated ${options.animation} ${options.animation_extra_classes}` : '';
-    let location = CFG_GLPI.toast_location || 'bottom-right';
-    const valid_locations = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-    // If location is not valid, change it to bottom-right
-    if (!valid_locations.includes(location)) {
-        location = 'bottom-right';
-    }
-    const html = `<div class='toast-container ${_.escape(location)} p-3 messages_after_redirect'>
-      <div id='toast_js_${toast_id}' class='toast ${_.escape(animation_classes)}' role='alert' aria-live='assertive' aria-atomic='true'>
-         <div class='toast-header ${_.escape(css_class)}'>
+    const html = `<div class='toast-container bottom-0 end-0 p-3 messages_after_redirect'>
+      <div id='toast_js_${toast_id}' class='toast ${animation_classes}' role='alert' aria-live='assertive' aria-atomic='true'>
+         <div class='toast-header ${css_class}'>
             <strong class='me-auto'>${title}</strong>
             <button type='button' class='btn-close' data-bs-dismiss='toast' aria-label='${__('Close')}'></button>
          </div>
@@ -369,7 +359,7 @@ const glpi_toast = (title, message, css_class, options = {}) => {
    </div>`;
     $('body').append(html);
 
-    const toast = new bootstrap.Toast(document.querySelector(`#toast_js_${CSS.escape(toast_id)}`), {
+    const toast = new bootstrap.Toast(document.querySelector('#toast_js_' + toast_id), {
         delay: options.delay,
     });
     toast.show();
@@ -382,7 +372,7 @@ const glpi_toast = (title, message, css_class, options = {}) => {
  * @param {string} caption       Caption for the toast
  * @param {ToastOptions} options Toast options
  */
-const glpi_toast_success = (message, caption = undefined, options = {}) => {
+const glpi_toast_success = (message, caption, options = {}) => {
     glpi_toast(caption || __('Success'), message, 'bg-success text-white border-0', options);
 };
 
@@ -393,7 +383,7 @@ const glpi_toast_success = (message, caption = undefined, options = {}) => {
  * @param {string} caption       Caption for the toast
  * @param {ToastOptions} options Toast options
  */
-const glpi_toast_info = function(message, caption = undefined, options = {}) {
+const glpi_toast_info = function(message, caption, options = {}) {
     glpi_toast(caption || _n("Information", "Information", 1), message, 'bg-info text-white border-0', options);
 };
 
@@ -404,7 +394,7 @@ const glpi_toast_info = function(message, caption = undefined, options = {}) {
  * @param {string} caption       Caption for the toast
  * @param {ToastOptions} options Toast options
  */
-const glpi_toast_warning = (message, caption = undefined, options = {}) => {
+const glpi_toast_warning = (message, caption, options = {}) => {
     glpi_toast(caption || __('Warning'), message, 'bg-warning text-white border-0', options);
 };
 
@@ -415,7 +405,7 @@ const glpi_toast_warning = (message, caption = undefined, options = {}) => {
  * @param {string} caption       Caption for the toast
  * @param {ToastOptions} options Toast options
  */
-const glpi_toast_error = (message, caption = undefined, options = {}) => {
-    glpi_toast(caption || _n('Error', 'Errors', 1), message, 'bg-danger text-white border-0', options);
+const glpi_toast_error = (message, caption, options = {}) => {
+    glpi_toast(caption || __('Error'), message, 'bg-danger text-white border-0', options);
 };
 

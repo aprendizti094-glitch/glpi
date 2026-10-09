@@ -59,11 +59,11 @@ class XHProf
     public const XHPROF_URL  = '/xhprof';
 
 
-    private static bool $run = false;
+    private static $run = false;
 
 
     /**
-     * @param string $msg (default '')
+     * @param $msg (default '')
      **/
     public function __construct($msg = '')
     {
@@ -78,10 +78,8 @@ class XHProf
 
 
     /**
-     * @param string $msg (default '')
-     *
-     * @return void
-     */
+     * @param $msg (default '')
+     **/
     public function start($msg = '')
     {
 
@@ -103,21 +101,16 @@ class XHProf
     }
 
 
-    /**
-     * @return void
-     */
     public function stop()
     {
+
         if (self::$run) {
-            $incl = (defined('XHPROF_PATH') ? XHPROF_PATH : self::XHPROF_PATH);
-            require_once $incl . '/utils/xhprof_lib.php';
-            require_once $incl . '/utils/xhprof_runs.php';
-
-            if (!class_exists("XHProfRuns_Default")) {
-                throw new RuntimeException("pecl/xhprof is not installed");
-            }
-
             $data = xhprof_disable();
+
+            $incl = (defined('XHPROF_PATH') ? XHPROF_PATH : self::XHPROF_PATH);
+            include_once $incl . '/utils/xhprof_lib.php';
+            include_once $incl . '/utils/xhprof_runs.php';
+
             $runs = new XHProfRuns_Default();
             $id   = $runs->save_run($data, 'glpi');
 

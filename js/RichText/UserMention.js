@@ -32,29 +32,26 @@
  */
 
 /* global tinymce */
-/* global _ */
 
-window.GLPI = window.GLPI || {};
-window.GLPI.RichText = window.GLPI.RichText || {};
+var GLPI = GLPI || {};
+GLPI.RichText = GLPI.RichText || {};
 
 /**
  * User mention rich text autocompleter.
  *
  * @since 10.0.0
  */
-window.GLPI.RichText.UserMention = class {
+GLPI.RichText.UserMention = class {
 
     /**
     * @param {Editor} editor
     * @param {number} activeEntity
     * @param {string} idorToken
-    * @param {Array} mentionsOptions
     */
-    constructor(editor, activeEntity, idorToken, mentionsOptions) {
+    constructor(editor, activeEntity, idorToken) {
         this.editor = editor;
         this.activeEntity = activeEntity;
         this.idorToken = idorToken;
-        this.mentionsOptions = mentionsOptions;
     }
 
     /**
@@ -63,17 +60,19 @@ window.GLPI.RichText.UserMention = class {
     * @returns {void}
     */
     register() {
+        const that = this;
+
         // Register autocompleter
         this.editor.ui.registry.addAutocompleter(
             'user_mention',
             {
                 trigger: '@',
                 minChars: 0,
-                fetch: (pattern) => {
-                    return this.fetchItems(pattern);
+                fetch: function (pattern) {
+                    return that.fetchItems(pattern);
                 },
-                onAction: (autocompleteApi, range, value) => {
-                    this.mentionUser(autocompleteApi, range, value);
+                onAction: function (autocompleteApi, range, value) {
+                    that.mentionUser(autocompleteApi, range, value);
                 }
             }
         );
@@ -89,28 +88,22 @@ window.GLPI.RichText.UserMention = class {
     * @returns {Promise}
     */
     fetchItems(pattern) {
+        const that = this;
         return new Promise(
-            (resolve) => {
+            function (resolve) {
                 $.post(
-                    `${CFG_GLPI.root_doc}/ajax/getDropdownUsers.php`,
+                    CFG_GLPI.root_doc + '/ajax/getDropdownUsers.php',
                     {
-                        entity_restrict: this.activeEntity,
+                        entity_restrict: that.activeEntity,
                         right: 'all',
                         display_emptychoice: 0,
                         searchText: pattern,
-                        _idor_token: this.idorToken,
+                        _idor_token: that.idorToken,
                     }
-                ).then(
-                    (data) => {
-                        let results = data.results;
-
-                        if (!this.mentionsOptions.full) {
-                            const allowedIds = this.mentionsOptions.users;
-                            results = results.filter(user => allowedIds.includes(user.id));
-                        }
-
-                        const items = results.map(
-                            (user) => {
+                ).done(
+                    function(data) {
+                        const items = data.results.map(
+                            function (user) {
                                 return {
                                     type: 'autocompleteitem',
                                     value: JSON.stringify({id: user.id, name: user.text}),
@@ -158,6 +151,6 @@ window.GLPI.RichText.UserMention = class {
     generateUserMentionHtml(user) {
         return `<span contenteditable="false"
                     data-user-mention="true"
-                    data-user-id="${_.escape(user.id)}">@${_.escape(user.name)}</span>&nbsp;`;
+                    data-user-id="${user.id}">@${user.name}</span>&nbsp;`;
     }
 };

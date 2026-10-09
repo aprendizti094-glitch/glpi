@@ -38,8 +38,6 @@
 //
 // License: BSD 3 clause
 
-/* eslint no-var: 0 */
-
 (function (window, $) {
     function GLPINotificationsAjax(options) {
 
@@ -53,7 +51,7 @@
             _queue.queue(function () {
                 var queue = this;
 
-                setTimeout(() => {
+                setTimeout(function () {
                     $(queue).dequeue();
                 }, 100);
 
@@ -72,7 +70,7 @@
                 }
 
                 $.ajax({
-                    url: `${CFG_GLPI.root_doc}/ajax/notifications_ajax.php`,
+                    url: CFG_GLPI.root_doc + '/ajax/notifications_ajax.php',
                     method: 'GET',
                     data: {
                         delete: id
@@ -90,11 +88,11 @@
             var audioElement = new Audio();
 
             $(audioElement).append($('<source />', {
-                src: `${CFG_GLPI.root_doc}/sound/${sound}.mp3`,
+                src: CFG_GLPI.root_doc + '/sound/' + sound + '.mp3',
                 type: 'audio/mpeg'
             }));
             $(audioElement).append($('<source />', {
-                src: `${CFG_GLPI.root_doc}/sound/${sound}.ogg`,
+                src: CFG_GLPI.root_doc + '/sound/' + sound + '.ogg',
                 type: 'audio/ogg'
             }));
 
@@ -114,8 +112,8 @@
                 return false;
             }
 
-            var ajax = $.getJSON(`${CFG_GLPI.root_doc}/ajax/notifications_ajax.php`);
-            ajax.done((data) => {
+            var ajax = $.getJSON(CFG_GLPI.root_doc + '/ajax/notifications_ajax.php');
+            ajax.done(function (data) {
                 if (data) {
                     for (var i = 0; i < data.length; i++) {
                         var item = data[i];
@@ -134,7 +132,7 @@
             //simple concurrency check
             //prevent multiple call to 'notifications_ajax.php' if GLPI is openned in multiple browser tabs
 
-            var lastcheck_key = `glpi_ajaxnotification_lastcheck_${this.options.user_id}`;
+            var lastcheck_key = 'glpi_ajaxnotification_lastcheck_' + this.options.user_id;
             var lastCheck = localStorage.getItem(lastcheck_key);
 
             if (!lastCheck) {

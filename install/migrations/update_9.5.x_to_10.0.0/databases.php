@@ -33,10 +33,11 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  * @var array $ADDTODISPLAYPREF
  */
+
 $default_charset = DBConnection::getDefaultCharset();
 $default_collation = DBConnection::getDefaultCollation();
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
@@ -53,7 +54,7 @@ if (!$DB->tableExists('glpi_databaseinstancetypes')) {
          KEY `date_mod` (`date_mod`),
          KEY `date_creation` (`date_creation`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_databaseinstancetypes");
 }
 
 if (!$DB->tableExists('glpi_databaseinstancecategories')) {
@@ -68,7 +69,7 @@ if (!$DB->tableExists('glpi_databaseinstancecategories')) {
          KEY `date_mod` (`date_mod`),
          KEY `date_creation` (`date_creation`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_databaseinstancecategoriess");
 }
 
 if (!$DB->tableExists('glpi_databaseinstances')) {
@@ -119,7 +120,7 @@ if (!$DB->tableExists('glpi_databaseinstances')) {
          KEY `is_helpdesk_visible` (`is_helpdesk_visible`),
          KEY `is_dynamic` (`is_dynamic`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_databaseinstances");
 }
 
 // Create glpi_databaseinstances itemtype/items_id if they are not existing (datamodel changed during v10.0 development)
@@ -166,7 +167,7 @@ if (!$DB->tableExists('glpi_databases')) {
          KEY `date_mod` (`date_mod`),
          KEY `databaseinstances_id` (`databaseinstances_id`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_databases");
 }
 
 if ($DB->fieldExists('glpi_states', 'is_visible_database')) {

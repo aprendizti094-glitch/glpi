@@ -34,16 +34,41 @@
  */
 
 /**
- * @deprecated 11.0.0
- */
-class QueryParam extends Glpi\DBAL\QueryParam
+ *  Database iterator class for Mysql
+ **/
+class QueryParam
 {
+    private $value;
+
     /**
-     * @param string $expression
-     * @phpstan-ignore constructor.unusedParameter
+     * Create a query param with a value
+     *
+     * @param string $value Query parameter value, defaults to '?'
      */
-    public function __construct($expression = '?')
+    public function __construct($value = '?')
     {
-        Toolbox::deprecated('\QueryParam is deprecated, use \Glpi\DBAL\QueryParam instead');
+        if ($value == null || trim($value) == '') {
+            $value = '?';
+        }
+        if ($value != '?' && !str_starts_with($value, ':')) {
+            $value = ':' . $value;
+        }
+        $this->value = $value;
+    }
+
+    /**
+     * Query parameter value
+     *
+     * @return string
+     */
+    public function getValue()
+    {
+        return $this->value;
+    }
+
+
+    public function __toString()
+    {
+        return $this->getValue();
     }
 }

@@ -38,31 +38,38 @@
  * @since   9.2
  */
 
+/** @var \DBmysql $DB */
 global $DB;
+
+include('../inc/includes.php');
 
 // Send UTF8 Headers
 header("Content-Type: text/html; charset=UTF-8");
 Html::header_nocache();
 
-if (isset($_POST["table"], $_POST["value"])) {
+Session::checkLoginUser();
+
+if (
+    isset($_POST["table"])
+    && isset($_POST["value"])
+) {
     // Security
     if (!$DB->tableExists($_POST['table'])) {
-        return;
+        exit();
     }
 
     if (isset($_POST['withlink'])) {
-        $item = getItemForTable($_POST["table"]);
+        $itemtype = getItemTypeForTable($_POST["table"]);
         if (
             !Session::validateIDOR([
-                'itemtype'    => $item::class,
+                'itemtype'    => $itemtype,
                 '_idor_token' => $_POST['_idor_token'] ?? "",
             ])
         ) {
-            return;
+            exit();
         }
-        $item->getFromDB((int) $_POST["value"]);
-        if (method_exists($item, 'getLinks')) {
-            echo '&nbsp;' . $item->getLinks();
-        }
+        $item = new $itemtype();
+        $item->getFromDB(intval($_POST["value"]));
+        echo '&nbsp;' . $item->getLinks();
     }
 }

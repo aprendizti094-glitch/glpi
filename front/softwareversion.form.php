@@ -33,11 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 
-Session::checkRightsOr("software", [READ, READ_ASSIGNED, READ_OWNED]);
+include('../inc/includes.php');
+
+Session::checkRight("software", READ);
 
 if (!isset($_GET["id"])) {
     $_GET["id"] = "";
@@ -65,7 +65,7 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST["purge"])) {
     $version->check($_POST['id'], PURGE);
-    $version->delete($_POST, true);
+    $version->delete($_POST, 1);
     Event::log(
         $version->fields['softwares_id'],
         "software",

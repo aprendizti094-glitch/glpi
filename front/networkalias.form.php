@@ -33,11 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+include('../inc/includes.php');
 
 $alias = new NetworkAlias();
 
@@ -67,7 +68,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $alias->check($_POST['id'], PURGE);
     $item = $alias->getItem();
-    $alias->delete($_POST, true);
+    $alias->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "networkname",
@@ -97,7 +98,7 @@ if (isset($_POST["add"])) {
 }
 
 if (isset($_GET['_in_modal'])) {
-    Html::popHeader(NetworkAlias::getTypeName(1));
+    Html::popHeader(NetworkAlias::getTypeName(1), $_SERVER['PHP_SELF']);
     $alias->showForm($_GET["id"], $_GET);
     Html::popFooter();
 } else {

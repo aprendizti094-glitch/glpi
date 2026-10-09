@@ -33,8 +33,10 @@
  */
 
 /**
- * @var Migration $migration
+ * @var \Migration $migration
  */
+
+$migration->displayMessage('Add new configurations / user preferences');
 $migration->addConfig(
     [
         'import_monitor' => 1,

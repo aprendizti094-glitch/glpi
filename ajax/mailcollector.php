@@ -33,7 +33,8 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Exception\Http\NotFoundHttpException;
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 
 // Send UTF8 Headers
 header("Content-Type: text/html; charset=UTF-8");
@@ -43,13 +44,12 @@ Session::checkRight("config", UPDATE);
 
 $mailcollector = new MailCollector();
 
-if (isset($_REQUEST['action']) && $_REQUEST['action'] === 'getFoldersList') {
-    // The collector must already exist in database.
+if ($_REQUEST['action'] === "getFoldersList") {
     if (
         !array_key_exists('id', $_REQUEST)
         || !$mailcollector->getFromDB($_REQUEST['id'])
     ) {
-        throw new NotFoundHttpException();
+        Html::displayErrorAndDie(__('Mail collector must be saved before browsing folders.'));
     }
 
     $mailcollector->displayFoldersList($_REQUEST['input_id'] ?? '');

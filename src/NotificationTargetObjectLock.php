@@ -34,21 +34,25 @@
  */
 
 /**
- * Notifications for ObjectLock
+ * @since 9.1
+ */
+
+
+/**
+ * Summary of NotificationTargetObjectLock
  *
- * @extends NotificationTarget<ObjectLock>
+ * Notifications for ObjectLock
  *
  * @since 9.1
  **/
 class NotificationTargetObjectLock extends NotificationTarget
 {
-    #[Override]
     public function getEvents()
     {
         return ['unlock'               => __('Unlock Item Request')];
     }
 
-    #[Override]
+
     public function getTags()
     {
 
@@ -74,12 +78,19 @@ class NotificationTargetObjectLock extends NotificationTarget
         asort($this->tag_descriptions);
     }
 
-    #[Override]
+
+    /**
+     * @see NotificationTarget::addNotificationTargets()
+     **/
     public function addNotificationTargets($entity)
     {
         $this->addTarget(Notification::USER, __('Locking User'));
     }
 
+
+    /**
+     * @see NotificationTarget::addSpecificTargets()
+     **/
     public function addSpecificTargets($data, $options)
     {
 
@@ -91,8 +102,10 @@ class NotificationTargetObjectLock extends NotificationTarget
         }
     }
 
+
     public function addDataForTemplate($event, $options = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $events = $this->getEvents();
@@ -107,7 +120,7 @@ class NotificationTargetObjectLock extends NotificationTarget
         $this->data['##objectlock.id##']       = $options['item']->fields['items_id'];
         $this->data['##objectlock.type##']     = $options['item']->fields['itemtype'];
         $this->data['##objectlock.date##']     = Html::convDateTime(
-            $options['item']->fields['date'],
+            $options['item']->fields['date_mod'],
             $user->fields['date_format']
         );
         $this->data['##objectlock.date_mod##'] = $this->data['##objectlock.date##'];
@@ -119,9 +132,9 @@ class NotificationTargetObjectLock extends NotificationTarget
                                               = $_SESSION['glpirealname'];
         $this->data['##objectlock.requester.firstname##']
                                               = $_SESSION['glpifirstname'];
-        $this->data['##objectlock.url##']      = $CFG_GLPI['url_base'] . "/?redirect="
-                                                   . $options['item']->fields['itemtype'] . "_"
-                                                   . $options['item']->fields['items_id'];
+        $this->data['##objectlock.url##']      = $CFG_GLPI['url_base'] . "/?redirect=" .
+                                                   $options['item']->fields['itemtype'] . "_" .
+                                                   $options['item']->fields['items_id'];
 
         $this->getTags();
         foreach ($this->tag_descriptions[NotificationTarget::TAG_LANGUAGE] as $tag => $values) {
@@ -131,7 +144,7 @@ class NotificationTargetObjectLock extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getSender(): array
     {
 
@@ -160,9 +173,10 @@ class NotificationTargetObjectLock extends NotificationTarget
         return $ret;
     }
 
-    #[Override]
-    public function getReplyTo(): array
+
+    public function getReplyTo($options = []): array
     {
+
         return $this->getSender();
     }
 }

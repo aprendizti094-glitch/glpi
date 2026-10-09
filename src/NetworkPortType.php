@@ -35,9 +35,6 @@
 
 use Glpi\Inventory\FilesToJSON;
 
-use function Safe\file_get_contents;
-use function Safe\json_decode;
-
 /// Class NetworkPortType
 class NetworkPortType extends CommonDropdown
 {
@@ -50,6 +47,7 @@ class NetworkPortType extends CommonDropdown
 
     public function getAdditionalFields()
     {
+
         return [
             [
                 'name'   => 'value_decimal',
@@ -75,7 +73,7 @@ class NetworkPortType extends CommonDropdown
 
         $tab[] = [
             'id'                 => '10',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'value_decimal',
             'name'               => __('Decimal'),
             'datatype'           => 'integer',
@@ -83,7 +81,7 @@ class NetworkPortType extends CommonDropdown
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_importable',
             'name'               => __('Import'),
             'datatype'           => 'bool',
@@ -91,7 +89,7 @@ class NetworkPortType extends CommonDropdown
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'instantiation_type',
             'name'               => __('Instanciation type'),
             'datatype'           => 'itemtypename',
@@ -108,7 +106,7 @@ class NetworkPortType extends CommonDropdown
 
         $default_instanciations = [
             'Ethernet'     => [6, 7, 62, 117, 169],
-            'Wifi'         => [71, 188],
+            'Wifi'         => [71],
             'Fiberchannel' => [56],
         ];
 
@@ -157,9 +155,13 @@ class NetworkPortType extends CommonDropdown
      */
     public static function getInstantiationType($type)
     {
+        /**
+         * @var \DBmysql $DB
+         * @var \Psr\SimpleCache\CacheInterface $GLPI_CACHE
+         */
         global $DB, $GLPI_CACHE;
 
-        if (empty($type)) {
+        if (null === $type || empty($type)) {
             return self::DEFAULT_TYPE;
         }
 
@@ -182,7 +184,7 @@ class NetworkPortType extends CommonDropdown
             $name = $entry['name'];
             $othername = "$name ($num)";
 
-            if (in_array($type, [$num, $name, $othername], true)) {
+            if ($type === $num || $type == $name || $type == $othername) {
                 return $entry['instantiation_type'] ?? self::DEFAULT_TYPE;
             }
         }
@@ -208,11 +210,9 @@ class NetworkPortType extends CommonDropdown
         parent::post_deleteFromDB();
     }
 
-    /**
-     * @return void
-     */
     protected function invalidateCache()
     {
+        /** @var \Psr\SimpleCache\CacheInterface $GLPI_CACHE */
         global $GLPI_CACHE;
         $GLPI_CACHE->delete('glpi_inventory_ports_types');
     }

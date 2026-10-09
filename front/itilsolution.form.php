@@ -33,22 +33,18 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\NotFoundHttpException;
 
+/** @var \DBmysql $DB */
 global $DB;
+
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 
 $solution = new ITILSolution();
 $track = getItemForItemtype($_POST['itemtype']);
-
-if (
-    !($track instanceof CommonITILObject)
-    || !$track->getFromDB($_POST['items_id'])
-) {
-    throw new NotFoundHttpException();
-}
+$track->getFromDB($_POST['items_id']);
 
 $redirect = null;
 $handled = false;
@@ -57,7 +53,7 @@ if (isset($_POST["add"])) {
     $solution->check(-1, CREATE, $_POST);
     if (!$track->canSolve()) {
         Session::addMessageAfterRedirect(
-            __s('You cannot solve this item!'),
+            __('You cannot solve this item!'),
             false,
             ERROR
         );
@@ -95,10 +91,10 @@ if ($handled) {
             'itemtype'         => $track->getType(),
             'items_id'         => $track->getID(),
         ];
-        $existing = $DB->request([
-            'FROM' => 'glpi_knowbaseitems_items',
-            'WHERE' => $params,
-        ]);
+        $existing = $DB->request(
+            'glpi_knowbaseitems_items',
+            $params
+        );
         if ($existing->numrows() == 0) {
             $kb_item_item = new KnowbaseItem_Item();
             $kb_item_item->add($params);
@@ -114,7 +110,7 @@ if ($handled) {
         $redirect = $track->getLinkURL() . $toadd;
     } else {
         Session::addMessageAfterRedirect(
-            __s('You have been redirected because you no longer have access to this ticket'),
+            __('You have been redirected because you no longer have access to this ticket'),
             true,
             ERROR
         );

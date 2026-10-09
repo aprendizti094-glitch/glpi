@@ -33,12 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\NotFoundHttpException;
 
-Session::checkRight(NetworkName::$rightname, READ);
+include('../inc/includes.php');
 
 $nn = new NetworkName();
 
@@ -77,7 +74,7 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST["purge"])) {
     $nn->check($_POST['id'], PURGE);
-    $nn->delete($_POST, true);
+    $nn->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "networkname",
@@ -139,7 +136,7 @@ if (isset($_POST["add"])) {
         );
         Html::back();
     } else {
-        throw new NotFoundHttpException();
+        Html::displayNotFoundError();
     }
 } else {
     if (!isset($_GET["id"])) {

@@ -33,16 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QuerySubQuery;
 use Glpi\Features\AssetImage;
-use Glpi\Features\Clonable;
 
 /// CommonDCModelDropdown class - dropdown for datacenter items models
 abstract class CommonDCModelDropdown extends CommonDropdown
 {
     use AssetImage;
-    /** @use Clonable<static> */
-    use Clonable;
 
     public $additional_fields_for_dictionnary = ['manufacturer'];
 
@@ -59,6 +55,7 @@ abstract class CommonDCModelDropdown extends CommonDropdown
      **/
     public function getAdditionalFields()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $fields = parent::getAdditionalFields();
@@ -131,6 +128,7 @@ abstract class CommonDCModelDropdown extends CommonDropdown
 
     public function rawSearchOptions()
     {
+        /** @var \DBmysql $DB */
         global $DB;
         $options = parent::rawSearchOptions();
         $table   = $this->getTable();
@@ -205,10 +203,10 @@ abstract class CommonDCModelDropdown extends CommonDropdown
         switch ($field) {
             case 'picture_front':
             case 'picture_rear':
-                if (isset($values['name']) && (string) $values['name'] !== '' && isset($options['html']) && $options['html']) {
+                if (isset($options['html']) && $options['html']) {
                     return Html::image(Toolbox::getPictureUrl($values[$field]), [
                         'alt'   => $options['searchopt']['name'],
-                        'style' => 'max-height: 60px;',
+                        'style' => 'height: 30px;',
                     ]);
                 }
         }
@@ -223,7 +221,7 @@ abstract class CommonDCModelDropdown extends CommonDropdown
      */
     public function getItemtypeForModel(): string
     {
-        return str_replace('Model', '', static::class);
+        return str_replace('Model', '', get_called_class());
     }
 
     /**
@@ -247,7 +245,7 @@ abstract class CommonDCModelDropdown extends CommonDropdown
     }
 
     /**
-     * Check if a cell is filled for a specific orientation, horizontal position and depth
+     * Check if a cell is filled for a specific orientations, hpos and depth
      *
      * @param array $cell
      * @param int $orientation front or rear
@@ -267,11 +265,11 @@ abstract class CommonDCModelDropdown extends CommonDropdown
         if (isset($cell[$hpos])) {
             // Get the first $depth * 4 units of the cell to check if they are filled
             $accurateCell = array_slice(
-                $orientation
-                    ? array_reverse($cell[$hpos]) // If orientation is rear, reverse the array
+                $orientation ?
+                    array_reverse($cell[$hpos]) // If orientation is rear, reverse the array
                     : $cell[$hpos],
                 0,
-                (int) ceil($depth * 4)
+                $depth * 4
             );
 
             // Check if any of the units is filled
@@ -333,9 +331,6 @@ abstract class CommonDCModelDropdown extends CommonDropdown
         $itemtype = $this->getItemtypeForModel();
         foreach ($this->getItemsRackForModel() as $item_rack) {
             $rack = Rack::getById($item_rack['racks_id']);
-            if (!$rack instanceof Rack) {
-                continue;
-            }
             $filled = $rack->getFilled($itemtype, $item_rack['items_id']);
             $requiredUnits = $input['required_units'] ?? $this->fields['required_units'];
             $orientation = $item_rack['orientation'];
@@ -364,7 +359,7 @@ abstract class CommonDCModelDropdown extends CommonDropdown
                     $hasIssues = true;
                     Session::addMessageAfterRedirect(
                         sprintf(
-                            __s(
+                            __(
                                 'Unable to update model because it is used by an asset in the "%s" rack and the new required units do not fit into the rack'
                             ),
                             $rack->getLink()
@@ -441,57 +436,14 @@ abstract class CommonDCModelDropdown extends CommonDropdown
                 );
                 break;
             default:
-                throw new RuntimeException("Unknown {$field['type']}");
+                throw new \RuntimeException("Unknown {$field['type']}");
         }
-    }
-
-
-    /**
-     * @return array
-     */
-    public static function rawSearchOptionsToAdd()
-    {
-        $soptions = [];
-
-        $soptions[] = [
-            'id'   => 'pictures',
-            'name' => _n('Picture', 'Pictures', Session::getPluralNumber()),
-        ];
-
-        $soptions[] = [
-            'id'                 => '250',
-            'table'              => self::getTable(),
-            'field'              => 'picture_front',
-            'name'               => __('Front picture'),
-            'datatype'           => 'specific',
-            'nosearch'           => true,
-            'nosort'           => true,
-            'massiveaction'      => false,
-        ];
-
-        $soptions[] = [
-            'id'                 => '251',
-            'table'              => self::getTable(),
-            'field'              => 'picture_rear',
-            'name'               => __('Rear picture'),
-            'datatype'           => 'specific',
-            'nosearch'           => true,
-            'nosort'           => true,
-            'massiveaction'      => false,
-        ];
-
-        return $soptions;
     }
 
     public static function getIcon()
     {
-        $model_class  = static::class;
+        $model_class  = get_called_class();
         $device_class = str_replace('Model', '', $model_class);
         return $device_class::getIcon();
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [];
     }
 }

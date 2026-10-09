@@ -33,24 +33,20 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\ItemLinkException;
-
 /**
  * @since 0.85
  */
 
+use Glpi\Event;
+
+include('../inc/includes.php');
+
+Session::checkLoginUser();
+
 $item = new Item_Project();
 
 if (isset($_POST["add"])) {
-    try {
-        $item->check(-1, CREATE, $_POST);
-    } catch (ItemLinkException $e) {
-        Html::back();
-    }
+    $item->check(-1, CREATE, $_POST);
 
     if ($item->add($_POST)) {
         Event::log(
@@ -65,4 +61,4 @@ if (isset($_POST["add"])) {
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

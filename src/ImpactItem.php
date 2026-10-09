@@ -35,7 +35,6 @@
 
 /**
  * @since 9.5.0
- * @todo Shouldn't this extend CommonDBChild?
  * @todo The 'parent_id' field should be named 'impactcompounds_id'
  * @todo This should use standard GLPI right management. Currently blocking API access.
  */
@@ -54,6 +53,7 @@ class ImpactItem extends CommonDBTM
         CommonDBTM $item,
         bool $create_if_missing = true
     ) {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $it = $DB->request([
@@ -72,7 +72,7 @@ class ImpactItem extends CommonDBTM
 
         if ($res) {
             $id = $res['id'];
-        } elseif ($create_if_missing) {
+        } elseif (!$res && $create_if_missing) {
             $id = $impact_item->add([
                 'itemtype' => get_class($item),
                 'items_id' => $item->fields['id'],

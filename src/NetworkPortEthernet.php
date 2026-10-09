@@ -33,14 +33,10 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
+use Glpi\Socket;
 
-use function Safe\preg_replace;
-
-/**
- * Ethernet instantiation of NetworkPort
- * @since 0.84
- */
+/// NetworkPortEthernet class : Ethernet instantiation of NetworkPort
+/// @since 0.84
 class NetworkPortEthernet extends NetworkPortInstantiation
 {
     public static function getTypeName($nb = 0)
@@ -48,19 +44,17 @@ class NetworkPortEthernet extends NetworkPortInstantiation
         return __('Ethernet port');
     }
 
+
     public function getNetworkCardInterestingFields()
     {
         return ['link.mac' => 'mac'];
     }
 
-    /**
-     * @param array $input
-     *
-     * @return array
-     */
+
     public function prepareInput($input)
     {
-        if (isset($input['speed']) && ($input['speed'] === 'speed_other_value')) {
+
+        if (isset($input['speed']) && ($input['speed'] == 'speed_other_value')) {
             if (!isset($input['speed_other_value'])) {
                 unset($input['speed']);
             } else {
@@ -76,22 +70,38 @@ class NetworkPortEthernet extends NetworkPortInstantiation
         return $input;
     }
 
+
     public function prepareInputForAdd($input)
     {
         return parent::prepareInputForAdd($this->prepareInput($input));
     }
+
 
     public function prepareInputForUpdate($input)
     {
         return parent::prepareInputForUpdate($this->prepareInput($input));
     }
 
+
     public function showInstantiationForm(NetworkPort $netport, $options, $recursiveItems)
     {
+
         if (!$options['several']) {
+            echo "<tr class='tab_bg_1'>";
             $this->showSocketField($netport, $options, $recursiveItems);
             $this->showNetworkCardField($netport, $options, $recursiveItems);
+            echo "</tr>\n";
         }
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Ethernet port type') . "</td><td>\n";
+        Dropdown::showFromArray(
+            'type',
+            self::getPortTypeName(),
+            ['value' => $this->fields['type']]
+        );
+        echo "</td>";
+        echo "<td>" . __('Ethernet port speed') . "</td><td>\n";
 
         $standard_speeds = self::getPortSpeed();
         if (
@@ -103,31 +113,96 @@ class NetworkPortEthernet extends NetworkPortInstantiation
             $speed = true;
         }
 
-        $twig_params = [
-            'item' => $this,
-            'netport' => $netport,
-            'params' => $options,
-            'standard_speeds' => $standard_speeds,
-            'speed' => $speed,
-            'type_label' => __('Ethernet port type'),
-            'port_types' => self::getPortTypeName(),
-            'speed_label' => __('Ethernet port speed'),
-            'connection_label' => __('Connected to'),
-        ];
-        // language=Twig
-        echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            {% import 'components/form/fields_macros.html.twig' as fields %}
-            {{ fields.dropdownArrayField('type', item.fields['type'], port_types, type_label) }}
-            {{ fields.dropdownArrayField('speed', item.fields['speed'], standard_speeds, speed_label, {
-                other: speed
-            }) }}
-            {% do call([item, 'showMacField'], [netport, params]) %}
-            {% set connection_field %}
-                {% do call([item, 'showConnection'], [netport, true]) %}
-            {% endset %}
-            {{ fields.htmlField('', connection_field, connection_label) }}
-TWIG, $twig_params);
+        Dropdown::showFromArray(
+            'speed',
+            $standard_speeds,
+            ['value' => $this->fields['speed'],
+                'other' => $speed,
+            ]
+        );
+        echo "</td>";
+        echo "</tr>\n";
+
+        echo "<tr class='tab_bg_1'>\n";
+        $this->showMacField($netport, $options);
+
+        echo "<td>" . __('Connected to') . '</td><td>';
+        self::showConnection($netport, true);
+        echo "</td>";
+        echo "</tr>\n";
     }
+
+
+    public function getInstantiationHTMLTableHeaders(
+        HTMLTableGroup $group,
+        HTMLTableSuperHeader $super,
+        ?HTMLTableSuperHeader $internet_super = null,
+        ?HTMLTableHeader $father = null,
+        array $options = []
+    ) {
+
+        $display_options = &$options['display_options'];
+        $header          = $group->addHeader('Connected', __('Connected to'), $super);
+
+        DeviceNetworkCard::getHTMLTableHeader(
+            'NetworkPortEthernet',
+            $group,
+            $super,
+            $header,
+            $options
+        );
+
+        $group->addHeader('speed', __('Ethernet port speed'), $super, $header);
+        $group->addHeader('type', __('Ethernet port type'), $super, $header);
+
+        $group->addHeader('Socket', _n('Network socket', 'Network sockets', 1), $super, $header);
+
+        parent::getInstantiationHTMLTableHeaders($group, $super, $internet_super, $header, $options);
+        return $header;
+    }
+
+
+    protected function getPeerInstantiationHTMLTable(
+        NetworkPort $netport,
+        HTMLTableRow $row,
+        ?HTMLTableCell $father = null,
+        array $options = []
+    ) {
+
+        DeviceNetworkCard::getHTMLTableCellsForItem($row, $this, $father, $options);
+
+        if (!empty($this->fields['speed'])) {
+            $row->addCell(
+                $row->getHeaderByName('Instantiation', 'speed'),
+                self::getPortSpeed($this->fields["speed"]),
+                $father
+            );
+        }
+
+        if (!empty($this->fields['type'])) {
+            $row->addCell(
+                $row->getHeaderByName('Instantiation', 'type'),
+                self::getPortTypeName($this->fields["type"]),
+                $father
+            );
+        }
+
+        parent::getInstantiationHTMLTable($netport, $row, $father, $options);
+        Socket::getHTMLTableCellsForItem($row, $this, $father, $options);
+        return null;
+    }
+
+
+    public function getInstantiationHTMLTable(
+        NetworkPort $netport,
+        HTMLTableRow $row,
+        ?HTMLTableCell $father = null,
+        array $options = []
+    ) {
+
+        return $this->getInstantiationHTMLTableWithPeer($netport, $row, $father, $options);
+    }
+
 
     public function rawSearchOptions()
     {
@@ -152,7 +227,7 @@ TWIG, $twig_params);
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'type',
             'name'               => __('Ethernet port type'),
             'massiveaction'      => false,
@@ -161,7 +236,7 @@ TWIG, $twig_params);
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'speed',
             'name'               => __('Ethernet port speed'),
             'massiveaction'      => false,
@@ -171,46 +246,50 @@ TWIG, $twig_params);
         return $tab;
     }
 
+
     /**
      * Get the possible value for Ethernet port type
      *
      * @param string|null $val  if not set, ask for all values, else for 1 value (default NULL)
      *
      * @return array|string
-     * @phpstan-return ($val is null ? array : string)
      **/
     public static function getPortTypeName($val = null)
     {
-        $tmp = [
-            ''   => Dropdown::EMPTY_VALUE,
-            'T'  => __('Twisted pair (RJ-45)'),
-            'SX' => __('Multimode fiber'),
-            'LX' => __('Single mode fiber'),
-        ];
+
+        $tmp['']   = Dropdown::EMPTY_VALUE;
+        $tmp['T']  = __('Twisted pair (RJ-45)');
+        $tmp['SX'] = __('Multimode fiber');
+        $tmp['LX'] = __('Single mode fiber');
 
         if (is_null($val)) {
             return $tmp;
         }
-        return $tmp[$val] ?? NOT_AVAILABLE;
+        if (isset($tmp[$val])) {
+            return $tmp[$val];
+        }
+        return NOT_AVAILABLE;
     }
+
 
     /**
      * Transform a port speed from string to integerer and vice-versa
      *
-     * @param int|string $val        port speed
-     * @param bool        $to_string  true if we must transform the speed to string
+     * @param integer|string $val        port speed
+     * @param boolean        $to_string  true if we must transform the speed to string
      *
-     * @return false|int|string (regarding what is requested)
+     * @return false|integer|string (regarding what is requested)
      **/
     public static function transformPortSpeed($val, $to_string)
     {
+
         if ($to_string) {
-            if (($val % 1000) === 0) {
+            if (($val % 1000) == 0) {
                 //TRANS: %d is the speed
                 return sprintf(__('%d Gbit/s'), $val / 1000);
             }
 
-            if ((($val % 100) === 0) && ($val > 1000)) {
+            if ((($val % 100) == 0) && ($val > 1000)) {
                 $val /= 100;
                 //TRANS: %f is the speed
                 return sprintf(__('%.1f Gbit/s'), $val / 10);
@@ -226,11 +305,11 @@ TWIG, $twig_params);
                 return false;
             }
 
-            if (($unit === 'mbit/s') || ($unit === 'mb/s')) {
+            if (($unit == 'mbit/s') || ($unit == 'mb/s')) {
                 return (int) $speed;
             }
 
-            if (($unit === 'gbit/s') || ($unit === 'gb/s')) {
+            if (($unit == 'gbit/s') || ($unit == 'gb/s')) {
                 return (int) ($speed * 1000);
             }
 
@@ -238,18 +317,18 @@ TWIG, $twig_params);
         }
     }
 
+
     /**
      * Get the possible value for Ethernet port speed
      *
-     * @param int|null $val  if not set, ask for all values, else for 1 value (default NULL)
+     * @param integer|null $val  if not set, ask for all values, else for 1 value (default NULL)
      *
      * @return array|string
-     * @phpstan-return ($val is null ? array : false|integer|string)
      **/
     public static function getPortSpeed($val = null)
     {
-        $tmp = [
-            0     => '',
+
+        $tmp = [0     => '',
             //TRANS: %d is the speed
             10    => sprintf(__('%d Mbit/s'), 10),
             100   => sprintf(__('%d Mbit/s'), 100),
@@ -261,23 +340,44 @@ TWIG, $twig_params);
         if (is_null($val)) {
             return $tmp;
         }
-        return $tmp[$val] ?? self::transformPortSpeed($val, true);
+        if (isset($tmp[$val])) {
+            return $tmp[$val];
+        }
+        return self::transformPortSpeed($val, true);
     }
 
+
+    /**
+     * @param $field
+     * @param $values
+     * @param $options   array
+     **/
     public static function getSpecificValueToDisplay($field, $values, array $options = [])
     {
+
         if (!is_array($values)) {
             $values = [$field => $values];
         }
-        return match ($field) {
-            'type' => htmlescape(self::getPortTypeName($values[$field])),
-            'speed' => htmlescape(self::getPortSpeed($values[$field])),
-            default => parent::getSpecificValueToDisplay($field, $values, $options),
-        };
+        switch ($field) {
+            case 'type':
+                return self::getPortTypeName($values[$field]);
+
+            case 'speed':
+                return self::getPortSpeed($values[$field]);
+        }
+        return parent::getSpecificValueToDisplay($field, $values, $options);
     }
 
+
+    /**
+     * @param $field
+     * @param $name            (default '')
+     * @param $values          (defaul '')
+     * @param $options   array
+     */
     public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
     {
+
         if (!is_array($values)) {
             $values = [$field => $values];
         }
@@ -287,6 +387,7 @@ TWIG, $twig_params);
             case 'type':
                 $options['value'] = $values[$field];
                 return Dropdown::showFromArray($name, self::getPortTypeName(), $options);
+
             case 'speed':
                 $options['value'] = $values[$field];
                 return Dropdown::showFromArray($name, self::getPortSpeed(), $options);
@@ -294,12 +395,11 @@ TWIG, $twig_params);
         return parent::getSpecificValueToSelect($field, $name, $values, $options);
     }
 
+
     /**
-     * @param array $tab
-     * @param array $joinparams
-     *
-     * @return void
-     */
+     * @param $tab         array
+     * @param $joinparams  array
+     **/
     public static function getSearchOptionsToAddForInstantiation(array &$tab, array $joinparams)
     {
         $tab[] = [

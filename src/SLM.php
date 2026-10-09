@@ -33,11 +33,13 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
+/**
+ * @since 9.2
+ */
+
 
 /**
  * SLM Class
- * @since 9.2
  **/
 class SLM extends CommonDBTM
 {
@@ -51,34 +53,38 @@ class SLM extends CommonDBTM
     public const TTR = 0; // Time to resolve
     public const TTO = 1; // Time to own
 
-    public const RIGHT_ASSIGN = 256;
-
     public static function getTypeName($nb = 0)
     {
         return _n('Service level', 'Service levels', $nb);
     }
 
-    public static function getSectorizedDetails(): array
+    /**
+     * Force calendar of the SLM if value -1: calendar of the entity
+     *
+     * @param integer $calendars_id calendars_id of the ticket
+     **/
+    public function setTicketCalendar($calendars_id)
     {
-        return ['config', self::class];
-    }
+        Toolbox::deprecated();
 
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'setup';
+        if ($this->fields['use_ticket_calendar']) {
+            $this->fields['calendars_id'] = $calendars_id;
+        }
     }
 
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong);
         $this->addImpactTab($ong, $options);
-        $this->addStandardTab(SLA::class, $ong, $options);
-        $this->addStandardTab(OLA::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('SLA', $ong, $options);
+        $this->addStandardTab('OLA', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
+
 
     public function prepareInputForAdd($input)
     {
@@ -86,6 +92,7 @@ class SLM extends CommonDBTM
 
         return parent::prepareInputForAdd($input);
     }
+
 
     public function prepareInputForUpdate($input)
     {
@@ -105,7 +112,7 @@ class SLM extends CommonDBTM
     private function handleCalendarStrategy(array $input): array
     {
         if (array_key_exists('calendars_id', $input)) {
-            if ((int) $input['calendars_id'] === -1) {
+            if ($input['calendars_id'] == -1) {
                 $input['calendars_id'] = 0;
                 $input['use_ticket_calendar'] = 1;
             } else {
@@ -118,9 +125,10 @@ class SLM extends CommonDBTM
 
     public function post_updateItem($history = true)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        if (in_array('use_ticket_calendar', $this->updates, true) || in_array('calendars_id', $this->updates, true)) {
+        if (in_array('use_ticket_calendar', $this->updates) || in_array('calendars_id', $this->updates)) {
             // Propagate calendar settings to children
             foreach ([OLA::class, SLA::class] as $child_class) {
                 $child_iterator = $DB->request(
@@ -128,7 +136,7 @@ class SLM extends CommonDBTM
                         'SELECT' => 'id',
                         'FROM'   => $child_class::getTable(),
                         'WHERE'  => [
-                            static::getForeignKeyField() => $this->getID(),
+                            $this->getForeignKeyField() => $this->getID(),
                         ],
                     ]
                 );
@@ -150,6 +158,7 @@ class SLM extends CommonDBTM
 
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 SLA::class,
@@ -159,32 +168,46 @@ class SLM extends CommonDBTM
     }
 
     /**
-     * Print the SLM form
-     * {@inheritdoc}
+     * Print the slm form
+     *
+     * @param integer $ID ID of the item
+     * @param array   $options of possible options:
+     *     - target filename : where to go when done.
+     *     - withtemplate boolean : template or basic item
+     *
+     * @return boolean item found
      **/
     public function showForm($ID, array $options = [])
     {
-        $twig_params = [
-            'item'        => $this,
-            'params'      => $options,
-            'empty_label' => __('24/7'),
-            'toadd_label' => __('Calendar of the ticket'),
-        ];
-        // language=Twig
-        echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            {% extends 'generic_show_form.html.twig' %}
-            {% import 'components/form/fields_macros.html.twig' as fields %}
-            {% block more_fields %}
-                {{ fields.dropdownField('Calendar', 'calendars_id', item.fields['use_ticket_calendar'] ? -1 : item.fields['calendars_id'], 'Calendar'|itemtype_name(1), {
-                    emptylabel: empty_label,
-                    toadd: {
-                        (-1): toadd_label
-                    }
-                }) }}
-            {% endblock %}
-TWIG, $twig_params);
+
+        $rowspan = 2;
+
+        $this->initForm($ID, $options);
+        $this->showFormHeader($options);
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Name') . "</td>";
+        echo "<td>";
+        echo Html::input('name', ['value' => $this->fields['name']]);
+        echo "<td rowspan='" . $rowspan . "'>" . __('Comments') . "</td>";
+        echo "<td rowspan='" . $rowspan . "'>
+            <textarea class='form-control' name='comment' >" . $this->fields["comment"] . "</textarea>";
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . _n('Calendar', 'Calendars', 1) . "</td>";
+        echo "<td>";
+
+        Calendar::dropdown([
+            'value'      => $this->fields['use_ticket_calendar'] ? -1 : $this->fields['calendars_id'],
+            'emptylabel' => __('24/7'),
+            'toadd'      => ['-1' => __('Calendar of the ticket')],
+        ]);
+        echo "</td></tr>";
+
+        $this->showFormButtons($options);
+
         return true;
     }
+
 
     public function rawSearchOptions()
     {
@@ -197,7 +220,7 @@ TWIG, $twig_params);
 
         $tab[] = [
             'id'                 => '1',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'name',
             'name'               => __('Name'),
             'datatype'           => 'itemlink',
@@ -206,7 +229,7 @@ TWIG, $twig_params);
 
         $tab[] = [
             'id'                 => '2',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'id',
             'name'               => __('ID'),
             'massiveaction'      => false,
@@ -223,35 +246,19 @@ TWIG, $twig_params);
 
         $tab[] = [
             'id'                 => '16',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
-        ];
-
-        $tab[] = [
-            'id'              => '80',
-            'table'           => Entity::getTable(),
-            'field'           => 'completename',
-            'name'            => Entity::getTypeName(1),
-            'massiveaction'   => false,
-            'datatype'        => 'dropdown',
-        ];
-
-        $tab[] = [
-            'id'            => '86',
-            'table'         => static::getTable(),
-            'field'         => 'is_recursive',
-            'name'          => __('Child entities'),
-            'datatype'      => 'bool',
-            'massiveaction' => false,
         ];
 
         return $tab;
     }
 
+
     public static function getMenuContent()
     {
+
         $menu = [];
         if (static::canView()) {
             $menu['title']           = self::getTypeName(2);
@@ -262,21 +269,21 @@ TWIG, $twig_params);
                 $menu['links']['add'] = SLM::getFormURL(false);
             }
 
-            $menu['options'][SLA::class]['title']           = SLA::getTypeName(1);
-            $menu['options'][SLA::class]['page']            = SLA::getSearchURL(false);
-            $menu['options'][SLA::class]['links']['search'] = SLA::getSearchURL(false);
+            $menu['options']['sla']['title']           = SLA::getTypeName(1);
+            $menu['options']['sla']['page']            = SLA::getSearchURL(false);
+            $menu['options']['sla']['links']['search'] = SLA::getSearchURL(false);
 
-            $menu['options'][OLA::class]['title']           = OLA::getTypeName(1);
-            $menu['options'][OLA::class]['page']            = OLA::getSearchURL(false);
-            $menu['options'][OLA::class]['links']['search'] = OLA::getSearchURL(false);
+            $menu['options']['ola']['title']           = OLA::getTypeName(1);
+            $menu['options']['ola']['page']            = OLA::getSearchURL(false);
+            $menu['options']['ola']['links']['search'] = OLA::getSearchURL(false);
 
-            $menu['options'][SlaLevel::class]['title']           = SlaLevel::getTypeName(Session::getPluralNumber());
-            $menu['options'][SlaLevel::class]['page']            = SlaLevel::getSearchURL(false);
-            $menu['options'][SlaLevel::class]['links']['search'] = SlaLevel::getSearchURL(false);
+            $menu['options']['slalevel']['title']           = SlaLevel::getTypeName(Session::getPluralNumber());
+            $menu['options']['slalevel']['page']            = SlaLevel::getSearchURL(false);
+            $menu['options']['slalevel']['links']['search'] = SlaLevel::getSearchURL(false);
 
-            $menu['options'][OlaLevel::class]['title']           = OlaLevel::getTypeName(Session::getPluralNumber());
-            $menu['options'][OlaLevel::class]['page']            = OlaLevel::getSearchURL(false);
-            $menu['options'][OlaLevel::class]['links']['search'] = OlaLevel::getSearchURL(false);
+            $menu['options']['olalevel']['title']           = OlaLevel::getTypeName(Session::getPluralNumber());
+            $menu['options']['olalevel']['page']            = OlaLevel::getSearchURL(false);
+            $menu['options']['olalevel']['links']['search'] = OlaLevel::getSearchURL(false);
         }
         if (count($menu)) {
             return $menu;
@@ -284,19 +291,9 @@ TWIG, $twig_params);
         return false;
     }
 
+
     public static function getIcon()
     {
         return "ti ti-checkup-list";
-    }
-
-    public function getRights($interface = 'central')
-    {
-        $values = parent::getRights();
-        $values[self::RIGHT_ASSIGN]  = [
-            'short' => __('Assign'),
-            'long'  => __('Search result user display'),
-        ];
-
-        return $values;
     }
 }

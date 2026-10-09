@@ -1,70 +1,31 @@
 # Security Policy
 
-> [!CAUTION]
-> Never use public issues, pull requests, or discussions to report security problems. Vulnerabilities are not disclosed before a fix is released.
+**⚠️ Please never use standard issues to report security problems; vulnerabilities are never published before a fix release is available. ⚠️**
 
-## Reporting
+Critical and high advisories are published one month after the release. All other advisories are published one week after the fix release.
 
-Email **security@glpi-project.org**.
+## Reporting a Vulnerability
 
-We do not accept GitHub Security Advisory direct submissions, and we will not create accounts on third-party platforms to receive reports. All information must be sent by email or, once an advisory is opened, posted directly in that advisory.
+If you found a security issue, please open an advisory on [github](https://github.com/glpi-project/glpi/security/advisories/new).
 
-## One email per vulnerability
+If you do not have a github account, or if you want to contact us regarding a security issue, you can drop a mail to \[glpi-security AT ow2.org\].
 
-Send a separate email for each unrelated vulnerability. Do not bundle unrelated issues into a single thread, and do not reply to an existing report thread to raise a new, unrelated one. This keeps triage, severity assessment, and advisory tracking clean — one report, one thread, one advisory.
+You should provide us all details about the issue and the way to reproduce it.
+You may also provide a script that can be used to check the issue exists.
 
-This is distinct from the grouping rule below: related instances of the *same* vulnerability class stay in one report; unrelated vulnerabilities each get their own.
+Once the report will be handled, and if the issue is not yet fixed (or in progress)
+we'll add it to the GitHub security tab, and add you as observer. Meanwhile,
+you will reserve a CVE for the issue.
 
-Attach your proof-of-concept as a file (script, HTTP request collection, etc.) rather than pasting source code inline in the email body. This keeps reports readable and reproducible, and avoids mangling by mail clients (indentation, quoting, encoding).
+Thank you for improving the security of glpi.
 
-## Required information
+## Supported Versions
 
-Incomplete reports are returned once and **closed** if not completed within seven days.
-
-> [!IMPORTANT]
-> We receive a lot of security reports and we need to validate each one - please be patient ;)
-> Also, please provide us all information, scripts, etc so we can easily reproduce and test.
-> 
-> Thank you!
-
-1. Affected GLPI version (see below).
-2. What the attacker can do and what privilege level they need.
-3. Step-by-step reproduction from a clean install.
-4. Scripts (Python, PHP, ...) to validate and reproduce the issue; and then make sure it gets fixed.
-5. Working proof of concept.
-6. Impact and preconditions.
-7. AI disclosure: which tools, if any, you used to find or draft the report.
-
-Group related findings into a single report. Multiple instances of the same vulnerability class — for example XSS across different fields, or missing capability checks on related endpoints — belong in one submission, not several.
-
-If you have a GitHub account, include your username so we can add you as observer when the advisory is opened.
-
-## Scope
-
-**In scope:** GLPI core, official releases.
-
-**Out of scope:** third-party plugins (report to plugin maintainers), the GLPI Inventory Agent, Teclib'-operated websites, self-modified installs, hosting providers, social engineering, hardening suggestions without a working exploit, scanner output without verification, out-of-date versions.
-
-## Supported versions
-
-| Version | Supported |
-| ------- | --------- |
-| 11.0.x  | ✔️        |
-| 10.0.x  | ✔️        |
-| < 10.0  | ❌        |
-
-Only the latest patch release of each supported branch is in scope. Reports against older patch versions are closed without review — please upgrade and verify the issue still exists before reporting.
-
-## Disclosure
-
-Severity is assessed using CVSS v4.
-
-Critical and High advisories are published one month after the fix release. All other advisories are published one week after the fix release.
-
-CVE is reserved on report acceptance. You will be credited in the published advisory unless you request anonymity. Unilateral disclosure before a fix ships ends our engagement.
-
-We do not offer monetary rewards.
-
-## AI-assisted reports
-
-AI tools are welcome as part of disciplined research — verify findings against a running install before submitting. Reports that reference functions, hooks, or behaviors that do not exist in the codebase will be closed as hallucinations, and repeat offenders will be deprioritized.
+| Version | Supported          |
+| ------- | ------------------ |
+| 10.0.x  | :heavy_check_mark: |
+| 9.5.x   | :x:                |
+| 9.4.x   | :x:                |
+| 9.3.x   | :x:                |
+| 9.2.x   | :x:                |
+| < 9.2   | :x:                |

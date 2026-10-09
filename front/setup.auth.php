@@ -33,13 +33,13 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Application\View\TemplateRenderer;
+
+include('../inc/includes.php');
 
 Session::checkRight("config", READ);
 
-Html::header(__('External authentication sources'), '', "config", "auth");
+Html::header(__('External authentication sources'), $_SERVER['PHP_SELF'], "config", "auth", -1);
 
 echo TemplateRenderer::getInstance()->render(
     'pages/setup/authentication.html.twig',

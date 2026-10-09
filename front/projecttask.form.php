@@ -33,13 +33,13 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 /**
  * @since 0.85
  */
 
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -71,35 +71,9 @@ if (isset($_POST["add"])) {
     } else {
         Html::redirect(ProjectTask::getFormURL() . "?projects_id=" . $task->fields['projects_id']);
     }
-} elseif (isset($_POST["restore"])) {
-    $task->check($_POST["id"], DELETE);
-
-    $task->restore($_POST);
-    Event::log(
-        $_POST["id"],
-        "project",
-        4,
-        "maintain",
-        //TRANS: %s is the user login
-        sprintf(__('%s restores a task'), $_SESSION["glpiname"])
-    );
-    Html::back();
-} elseif (isset($_POST["delete"])) {
-    $task->check($_POST['id'], DELETE);
-    $task->delete($_POST);
-
-    Event::log(
-        $task->fields['projects_id'],
-        'project',
-        4,
-        "maintain",
-        //TRANS: %s is the user login
-        sprintf(__('%s delete a task'), $_SESSION["glpiname"])
-    );
-    Html::redirect(Project::getFormURLWithID($task->fields['projects_id']));
 } elseif (isset($_POST["purge"])) {
     $task->check($_POST['id'], PURGE);
-    $task->delete($_POST, true);
+    $task->delete($_POST, 1);
 
     Event::log(
         $task->fields['projects_id'],
@@ -124,7 +98,7 @@ if (isset($_POST["add"])) {
     );
     Html::back();
 } elseif (isset($_GET['_in_modal'])) {
-    Html::popHeader(ProjectTask::getTypeName(1), in_modal: true);
+    Html::popHeader(ProjectTask::getTypeName(1), $_SERVER['PHP_SELF'], true);
     $task->showForm($_GET["id"], ['withtemplate' => $_GET["withtemplate"]]);
     Html::popFooter();
 } else {

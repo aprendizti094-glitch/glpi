@@ -33,14 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
 /// Class DeviceBatteryModel
 abstract class CommonDeviceModel extends CommonDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
-
     public static function getTypeName($nb = 0)
     {
         return _n('Device model', 'Device models', $nb);
@@ -48,10 +43,11 @@ abstract class CommonDeviceModel extends CommonDropdown
 
     public static function getFormURL($full = true)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $dir = ($full ? $CFG_GLPI['root_doc'] : '');
-        $itemtype = static::class;
+        $itemtype = get_called_class();
         $link = "$dir/front/devicemodel.form.php?itemtype=$itemtype";
 
         return $link;
@@ -59,10 +55,11 @@ abstract class CommonDeviceModel extends CommonDropdown
 
     public static function getSearchURL($full = true)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $dir = ($full ? $CFG_GLPI['root_doc'] : '');
-        $itemtype = static::class;
+        $itemtype = get_called_class();
         $link = "$dir/front/devicemodel.php?itemtype=$itemtype";
 
         return $link;
@@ -70,13 +67,8 @@ abstract class CommonDeviceModel extends CommonDropdown
 
     public static function getIcon()
     {
-        $model_class  = static::class;
+        $model_class  = get_called_class();
         $device_class = str_replace('Model', '', $model_class);
         return $device_class::getIcon();
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [];
     }
 }

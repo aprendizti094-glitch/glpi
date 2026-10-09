@@ -33,9 +33,10 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+use Glpi\Toolbox\Sanitizer;
+
+include('../inc/includes.php');
 
 Session::checkRight("snmpcredential", READ);
 
@@ -45,6 +46,15 @@ if (!isset($_GET["id"])) {
 
 if (!isset($_GET["withtemplate"])) {
     $_GET["withtemplate"] = "";
+}
+
+if (array_key_exists('auth_passphrase', $_POST)) {
+    // Passphrase must not be altered, it will be encrypted and never displayed, so sanitize is not necessary.
+    $_POST['auth_passphrase'] = Sanitizer::unsanitize($_POST['auth_passphrase']);
+}
+if (array_key_exists('priv_passphrase', $_POST)) {
+    // Passphrase must not be altered, it will be encrypted and never displayed, so sanitize is not necessary.
+    $_POST['priv_passphrase'] = Sanitizer::unsanitize($_POST['priv_passphrase']);
 }
 
 $cred = new SNMPCredential();
@@ -92,7 +102,7 @@ if (isset($_POST["add"])) {
     $cred->redirectToList();
 } elseif (isset($_POST["purge"])) {
     $cred->check($_POST["id"], PURGE);
-    if ($cred->delete($_POST, true)) {
+    if ($cred->delete($_POST, 1)) {
         Event::log(
             $_POST["id"],
             "snmpcredential",
@@ -116,7 +126,7 @@ if (isset($_POST["add"])) {
     );
     Html::back();
 } else {
-    $menus = ["admin", "glpi\inventory\inventory", "SNMPCredential"];
+    $menus = ["admin", "glpi\inventory\inventory", "snmpcredential"];
     SNMPCredential::displayFullPageForItem($_GET["id"], $menus, [
         'withtemplate' => $_GET["withtemplate"],
         'formoptions'  => "data-track-changes=true",

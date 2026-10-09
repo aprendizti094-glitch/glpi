@@ -49,14 +49,13 @@ class ProjectTaskTeam extends CommonDBRelation
     public $no_form_page               = true;
 
     // From CommonDBRelation
-    public static $itemtype_1 = ProjectTask::class;
+    public static $itemtype_1          = 'ProjectTask';
     public static $items_id_1          = 'projecttasks_id';
 
     public static $itemtype_2          = 'itemtype';
     public static $items_id_2          = 'items_id';
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
 
-    /** @var class-string<CommonDBTM>[] */
     public static $available_types     = ['User', 'Group', 'Supplier', 'Contact'];
 
 
@@ -74,10 +73,6 @@ class ProjectTaskTeam extends CommonDBRelation
         return _n('Task team', 'Task teams', $nb);
     }
 
-    public static function getIcon()
-    {
-        return 'ti ti-users';
-    }
 
     public function getForbiddenStandardMassiveAction()
     {
@@ -85,100 +80,6 @@ class ProjectTaskTeam extends CommonDBRelation
         $forbidden   = parent::getForbiddenStandardMassiveAction();
         $forbidden[] = 'update';
         return $forbidden;
-    }
-
-    public static function showMassiveActionsSubForm(MassiveAction $ma)
-    {
-        global $CFG_GLPI;
-
-        switch ($ma->getAction()) {
-            case 'affect_to_team':
-            case 'unaffect_to_team':
-                $rand = Dropdown::showItemTypes('itemtype', static::$available_types);
-                echo '<br>';
-                $params = [
-                    'idtable'             => '__VALUE__',
-                    'display_emptychoice' => true,
-                    'name'                => 'items_id',
-                    'entity_restrict'     => Session::getActiveEntity(),
-                    'rand'                => $rand,
-                ];
-                Ajax::updateItemOnSelectEvent(
-                    "dropdown_itemtype$rand",
-                    "results_itemtype$rand",
-                    $CFG_GLPI['root_doc'] . '/ajax/dropdownAllItems.php',
-                    $params
-                );
-                echo "<span id='results_itemtype$rand'></span>";
-                echo '<br>';
-
-                echo Html::submit(_x('button', 'Post'), ['name' => 'massiveaction']);
-                return true;
-        }
-        return parent::showMassiveActionsSubForm($ma);
-    }
-
-    /**
-     * @param int[] $ids
-     */
-    public static function processMassiveActionsForOneItemtype(
-        MassiveAction $ma,
-        CommonDBTM $item,
-        array $ids
-    ): void {
-        $action = $ma->getAction();
-        $input  = $ma->getInput();
-
-        if (!in_array($action, ['affect_to_team', 'unaffect_to_team'], true)) {
-            parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
-            return;
-        }
-
-        if (
-            empty($input['itemtype'])
-            || !isset($input['items_id'])
-            || (int) $input['items_id'] <= 0
-        ) {
-            foreach ($ids as $id) {
-                $ma->itemDone($item->getType(), $id, MassiveAction::NO_ACTION);
-            }
-            return;
-        }
-
-        $team = new self();
-
-        foreach ($ids as $id) {
-            if (!$item->can($id, UPDATE)) {
-                $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_NORIGHT);
-                continue;
-            }
-
-            $criteria = [
-                'projecttasks_id' => $id,
-                'itemtype'        => $input['itemtype'],
-                'items_id'        => (int) $input['items_id'],
-            ];
-
-            if ($action === 'affect_to_team') {
-                if (countElementsInTable(self::getTable(), $criteria) > 0) {
-                    $ma->itemDone($item->getType(), $id, MassiveAction::NO_ACTION);
-                    continue;
-                }
-                $result = $team->add($criteria);
-            } else {
-                if (countElementsInTable(self::getTable(), $criteria) === 0) {
-                    $ma->itemDone($item->getType(), $id, MassiveAction::NO_ACTION);
-                    continue;
-                }
-                $result = $team->deleteByCriteria($criteria);
-            }
-
-            if ($result) {
-                $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_OK);
-            } else {
-                $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
-            }
-        }
     }
 
 
@@ -192,7 +93,7 @@ class ProjectTaskTeam extends CommonDBRelation
                     if ($_SESSION['glpishow_count_on_tabs']) {
                         $nb = $item->getTeamCount();
                     }
-                    return self::createTabEntry(self::getTypeName(1), $nb, $item::getType());
+                    return self::createTabEntry(self::getTypeName(1), $nb);
             }
         }
         return '';
@@ -228,12 +129,13 @@ class ProjectTaskTeam extends CommonDBRelation
     /**
      * Get team for a project task
      *
-     * @param int $tasks_id
+     * @param $tasks_id
      * @param bool $expand If true, the team member data is expanded to include specific properties like firstname, realname, ...
-     * @return array<class-string<CommonDBTM>, array<array{id: int, projecttasks_id: int, itemtype: class-string<CommonDBTM>, items_id: int, display_name?: string}>>
+     * @return array
      **/
     public static function getTeamFor($tasks_id, bool $expand = false)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $team = [];
@@ -265,11 +167,12 @@ class ProjectTaskTeam extends CommonDBRelation
 
     public function prepareInputForAdd($input)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (!isset($input['itemtype'])) {
             Session::addMessageAfterRedirect(
-                __s('An item type is mandatory'),
+                __('An item type is mandatory'),
                 false,
                 ERROR
             );
@@ -278,7 +181,7 @@ class ProjectTaskTeam extends CommonDBRelation
 
         if (!isset($input['items_id'])) {
             Session::addMessageAfterRedirect(
-                __s('An item ID is mandatory'),
+                __('An item ID is mandatory'),
                 false,
                 ERROR
             );
@@ -287,7 +190,7 @@ class ProjectTaskTeam extends CommonDBRelation
 
         if (!isset($input['projecttasks_id'])) {
             Session::addMessageAfterRedirect(
-                __s('A project task is mandatory'),
+                __('A project task is mandatory'),
                 false,
                 ERROR
             );
@@ -323,7 +226,7 @@ class ProjectTaskTeam extends CommonDBRelation
                 //only Users can be checked for planning conflicts
                 break;
             default:
-                throw new RuntimeException($input['itemtype'] . " is not (yet?) handled.");
+                throw new \RuntimeException($input['itemtype'] . " is not (yet?) handled.");
         }
 
         return $input;

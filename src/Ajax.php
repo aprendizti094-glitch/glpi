@@ -35,10 +35,6 @@
 
 use Glpi\Application\View\TemplateRenderer;
 
-use function Safe\json_encode;
-use function Safe\preg_match;
-use function Safe\preg_replace;
-
 /**
  * Ajax Class
  **/
@@ -64,9 +60,6 @@ class Ajax
      */
     public static function createModalWindow($name, $url, $options = [])
     {
-        if (preg_match('/[^\w]+/', $name) === 1) {
-            throw new InvalidArgumentException('Modal name is expected to be a valid javascript variable identifier.');
-        }
 
         $param = [
             'width'           => 800,
@@ -96,36 +89,36 @@ class Ajax
             ]
         );
 
-        $js = "var {$name};";
-        $js .= "$(function() {";
+        $out = "<script type='text/javascript'>\n";
+        $out .= "var {$name};\n";
+        $out .= "$(function() {\n";
         if (!empty($param['container'])) {
-            $js .= "   var el = $('#" . jsescape(Html::cleanId($param['container'])) . "');";
-            $js .= "   el.addClass('modal');";
+            $out .= "   var el = $('#" . Html::cleanId($param['container']) . "');\n";
+            $out .= "   el.addClass('modal');\n";
         } else {
-            $js .= "   var el = $('<div class=\"modal\"></div>');";
-            $js .= "   $('body').append(el);";
+            $out .= "   var el = $('<div class=\"modal\"></div>');";
+            $out .= "   $('body').append(el);\n";
         }
-        $js .= "   el.html('" . jsescape($html) . "');";
-        $js .= "   {$name} = new bootstrap.Modal(el.get(0), {show: false});";
-        $js .= "   el.on(";
-        $js .= "      'show.bs.modal',";
-        $js .= "      function(evt) {";
-        $js .= "         var fields = ";
+        $out .= "   el.html(" . json_encode($html) . ");\n";
+        $out .= "   {$name} = new bootstrap.Modal(el.get(0), {show: false});\n";
+        $out .= "   el.on(\n";
+        $out .= "      'show.bs.modal',\n";
+        $out .= "      function(evt) {\n";
+        $out .= "         var fields = ";
         if (is_array($param['extraparams']) && count($param['extraparams'])) {
-            $js .= json_encode($param['extraparams'], JSON_FORCE_OBJECT);
+            $out .= json_encode($param['extraparams'], JSON_FORCE_OBJECT);
         } else {
-            $js .= '{}';
+            $out .= '{}';
         }
-        $js .= ";";
+        $out .= ";\n";
         if (!empty($param['js_modal_fields'])) {
-            $js .= $param['js_modal_fields'] . "";
+            $out .= $param['js_modal_fields'] . "\n";
         }
-        $js .= "         el.find('.modal-body').load('" . jsescape($url) . "', fields);";
-        $js .= "      }";
-        $js .= "   );";
-        $js .= "});";
-
-        $out = Html::scriptBlock($js);
+        $out .= "         el.find('.modal-body').load('$url', fields);\n";
+        $out .= "      }\n";
+        $out .= "   );\n";
+        $out .= "});\n";
+        $out .= "</script>\n";
 
         if ($param['display']) {
             echo $out;
@@ -176,94 +169,79 @@ class Ajax
         }
         $url .= (strstr($url, '?') ? '&' : '?') . '_in_modal=1';
 
-        if (isset($options['extradata'])) {
-            $url .= (strstr($url, '?') ? '&' : '?') . Toolbox::append_params($options['extradata'], '&');
-        }
-
         $rand = mt_rand();
 
-        $domid  = Html::sanitizeDomId($domid);
-
-        $html = '
-            <div id="' . htmlescape($domid) . '" class="modal fade" tabindex="-1" role="dialog">
-                <div class="modal-dialog ' . htmlescape($param['dialog_class']) . '">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            <h3 class="modal-title">' . htmlescape($param['title']) . '</h3>
-                        </div>
-                        <div class="modal-body">
-                            <iframe id="iframe' . htmlescape($domid) . '" class="iframe hidden"
-                                width="100%" height="400" frameborder="0">
-                            </iframe>
-                        </div>
-                    </div>
-                </div>
+        $html = <<<HTML
+         <div id="$domid" class="modal fade" tabindex="-1" role="dialog">
+            <div class="modal-dialog {$param['dialog_class']}">
+               <div class="modal-content">
+                  <div class="modal-header">
+                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                     <h3>{$param['title']}</h3>
+                  </div>
+                  <div class="modal-body">
+                     <iframe id='iframe$domid' class="iframe hidden"
+                        width="100%" height="400" frameborder="0">
+                     </iframe>
+                  </div>
+               </div>
             </div>
-        ';
+         </div>
+HTML;
 
-        $domid = jsescape($domid);
+        $reloadonclose = $param['reloadonclose'] ? "true" : "false";
+        $autoopen      = $param['autoopen'] ? "true" : "false";
+        $js = <<<JAVASCRIPT
+      $(function() {
+         myModalEl{$rand} = document.getElementById('{$domid}');
+         myModal{$rand}   = new bootstrap.Modal(myModalEl{$rand});
 
-        $js = '
-            $(function() {
-                myModalEl' . $rand . ' = document.getElementById("' . $domid . '");
-                myModal' . $rand . '   = new bootstrap.Modal(myModalEl' . $rand . ');
+         // move modal to body
+         $(myModalEl{$rand}).appendTo($("body"));
 
-                // move modal to body
-                $(myModalEl' . $rand . ').appendTo($("body"));
+         myModalEl{$rand}.addEventListener('show.bs.modal', function () {
+            $('#iframe{$domid}').attr('src','{$url}').removeClass('hidden');
+         });
+         myModalEl{$rand}.addEventListener('hide.bs.modal', function () {
+            if ({$reloadonclose}) {
+               window.location.reload()
+            }
+         });
 
-                myModalEl' . $rand . '.addEventListener("show.bs.modal", function () {
-                    $("#iframe' . $domid . '").attr("src", "' . jsescape($url) . '").removeClass("hidden");
-                });
-        ';
-        if ($param['reloadonclose']) {
-            $js .= '
-                myModalEl' . $rand . '.addEventListener("hide.bs.modal", function () {
-                    window.location.reload()
-                });
-            ';
-        }
-        if ($param['autoopen']) {
-            $js .= '
-                myModal' . $rand . '.show();
-            ';
-        }
-        $js .= '
-                var iframeEl' . $rand . ' = document.getElementById("iframe' . $domid . '");
+         if ({$autoopen}) {
+            myModal{$rand}.show();
+         }
 
-                var resizeIframe' . $rand . ' = function() {
-                    try {
-                        var doc = iframeEl' . $rand . '.contentWindow.document;
-                        // Set height to content height, BUT cap it at the screen height
-                        var h = Math.min(doc.documentElement.scrollHeight, doc.body.scrollHeight) || ' . ((int) $param['height']) . ';
-                    } catch(e) {
-                        var h = ' . ((int) $param['height']) . ';
-                    }
-                    $("#iframe' . $domid . '").height(h);
+         document.getElementById('iframe$domid').onload = function() {
+            if ({$param['height']} !== 'undefined') {
+               var h =  {$param['height']};
+            } else {
+               var h =  $('#iframe{$domid}').contents().height();
+            }
+            if ({$param['width']} !== 'undefined') {
+               var w =  {$param['width']};
+            } else {
+               var w =  $('#iframe{$domid}').contents().width();
+            }
 
-                    // reajust height to content
-                    myModal' . $rand . '.handleUpdate();
-                };
+            $('#iframe{$domid}')
+               .height(h);
 
-                iframeEl' . $rand . '.onload = function() {
-                    var w = ' . ((int) $param['width']) . ';
+            if (w >= 700) {
+               $('#{$domid} .modal-dialog').addClass('modal-xl');
+            } else if (w >= 500) {
+               $('#{$domid} .modal-dialog').addClass('modal-lg');
+            } else if (w <= 300) {
+               $('#{$domid} .modal-dialog').addClass('modal-sm');
+            }
 
-                    resizeIframe' . $rand . '();
+            // reajust height to content
+            myModal{$rand}.handleUpdate()
+         };
+      });
+JAVASCRIPT;
 
-                    if (w >= 700) {
-                        $("#' . $domid . ' .modal-dialog").addClass("modal-xl");
-                    } else if (w >= 500) {
-                        $("#' . $domid . ' .modal-dialog").addClass("modal-lg");
-                    } else if (w <= 300) {
-                        $("#' . $domid . ' .modal-dialog").addClass("modal-sm");
-                    }
-                };
-
-                $(window).on("resize.iframemodal' . $rand . '", resizeIframe' . $rand . ');
-            });
-        ';
-
-        $out = Html::scriptBlock($js) . trim($html);
+        $out = "<script type='text/javascript'>$js</script>" . trim($html);
 
         if ($param['display']) {
             echo $out;
@@ -283,7 +261,7 @@ class Ajax
      *                                                                   url    => 'url_toload',
      *                                                                   params => 'url_params')...
      * @param string  $type             itemtype for active tab
-     * @param int $ID               ID of element for active tab (default 0)
+     * @param integer $ID               ID of element for active tab (default 0)
      * @param string  $orientation      orientation of tabs (default vertical may also be horizontal)
      * @param array   $options          Display options
      *
@@ -298,6 +276,9 @@ class Ajax
         $orientation = 'vertical',
         $options = []
     ) {
+        /** @var array $CFG_GLPI */
+        global $CFG_GLPI;
+
         if (count($tabs) === 0) {
             return;
         }
@@ -338,12 +319,8 @@ class Ajax
                 $nav_width      = "";
             }
 
-            if (($options['in_modal'] ?? false)) {
-                $border = "border-0";
-            }
-
             echo "<div class='d-flex card-tabs $flex_container $orientation'>";
-            echo "<ul class='nav nav-tabs $flex_tab' id='" . htmlescape($tabdiv_id) . "' $nav_width role='tablist'>";
+            echo "<ul class='nav nav-tabs $flex_tab' id='$tabdiv_id' $nav_width role='tablist'>";
             $html_tabs = "";
             $html_sele = "";
             $i = 0;
@@ -357,76 +334,33 @@ class Ajax
                 $display_class = "d-none";
             }
 
-            foreach ($tabs as $tab_key => $val) {
+            foreach ($tabs as $val) {
                 $target = str_replace('\\', '_', $val['id']);
-                $tab_content_url = $val['url'] . (isset($val['params']) ? '?' . $val['params'] : '');
-                $selected = $active_id == $target ? 'selected' : '';
-                $title = $val['title'];
+                $html_tabs .= "<li class='nav-item $navitemml'>
+               <a class='nav-link justify-content-between $navlinkp $display_class' data-bs-toggle='tab' title='" . strip_tags($val['title']) . "' ";
+                $html_tabs .= " href='" . $val['url'] . (isset($val['params']) ? '?' . $val['params'] : '') . "' data-bs-target='#{$target}'>";
+                $html_tabs .= $val['title'] . "</a></li>";
 
-                // Format the badge with parentheses before stripping tags for option and aria-label
-                $title_clean = preg_replace('/<span[^>]*class="[^"]*\bbadge\b[^"]*"[^>]*>(.*?)<\/span>/', '($1)', $title);
-                $title_clean = strip_tags($title_clean);
-
-                // Compute direct link that user can reach in a new tab using
-                // middle mouse click.
-                // TODO: ctrl+click should have the same behavior but it seems
-                // to be caught by the tabs events handler and does not trigger
-                // a new browser tab.
-                $direct_link_url = $_SERVER['REQUEST_URI'];
-                if (count($_GET)) {
-                    $direct_link_url .= count($_GET) ? '&' : '?';
-                } elseif (!str_contains($direct_link_url, "?")) {
-                    $direct_link_url .= "?";
-                }
-                $direct_link_url .= "forcetab=$tab_key";
-
-                if ($tab_key !== -1) {
-                    $html_tabs .= "
-                        <li class='nav-item $navitemml'>
-                            <a
-                                class='nav-link justify-content-between $navlinkp $display_class'
-                                data-bs-toggle='tab'
-                                data-glpi-ajax-content='" . htmlescape($tab_content_url) . "'
-                                href='" . htmlescape($direct_link_url) . "'
-                                data-bs-target='#" . htmlescape($target) . "'
-                                aria-label='{$title_clean}'
-                            >{$title}</a>
-                        </li>
-                    ";
-                    $html_sele .= "<option value='$i' {$selected}>{$title_clean}</option>";
-                } else {
-                    // All tabs
-                    $html_tabs .= <<<HTML
-                        <li class='nav-item $navitemml'>
-                            <a class='nav-link justify-content-between $navlinkp $display_class' data-bs-toggle='tab'
-                                href='#' data-show-all-tabs="true">{$title}</a>
-                        </li>
-HTML;
-                    $html_sele .= "<option value='$i' {$selected}>{$title_clean}</option>";
-                }
+                $html_sele .= "<option value='$i' " . ($active_id == $target ? "selected" : "") . ">
+               {$val['title']}
+            </option>";
                 $i++;
             }
             echo $html_tabs;
             echo "</ul>";
-            echo "<select class='form-select border-2 rounded-0 rounded-top d-md-none mb-2' id='" . htmlescape($tabdiv_id) . "-select'>$html_sele</select>";
+            echo "<select class='form-select border-2 border-secondary rounded-0 rounded-top d-md-none mb-2' id='$tabdiv_id-select'>$html_sele</select>";
 
             echo "<div class='tab-content p-2 flex-grow-1 card $border' style='min-height: 150px'>";
             foreach ($tabs as $val) {
                 $id = str_replace('\\', '_', $val['id']);
-                echo "<div data-glpi-tab-content class='tab-pane fade' role='tabpanel' id='" . htmlescape($id) . "'></div>";
+                echo "<div class='tab-pane fade' role='tabpanel' id='{$id}'></div>";
             }
             echo  "</div>"; // .tab-content
             echo "</div>"; // .container-fluid
-
-            $type = jsescape($type);
-            $ID = jsescape($ID);
-            $withtemplate = (int) ($_GET['withtemplate'] ?? 0);
-            $tabdiv_id = jsescape($tabdiv_id);
-            $active_id = jsescape($active_id);
-            $js = <<<JS
+            $js = "
          var url_hash = window.location.hash;
          var loadTabContents = function (tablink, force_reload = false, update_session_tab = true) {
-            var url = tablink.data('glpi-ajax-content');
+            var url = tablink.attr('href');
             var base_url = CFG_GLPI.url_base;
             if (base_url === '') {
                 // If base URL is not configured, fallback to current URL domain + GLPI base dir.
@@ -437,20 +371,33 @@ HTML;
 
             const updateCurrentTab = () => {
                 $.get(
-                  CFG_GLPI.root_doc + '/ajax/updatecurrenttab.php',
+                  '{$CFG_GLPI['root_doc']}/ajax/updatecurrenttab.php',
                   {
-                     itemtype: '$type',
+                     itemtype: '" . addslashes($type) . "',
                      id: '$ID',
                      tab_key: href_url_params.get('_glpi_tab'),
-                     withtemplate: $withtemplate
+                     withtemplate: " . (int) ($_GET['withtemplate'] ?? 0) . "
                   }
-               );
+               ).done(function() {
+                    // try to restore the scroll on a specific anchor
+                    if (url_hash.length > 0) {
+                        // as we load content by ajax, when full page was ready, the anchor was not present
+                        // se we recall it to force the scroll.
+                        window.location.href = url_hash;
+
+                        // animate item with a flash
+                        $(url_hash).addClass('animate__animated animate__shakeX animate__slower');
+
+                        // unset hash (to avoid scrolling when changing tabs)
+                        url_hash   = '';
+                    }
+               });
             }
             if ($(target).html() && !force_reload) {
                 updateCurrentTab();
                 return;
             }
-            $(target).html(`<div class="d-flex justify-content-center"><span class="spinner-border spinner-border position-absolute m-5" role="status" aria-hidden="true"></span></div>`);
+            $(target).html('<i class=\"fas fa-3x fa-spinner fa-pulse position-absolute m-5 start-50\"></i>');
 
             $.get(url, function(data) {
                $(target).html(data);
@@ -460,42 +407,20 @@ HTML;
                if (update_session_tab) {
                    updateCurrentTab();
                }
-            }).done(function() {
-                // try to restore the scroll on a specific anchor
-                if (url_hash.length > 0) {
-                    // as we load content by ajax, when full page was ready, the anchor was not present
-                    // se we recall it to force the scroll.
-                    window.location.href = url_hash;
-
-                    // animate item with a flash
-                    $(url_hash).addClass('animate__animated animate__shakeX animate__slower');
-
-                    // unset hash (to avoid scrolling when changing tabs)
-                    url_hash   = '';
-                }
-            }).fail(function(data) {
-               $(target).html(data.responseText);
             });
          };
 
          var reloadTab = function (add) {
             var active_link = $('main #tabspanel .nav-item .nav-link.active');
 
-            // Update target AJAX endpoint URL and load tab contents
-            var current_url = active_link.data('glpi-ajax-content');
-            active_link.data('glpi-ajax-content', current_url + '&' + add);
+            // Update href and load tab contents
+            var currenthref = active_link.attr('href');
+            active_link.attr('href', currenthref + '&' + add);
             loadTabContents(active_link, true);
 
-            // Restore URL
-            active_link.data('glpi-ajax-content', current_url);
+            // Restore href
+            active_link.attr('href', currenthref);
          };
-
-         var loadAllTabs = () => {
-             const tabs = $('#$tabdiv_id a[data-bs-toggle=\"tab\"]');
-             tabs.each((index, tab) => {
-                loadTabContents($(tab));
-             });
-         }
 
          $(function() {
             // Keep track of the first load which will be the tab stored in the
@@ -506,16 +431,7 @@ HTML;
 
             $('a[data-bs-toggle=\"tab\"]').on('shown.bs.tab', function(e) {
                e.preventDefault();
-               if ($(this).attr('data-show-all-tabs') === 'true') {
-                  loadAllTabs();
-                  // show all tabs by adding active and show classes to all tabs
-                  $('#$tabdiv_id').parent().find('.tab-pane').addClass('active show').removeClass('fade');
-               } else {
-                  // Remove active and show classes from all tabs except the one that is clicked
-                  let clicked_tab = $(this).attr('data-bs-target');
-                  $('#$tabdiv_id').parent().find('.tab-pane:not(' + clicked_tab + ')').removeClass('active show');
-                  loadTabContents($(this), false, !first_load);
-               }
+               loadTabContents($(this), false, !first_load);
             });
 
             // load initial tab
@@ -527,7 +443,7 @@ HTML;
                $('#$tabdiv_id li a').eq($(this).val()).tab('show');
             });
          });
-JS;
+         ";
 
             echo Html::scriptBlock($js);
         }
@@ -542,10 +458,10 @@ JS;
      * @param string       $url          Url to get datas to update the item
      * @param array        $parameters   of parameters to send to ajax URL
      * @param array        $events       of the observed events (default 'change')
-     * @param int      $minsize      minimum size of data to update content (default -1)
-     * @param int      $buffertime   minimum time to wait before reload (default -1)
+     * @param integer      $minsize      minimum size of data to update content (default -1)
+     * @param integer      $buffertime   minimum time to wait before reload (default -1)
      * @param array        $forceloadfor of content which must force update content
-     * @param bool      $display      display or get string (default true)
+     * @param boolean      $display      display or get string (default true)
      *
      * @return void|string (see $display)
      */
@@ -561,8 +477,9 @@ JS;
         $display = true
     ) {
 
-        $js = "$(function() {";
-        $js .= self::updateItemOnEventJsCode(
+        $output  = "<script type='text/javascript'>";
+        $output .= "$(function() {";
+        $output .= self::updateItemOnEventJsCode(
             $toobserve,
             $toupdate,
             $url,
@@ -573,10 +490,7 @@ JS;
             $forceloadfor,
             false
         );
-        $js .=  "});";
-
-        $output = Html::scriptBlock($js);
-
+        $output .=  "});</script>";
         if ($display) {
             echo $output;
         } else {
@@ -592,7 +506,7 @@ JS;
      * @param string       $toupdate   id of the item to update
      * @param string       $url        Url to get datas to update the item
      * @param array        $parameters of parameters to send to ajax URL
-     * @param bool      $display    display or get string (default true)
+     * @param boolean      $display    display or get string (default true)
      *
      * @return void|string (see $display)
      */
@@ -619,6 +533,55 @@ JS;
 
 
     /**
+     * Javascript code for update an item when a Input text item changed
+     *
+     * @param string|array $toobserve    id of the Input text to observe
+     * @param string       $toupdate     id of the item to update
+     * @param string       $url          Url to get datas to update the item
+     * @param array        $parameters   of parameters to send to ajax URL
+     * @param integer      $minsize      minimum size of data to update content (default -1)
+     * @param integer      $buffertime   minimum time to wait before reload (default -1)
+     * @param array        $forceloadfor of content which must force update content
+     * @param boolean      $display      display or get string (default true)
+     *
+     * @return void|string (see $display)
+     */
+    public static function updateItemOnInputTextEvent(
+        $toobserve,
+        $toupdate,
+        $url,
+        $parameters = [],
+        $minsize = -1,
+        $buffertime = -1,
+        $forceloadfor = [],
+        $display = true
+    ) {
+
+        if (count($forceloadfor) == 0) {
+            $forceloadfor = ['*'];
+        }
+        // Need to define min size for text search
+        if ($minsize < 0) {
+            $minsize = 0;
+        }
+        if ($buffertime < 0) {
+            $buffertime = 0;
+        }
+        return self::updateItemOnEvent(
+            $toobserve,
+            $toupdate,
+            $url,
+            $parameters,
+            ["dblclick", "keyup"],
+            $minsize,
+            $buffertime,
+            $forceloadfor,
+            $display
+        );
+    }
+
+
+    /**
      * Javascript code for update an item when another item changed (Javascript code only)
      *
      * @param string|array $toobserve    id (or array of id) of the select to observe
@@ -626,10 +589,10 @@ JS;
      * @param string       $url          Url to get datas to update the item
      * @param array        $parameters   of parameters to send to ajax URL
      * @param array        $events       of the observed events (default 'change')
-     * @param int      $minsize      minimum size of data to update content (default -1)
-     * @param int      $buffertime   minimum time to wait before reload (default -1)
+     * @param integer      $minsize      minimum size of data to update content (default -1)
+     * @param integer      $buffertime   minimum time to wait before reload (default -1)
      * @param array        $forceloadfor of content which must force update content
-     * @param bool      $display      display or get string (default true)
+     * @param boolean      $display      display or get string (default true)
      *
      * @return void|string (see $display)
      */
@@ -644,9 +607,6 @@ JS;
         $forceloadfor = [],
         $display = true
     ) {
-        if ($buffertime !== -1) {
-            trigger_error('$buffertime parameter has no effect anymore.', E_USER_WARNING);
-        }
 
         if (is_array($toobserve)) {
             $zones = $toobserve;
@@ -656,23 +616,31 @@ JS;
         $output = '';
         foreach ($zones as $zone) {
             foreach ($events as $event) {
-                if (preg_match('/[^\w]+/', $event) === 1) {
-                    throw new InvalidArgumentException('Event name is expected to contain only alphanumeric chars.');
+                if ($buffertime > 0) {
+                    $output .= "var last$zone$event = 0;";
                 }
+                $output .= Html::jsGetElementbyID(Html::cleanId($zone)) . ".on(
+               '$event',
+               function(event) {";
+                // TODO manage buffer time !!?
+                // if ($buffertime > 0) {
+                //    $output.= "var elapsed = new Date().getTime() - last$zone$event;
+                //          last$zone$event = new Date().getTime();
+                //          if (elapsed < $buffertime) {
+                //             return;
+                //          }";
+                // }
 
-                $zone_id = jsescape(Html::cleanId($zone));
-
-                $output .= "$('#$zone_id').on('$event', function(event) {";
                 $condition = '';
                 if ($minsize >= 0) {
-                    $condition = "$('#$zone_id').val().length >= " . ((int) $minsize);
+                    $condition = Html::jsGetElementbyID(Html::cleanId($zone)) . ".val().length >= $minsize ";
                 }
                 if (count($forceloadfor)) {
                     foreach ($forceloadfor as $value) {
                         if (!empty($condition)) {
                             $condition .= " || ";
                         }
-                        $condition .= "$('#$zone_id').val() == '" . jsescape($value) . "'";
+                        $condition .= Html::jsGetElementbyID(Html::cleanId($zone)) . ".val() == '$value'";
                     }
                 }
                 if (!empty($condition)) {
@@ -683,7 +651,7 @@ JS;
                     $output .= "}";
                 }
                 $output .=  "}";
-                $output .= ");";
+                $output .= ");\n";
             }
         }
         if ($display) {
@@ -702,7 +670,7 @@ JS;
      *               (need value_fieldname, to_update,
      *                url (@see Ajax::updateItemOnSelectEvent for information)
      *                and may have moreparams)
-     * @param bool $display display or get string (default true)
+     * @param boolean $display display or get string (default true)
      *
      * @return void|string (see $display)
      */
@@ -715,14 +683,14 @@ JS;
         // Old scheme
         if (
             isset($options["update_item"])
-            && (is_array($options["update_item"]) || ((string) $options["update_item"] !== ''))
+            && (is_array($options["update_item"]) || (strlen($options["update_item"]) > 0))
         ) {
             $field     = "update_item";
         }
         // New scheme
         if (
             isset($options["toupdate"])
-            && (is_array($options["toupdate"]) || ((string) $options["toupdate"] !== ''))
+            && (is_array($options["toupdate"]) || (strlen($options["toupdate"]) > 0))
         ) {
             $field     = "toupdate";
         }
@@ -777,7 +745,7 @@ JS;
      * @param string|array $toobserve  id of another item used to get value in case of __VALUE__ used or array    of id to get value in case of __VALUE#__ used (default '')
      *                               or
      *                      array    of id to get value in case of __VALUE#__ used (default '')
-     * @param bool      $display    display or get string (default true)
+     * @param boolean      $display    display or get string (default true)
      *
      * @return void|string (see $display)
      */
@@ -789,8 +757,7 @@ JS;
         $display = true
     ) {
 
-        $out = sprintf('try { $("#%s").find(".select2-hidden-accessible").select2("destroy"); } catch(e) {}', jsescape($toupdate));
-        $out .= sprintf('$("#%s").load("%s"', jsescape($toupdate), jsescape($url));
+        $out = Html::jsGetElementbyID($toupdate) . ".load('$url'\n";
         if (count($parameters)) {
             $out .= ",{";
             $first = true;
@@ -808,17 +775,17 @@ JS;
 
                 $out .= $key . ":";
                 $regs = [];
-                if (is_string($val) && preg_match('/^__VALUE(\d+)__$/', $val, $regs)) {
-                    $out .= sprintf('$("#%s").val()', jsescape(Html::cleanId($toobserve[$regs[1]])));
-                } elseif (is_string($val) && $val === "__VALUE__") {
-                    $out .= sprintf('$("#%s").val()', jsescape(Html::cleanId($toobserve)));
+                if (!is_array($val) && preg_match('/^__VALUE(\d+)__$/', $val ?? '', $regs)) {
+                    $out .=  Html::jsGetElementbyID(Html::cleanId($toobserve[$regs[1]])) . ".val()";
+                } elseif (!is_array($val) && $val === "__VALUE__") {
+                    $out .=  Html::jsGetElementbyID(Html::cleanId($toobserve)) . ".val()";
                 } else {
                     $out .=  json_encode($val);
                 }
             }
-            $out .= "}";
+            $out .= "}\n";
         }
-        $out .= ")";
+        $out .= ")\n";
         if ($display) {
             echo $out;
         } else {
@@ -834,19 +801,17 @@ JS;
      * @param array   $parameters of parameters to send to ajax URL
      * @param string  $toobserve  id of another item used to get value in case of __VALUE__ used
      *                               (default '')
-     * @param bool $display    display or get string (default true)
+     * @param boolean $display    display or get string (default true)
      *
      * @return void|string (see $display)
      */
     public static function updateItem($toupdate, $url, $parameters = [], $toobserve = "", $display = true)
     {
 
-        $js = "$(function() {";
-        $js .= self::updateItemJsCode($toupdate, $url, $parameters, $toobserve, false);
-        $js .= "});";
-
-        $output = Html::scriptBlock($js);
-
+        $output  = "<script type='text/javascript'>";
+        $output .= "$(function() {";
+        $output .= self::updateItemJsCode($toupdate, $url, $parameters, $toobserve, false);
+        $output .= "});</script>";
         if ($display) {
             echo $output;
         } else {

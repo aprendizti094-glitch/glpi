@@ -33,14 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 Session::checkRight("device", READ);
 
-Html::header(_n('Component', 'Components', Session::getPluralNumber()), '', "config", "commondevice");
-echo "<div class='text-center'>";
+Html::header(_n('Component', 'Components', Session::getPluralNumber()), $_SERVER['PHP_SELF'], "config", "commondevice");
+echo "<div class='center'>";
 
-$optgroup = Dropdown::getDeviceItemTypes(true);
+$optgroup = Dropdown::getDeviceItemTypes();
+Dropdown::showItemTypeMenu(_n('Component', 'Components', Session::getPluralNumber()), $optgroup);
 Dropdown::showItemTypeList($optgroup);
 
 echo "</div>";

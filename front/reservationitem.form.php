@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 Session::checkRightsOr('reservation', [CREATE, UPDATE, DELETE, PURGE]);
@@ -77,7 +77,7 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST["purge"])) {
     $ri->check($_POST["id"], PURGE);
-    $ri->delete($_POST, true);
+    $ri->delete($_POST, 1);
 
     Event::log(
         $_POST['id'],
@@ -102,7 +102,7 @@ if (isset($_POST["add"])) {
     Html::back();
 } else {
     $ri->check($_GET["id"], READ);
-    Html::header(Reservation::getTypeName(Session::getPluralNumber()), '', "tools", "reservationitem");
+    Html::header(Reservation::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "tools", "reservationitem");
     $ri->showForm($_GET["id"]);
 }
 

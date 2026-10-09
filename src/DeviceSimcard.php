@@ -45,6 +45,7 @@ class DeviceSimcard extends CommonDevice
 
     public function getAdditionalFields()
     {
+
         return array_merge(
             parent::getAdditionalFields(),
             [
@@ -75,7 +76,7 @@ class DeviceSimcard extends CommonDevice
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'voltage',
             'name'               => __('Voltage'),
             'datatype'           => 'integer',
@@ -91,7 +92,7 @@ class DeviceSimcard extends CommonDevice
 
         $tab[] = [
             'id'                 => '14',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'allow_voip',
             'name'               => __('Allow VOIP'),
             'datatype'           => 'bool',
@@ -100,8 +101,16 @@ class DeviceSimcard extends CommonDevice
         return $tab;
     }
 
+    /**
+     * Criteria used for import function
+     *
+     * @see CommonDevice::getImportCriteria()
+     *
+     * @since 9.2
+     **/
     public function getImportCriteria()
     {
+
         return [
             'designation'             => 'equal',
             'manufacturers_id'        => 'equal',
@@ -109,8 +118,9 @@ class DeviceSimcard extends CommonDevice
         ];
     }
 
+
     public static function getIcon()
     {
-        return "ti ti-device-sim";
+        return "fas fa-sim-card";
     }
 }

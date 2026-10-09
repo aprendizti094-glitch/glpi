@@ -38,6 +38,9 @@ class RuleDictionnaryNetworkEquipmentModelCollection extends RuleDictionnaryDrop
     public $item_table  = "glpi_networkequipmentmodels";
     public $menu_option = "model.networking";
 
+    /**
+     * @see RuleCollection::getTitle()
+     **/
     public function getTitle()
     {
         return __('Dictionary of networking equipment models');

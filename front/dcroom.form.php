@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight("datacenter", READ);
 
@@ -93,7 +93,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $room->check($_POST["id"], PURGE);
 
-    $room->delete($_POST, true);
+    $room->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "dcrooms",
@@ -129,6 +129,6 @@ if (isset($_POST["add"])) {
         $datacenter->getFromDB($options['datacenters_id']);
         $options['locations_id'] = $datacenter->fields['locations_id'];
     }
-    $menus = ["management", "datacenter", "DCRoom"];
+    $menus = ["management", "datacenter", "dcroom"];
     DCRoom::displayFullPageForItem($_GET["id"], $menus, $options);
 }

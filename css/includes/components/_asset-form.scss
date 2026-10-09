@@ -34,21 +34,20 @@
 .asset,
 .navigationheader {
     .card-header {
-        background-color: var(--glpi-form-header-bg);
-        color: var(--glpi-form-header-fg);
-        border-color: var(--glpi-form-header-border-color);
-        padding: var(--tblr-card-cap-padding-y, 1rem) var(--tblr-card-cap-padding-x, 1.25rem);
+        background-color: $header-bg;
+        color: $header-fg;
+        border-color: $header-border-color;
 
         &:not(.main-header) {
-            border-top: 1px solid var(--glpi-form-header-border-color);
+            border-top: 1px solid $header-border-color;
         }
 
         .badge {
             @include tabler-badge-fix;
 
             &.entity-name {
-                background-color: var(--glpi-form-header-bg);
-                color: var(--glpi-form-header-fg);
+                background-color: $header-badge-bg;
+                color: $header-badge-fg;
             }
         }
 
@@ -66,13 +65,13 @@
 
     &.asset-deleted {
         .card-header {
-            background-color: var(--glpi-form-header-danger-bg);
-            color: var(--glpi-form-header-danger-fg);
-            border-color: var(--glpi-form-header-border-danger-color);
+            background-color: tint-color($header-danger-bg, 30%);
+            color: shade-color($header-danger-bg, 50%);
+            border-color: shade-color($header-danger-bg, 50%);
 
             .badge.entity-name {
-                background-color: var(--glpi-form-header-danger-bg);
-                color: var(--glpi-form-header-danger-fg);
+                background-color: tint-color($header-danger-bg, 80%);
+                color: shade-color($header-danger-bg, 50%);
             }
         }
     }
@@ -88,38 +87,9 @@
 }
 
 .navigationheader {
-    &.asset-deleted {
-        .main-header {
-            .status {
-                background-color: var(--glpi-form-header-danger-bg);
-                color: var(--glpi-form-header-danger-fg);
-                border-color: var(--glpi-form-header-border-danger-color);
-            }
-        }
-    }
-
-    &:not(.asset-deleted) {
-        #header-is-deleted {
-            display: none;
-        }
-    }
-
-    .pagination-left {
-        order: 1;
-        text-align: left;
-        display: flex;
-    }
-
-    .pagination-right {
-        order: 3;
-        text-align: right;
-        display: flex;
-    }
-
     .main-header {
         padding-top: 0;
         padding-bottom: 0;
-        order: 2;
 
         .ribbon {
             position: relative;
@@ -130,31 +100,5 @@
     .card-header {
         background-color: transparent !important;
         border-color: transparent !important;
-    }
-}
-
-@media (max-width: 1200px) {
-    .navigationheader {
-        flex-wrap: wrap;
-
-        .pagination-left {
-            order: 1;
-            width: 50%;
-            place-content: start;
-        }
-
-        .pagination-right {
-            order: 2;
-            width: 50%;
-            place-content: end;
-        }
-
-        .main-header {
-            width: 100%;
-            order: 3;
-            margin-top: 0 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-        }
     }
 }

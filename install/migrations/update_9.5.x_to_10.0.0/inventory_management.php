@@ -33,8 +33,9 @@
  */
 
 /**
- * @var DBmysql $DB
+ * @var \DBmysql $DB
  */
+
 $default_charset = DBConnection::getDefaultCharset();
 $default_collation = DBConnection::getDefaultCollation();
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
@@ -51,5 +52,5 @@ if (!$DB->tableExists('glpi_items_remotemanagements')) {
          KEY `is_dynamic` (`is_dynamic`),
          KEY `item` (`itemtype`,`items_id`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_items_remotemanagements");
 }

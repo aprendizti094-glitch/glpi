@@ -33,16 +33,16 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/../_check_webserver_config.php');
+include('../../inc/includes.php');
 
 use Glpi\ContentTemplates\TemplateManager;
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Toolbox\MarkdownRenderer;
+use Glpi\Http\Response;
+use Michelf\MarkdownExtra;
 
 // Check mandatory parameter
 $preset = $_GET['preset'] ?? null;
 if (is_null($preset)) {
-    throw new BadRequestHttpException("Missing mandatory 'preset' parameter");
+    Response::sendError(400, "Missing mandatory 'preset' parameter", Response::CONTENT_TYPE_TEXT_HTML);
 }
 
 Html::includeHeader(__("Template variables documentation"));
@@ -51,8 +51,11 @@ echo "<div id='page'>";
 echo "<div class='documentation documentation-large'>";
 
 // Parse markdown
-$md = new MarkdownRenderer();
-echo $md->render(TemplateManager::generateMarkdownDocumentation($preset));
+$md = new MarkdownExtra();
+$md->header_id_func = function ($headerName) {
+    return Toolbox::slugify($headerName, '');
+};
+echo $md->transform(TemplateManager::generateMarkdownDocumentation($preset));
 
 echo "</div>";
 echo "</div>";

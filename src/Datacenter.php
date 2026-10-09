@@ -52,11 +52,6 @@ class Datacenter extends CommonDBTM
         return _n('Data center', 'Data centers', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['management', self::class];
-    }
-
     public function prepareInputForAdd($input)
     {
         $input = parent::prepareInputForAdd($input);
@@ -74,7 +69,7 @@ class Datacenter extends CommonDBTM
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
-         ->addStandardTab(DCRoom::class, $ong, $options);
+         ->addStandardTab('DCRoom', $ong, $options);
         return $ong;
     }
 
@@ -138,11 +133,6 @@ class Datacenter extends CommonDBTM
         return $tab;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     *
-     * @return array
-     */
     public static function rawSearchOptionsToAdd($itemtype)
     {
         $tab = [];
@@ -205,11 +195,12 @@ class Datacenter extends CommonDBTM
     public static function getAdditionalMenuLinks()
     {
         $links = [];
-        $label = htmlescape(DCRoom::getTypeName(Session::getPluralNumber()));
         if (static::canView()) {
             $rooms = "<i class='ti ti-building pointer'
-                      title=\"$label\"></i>
-            <span class='d-none d-xxl-block ps-1'>$label</span>";
+                      title=\"" . DCRoom::getTypeName(Session::getPluralNumber()) . "\"></i>
+            <span class='d-none d-xxl-block ps-1'>
+               " . DCRoom::getTypeName(Session::getPluralNumber()) . "
+            </span>";
             $links[$rooms] = DCRoom::getSearchURL(false);
         }
         if (count($links)) {
@@ -222,7 +213,7 @@ class Datacenter extends CommonDBTM
     {
         if (static::canView()) {
             return [
-                DCRoom::class => [
+                'dcroom' => [
                     'title' => DCRoom::getTypeName(Session::getPluralNumber()),
                     'page'  => DCRoom::getSearchURL(false),
                     'icon'  => DCRoom::getIcon(),

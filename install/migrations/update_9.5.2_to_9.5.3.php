@@ -35,18 +35,20 @@
 /**
  * Update from 9.5.2 to 9.5.3
  *
- * @return bool
+ * @return bool for success (will die for most error)
  **/
 function update952to953()
 {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
     global $DB, $migration;
 
     $updateresult     = true;
 
+    //TRANS: %s is the number of new version
+    $migration->displayTitle(sprintf(__('Update to %s'), '9.5.3'));
     $migration->setVersion('9.5.3');
 
     /* Fix rule criteria names */

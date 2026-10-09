@@ -33,20 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\preg_match;
-use function Safe\unlink;
-
 /** GLPIUploadHandler class
  *
  * @since 9.2
  **/
 class GLPIUploadHandler extends UploadHandler
 {
-    /**
-     * @param array $params
-     *
-     * @return mixed
-     */
     public static function uploadFiles($params = [])
     {
         $default_params = [
@@ -87,19 +79,10 @@ class GLPIUploadHandler extends UploadHandler
         return $upload_handler->generate_response($response, $params['print_response']);
     }
 
-    /**
-     * @param string $uploaded_file
-     * @param stdClass $file
-     * @param int $error
-     * @param int $index
-     * @param ?array $content_range
-     *
-     * @return bool
-     */
     protected function validate($uploaded_file, $file, $error, $index, $content_range)
     {
         if (
-            !empty(GLPI_DISALLOWED_UPLOADS_PATTERN)
+            !empty(GLPI_DISALLOWED_UPLOADS_PATTERN) // @phpstan-ignore empty.expr
             && preg_match(GLPI_DISALLOWED_UPLOADS_PATTERN, $file->name) === 1
         ) {
             $file->error = __('The file upload has been refused for security reasons.');

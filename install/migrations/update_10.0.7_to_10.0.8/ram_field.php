@@ -32,15 +32,12 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-
-use function Safe\preg_replace;
-
 foreach (['glpi_computervirtualmachines', 'glpi_networkequipments'] as $table) {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
+
     // field has to be nullable to be able to set empty values to null
     $migration->changeField(
         $table,
@@ -57,13 +54,13 @@ foreach (['glpi_computervirtualmachines', 'glpi_networkequipments'] as $table) {
         ],
     ]);
     foreach ($iterator as $row) {
-        $DB->update(
+        $DB->updateOrDie(
             $table,
             ['ram' => preg_replace('/[^0-9]+/', '', $row['ram'])],
             ['id'  => $row['id']]
         );
     }
-    $DB->update(
+    $DB->updateOrDie(
         $table,
         ['ram' => null],
         [

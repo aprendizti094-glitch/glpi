@@ -34,25 +34,14 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
-use Glpi\Features\DCBreadcrumb;
-use Glpi\Features\DCBreadcrumbInterface;
-use Glpi\Features\StateInterface;
 
 /**
  * Enclosure Class
  **/
-class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcrumbInterface, StateInterface
+class Enclosure extends CommonDBTM
 {
-    use DCBreadcrumb;
-    /** @use Clonable<static> */
-    use Clonable;
-    use Glpi\Features\State;
-    use AssignableItem {
-        prepareInputForAdd as prepareInputForAddAssignableItem;
-    }
+    use Glpi\Features\DCBreadcrumb;
+    use Glpi\Features\Clonable;
 
     // From CommonDBTM
     public $dohistory                   = true;
@@ -64,9 +53,6 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
             Item_Enclosure::class,
             Item_Devices::class,
             NetworkPort::class,
-            Contract_Item::class,
-            Document_Item::class,
-            Infocom::class,
         ];
     }
 
@@ -75,31 +61,21 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
         return _n('Enclosure', 'Enclosures', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['assets', self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'inventory';
-    }
-
     public function defineTabs($options = [])
     {
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
-         ->addStandardTab(Item_Enclosure::class, $ong, $options)
-         ->addStandardTab(Item_Devices::class, $ong, $options)
-         ->addStandardTab(NetworkPort::class, $ong, $options)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Contract_Item::class, $ong, $options)
-         ->addStandardTab(Document_Item::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Item_Enclosure', $ong, $options)
+         ->addStandardTab('Item_Devices', $ong, $options)
+         ->addStandardTab('NetworkPort', $ong, $options)
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Contract_Item', $ong, $options)
+         ->addStandardTab('Document_Item', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
         return $ong;
     }
 
@@ -112,7 +88,7 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
      *     - target filename : where to go when done.
      *     - withtemplate boolean : template or basic item
      *
-     * @return bool item found
+     * @return boolean item found
      **/
     public function showForm($ID, array $options = [])
     {
@@ -150,11 +126,11 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
 
         $tab[] = [
             'id'                 => '31',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_enclosure' => 1],
         ];
 
         $tab[] = [
@@ -177,7 +153,7 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
             'id'                 => '16',
             'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
@@ -221,20 +197,9 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
             'id'                 => '49',
             'table'              => 'glpi_groups',
             'field'              => 'completename',
-            'linkfield'          => 'groups_id',
+            'linkfield'          => 'groups_id_tech',
             'name'               => __('Group in charge'),
             'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
@@ -263,8 +228,6 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
 
         $tab = array_merge($tab, Rack::rawSearchOptionsToAdd(get_class($this)));
 
-        $tab = array_merge($tab, EnclosureModel::rawSearchOptionsToAdd());
-
         $tab = array_merge($tab, DCRoom::rawSearchOptionsToAdd());
 
         return $tab;
@@ -274,7 +237,7 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
      * Get already filled places
      *
      * @param string  $itemtype  The item type
-     * @param int $items_id  The item's ID
+     * @param integer $items_id  The item's ID
      *
      * @return array [x => ['depth' => 1, 'orientation' => 0, 'width' => 1, 'hpos' =>0]]
      *               orientation will not be available if depth is > 0.5; hpos will not be available
@@ -282,6 +245,7 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
      */
     public function getFilled($itemtype = null, $items_id = null)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -313,26 +277,9 @@ class Enclosure extends CommonDBTM implements AssignableItemInterface, DCBreadcr
         );
     }
 
-    public function getFormOptionsFromUrl(array $query_params): array
-    {
-        $options = [];
-
-        if (isset($query_params['position'])) {
-            $options['position'] = $query_params['position'];
-        }
-        if (isset($query_params['room'])) {
-            $options['room'] = $query_params['room'];
-        }
-
-        return $options;
-    }
 
     public function prepareInputForAdd($input)
     {
-        $input = $this->prepareInputForAddAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
         if (isset($input["id"]) && ($input["id"] > 0)) {
             $input["_oldID"] = $input["id"];
         }

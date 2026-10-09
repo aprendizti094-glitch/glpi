@@ -33,27 +33,30 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
-
 /**
  * @since 0.85
  */
 
+use Glpi\Event;
+
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+if (!defined('GLPI_ROOT')) {
+    include('../inc/includes.php');
+}
 
 $link = new Change_User();
 $item = new Change();
 
-Html::popHeader(__('Email followup'));
+Session::checkLoginUser();
+Html::popHeader(__('Email followup'), $_SERVER['PHP_SELF']);
 
 if (isset($_POST["update"])) {
     $link->check($_POST["id"], UPDATE);
 
     $link->update($_POST);
-    echo "<script type='text/javascript' >";
+    echo "<script type='text/javascript' >\n";
     echo "window.parent.location.reload();";
     echo "</script>";
 } elseif (isset($_POST['delete'])) {
@@ -73,14 +76,16 @@ if (isset($_POST["update"])) {
         Html::redirect(Change::getFormURLWithID($link->fields['changes_id']));
     }
     Session::addMessageAfterRedirect(
-        __s('You have been redirected because you no longer have access to this item'),
+        __('You have been redirected because you no longer have access to this item'),
         true,
         ERROR
     );
 
     Html::redirect($CFG_GLPI["root_doc"] . "/front/change.php");
+} elseif (isset($_GET["id"])) {
+    $link->showUserNotificationForm($_GET["id"]);
 } else {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie('Lost');
 }
 
 Html::popFooter();

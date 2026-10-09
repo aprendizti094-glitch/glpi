@@ -36,10 +36,9 @@
 /**
  * @since 0.84
  **/
-class HTMLTableSubHeader extends HTMLTableHeader implements HTMLCompositeTableInterface
+class HTMLTableSubHeader extends HTMLTableHeader
 {
     // The headers of each column
-    /** @var HTMLTableSuperHeader The headers of each column */
     private $header;
     public $numberOfSubHeaders;
 
@@ -47,7 +46,7 @@ class HTMLTableSubHeader extends HTMLTableHeader implements HTMLCompositeTableIn
      * @param HTMLTableSuperHeader $header
      * @param string               $name
      * @param string               $content
-     * @param ?HTMLTableHeader     $father
+     * @param HTMLTableHeader      $father
      **/
     public function __construct(
         HTMLTableSuperHeader $header,
@@ -61,41 +60,42 @@ class HTMLTableSubHeader extends HTMLTableHeader implements HTMLCompositeTableIn
         $this->copyAttributsFrom($this->header);
     }
 
+
     public function isSuperHeader()
     {
         return false;
     }
 
+
     public function getHeaderAndSubHeaderName(&$header_name, &$subheader_name)
     {
+
         $header_name    = $this->header->getName();
         $subheader_name = $this->getName();
     }
 
-    #[Override]
-    public function getCompositeName(): string
+
+    public function getCompositeName()
     {
         return $this->header->getCompositeName() . $this->getName();
     }
+
 
     protected function getTable()
     {
         return $this->header->getTable();
     }
 
-    /**
-     * @return HTMLTableSuperHeader
-     */
+
     public function getHeader()
     {
         return $this->header;
     }
 
+
     /**
-     * @param int $numberOfSubHeaders
-     *
-     * @return void
-     */
+     * @param $numberOfSubHeaders
+     **/
     public function updateColSpan($numberOfSubHeaders)
     {
         $this->setColSpan($this->header->getColSpan() / $numberOfSubHeaders);

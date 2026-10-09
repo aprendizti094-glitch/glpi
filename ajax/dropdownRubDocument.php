@@ -33,12 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\preg_match;
-
+/** @var \DBmysql $DB */
 global $DB;
 
-header("Content-Type: text/html; charset=UTF-8");
-Html::header_nocache();
+if (strpos($_SERVER['PHP_SELF'], "dropdownRubDocument.php")) {
+    $AJAX_INCLUDE = 1;
+    include('../inc/includes.php');
+    header("Content-Type: text/html; charset=UTF-8");
+    Html::header_nocache();
+}
 
 Session::checkCentralAccess();
 
@@ -63,19 +66,11 @@ if (isset($_POST["rubdoc"])) {
     }
 
     if (preg_match('/[^a-z_\-0-9]/i', $_POST['myname'])) {
-        throw new RuntimeException('Invalid name provided!');
+        throw new \RuntimeException('Invalid name provided!');
     }
 
-    if (!isset($_POST['entity']) || $_POST['entity'] === '' || $_POST['entity'] === []) {
+    if (!isset($_POST['entity']) || $_POST['entity'] === '') {
         $_POST['entity'] = $_SESSION['glpiactive_entity'];
-    }
-
-    // `entity` may be a single entity id (scalar) or a list of entity ids
-    // (e.g. a recursive item passes the whole entities subtree).
-    if (is_array($_POST['entity'])) {
-        $entity = array_values(array_map('intval', $_POST['entity']));
-    } else {
-        $entity = (int) $_POST['entity'];
     }
 
     Dropdown::show(
@@ -84,7 +79,7 @@ if (isset($_POST["rubdoc"])) {
             'name'      => $_POST['myname'],
             'used'      => $used,
             'width'     => '50%',
-            'entity'    => $entity,
+            'entity'    => intval($_POST['entity']),
             'rand'      => intval($_POST['rand']),
             'condition' => ['glpi_documents.documentcategories_id' => (int) $_POST["rubdoc"]],
             'value'     => (int) ($_POST['value'] ?? -1),

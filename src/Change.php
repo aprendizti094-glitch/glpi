@@ -35,15 +35,12 @@
 
 use Glpi\Application\View\TemplateRenderer;
 use Glpi\ContentTemplates\Parameters\ChangeParameters;
-use Glpi\ContentTemplates\Parameters\CommonITILObjectParameters;
-use Glpi\DBAL\QueryExpression;
 use Glpi\RichText\RichText;
-use Glpi\Search\DefaultSearchRequestInterface;
 
 /**
  * Change Class
  **/
-class Change extends CommonITILObject implements DefaultSearchRequestInterface
+class Change extends CommonITILObject
 {
     // From CommonDBTM
     public $dohistory                   = true;
@@ -54,7 +51,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
     public $grouplinkclass              = 'Change_Group';
     public $supplierlinkclass           = 'Change_Supplier';
 
-    public static $rightname            = 'change';
+    public static $rightname                   = 'change';
     protected $usenotepad               = true;
 
     public const MATRIX_FIELD                  = 'priority_matrix';
@@ -62,32 +59,26 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
     public const IMPACT_MASK_FIELD             = 'impact_mask';
     public const STATUS_MATRIX_FIELD           = 'change_status';
 
-    // Specific status for changes
-    public const EVALUATION             = 9;
-    public const TEST                   = 11;
-    public const QUALIFICATION          = 12;
-    public const REFUSED                = 13;
-    public const CANCELED               = 14;
 
-    #[Override]
+    public const READMY                        = 1;
+    public const READALL                       = 1024;
+
+    // Specific status for changes
+    public const REFUSED                       = 13;
+    public const CANCELED                      = 14;
+
     public static function getTypeName($nb = 0)
     {
         return _n('Change', 'Changes', $nb);
     }
 
-    #[Override]
-    public static function getSectorizedDetails(): array
-    {
-        return ['helpdesk', self::class];
-    }
 
-    #[Override]
     public function canSolve()
     {
 
         return (self::isAllowedStatus($this->fields['status'], self::SOLVED)
               // No edition on closed status
-              && !in_array($this->fields['status'], static::getClosedStatusArray())
+              && !in_array($this->fields['status'], $this->getClosedStatusArray())
               && (Session::haveRight(self::$rightname, UPDATE)
                   || (Session::haveRight(self::$rightname, self::READMY)
                       && ($this->isUser(CommonITILActor::ASSIGN, Session::getLoginUserID())
@@ -99,14 +90,18 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
     }
 
 
-    #[Override]
-    public static function canView(): bool
+    public static function canView()
     {
         return Session::haveRightsOr(self::$rightname, [self::READALL, self::READMY]);
     }
 
-    #[Override]
-    public function canViewItem(): bool
+
+    /**
+     * Is the current user have right to show the current change ?
+     *
+     * @return boolean
+     **/
+    public function canViewItem()
     {
 
         if (!$this->checkEntity(true)) {
@@ -130,8 +125,12 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                               ))))));
     }
 
-    #[Override]
-    public function canCreateItem(): bool
+    /**
+     * Is the current user have right to create the current change ?
+     *
+     * @return boolean
+     **/
+    public function canCreateItem()
     {
 
         if (!Session::haveAccessToEntity($this->getEntityID())) {
@@ -140,26 +139,29 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return Session::haveRight(self::$rightname, CREATE);
     }
 
+
     /**
-     * @return bool
+     * is the current user could reopen the current change
+     *
+     * @since 9.4.0
+     *
+     * @return boolean
      */
     public function canReopen()
     {
         return Session::haveRight('followup', CREATE)
-             && in_array($this->fields["status"], static::getClosedStatusArray())
+             && in_array($this->fields["status"], $this->getClosedStatusArray())
              && ($this->isAllowedStatus($this->fields['status'], self::INCOMING)
                  || $this->isAllowedStatus($this->fields['status'], self::EVALUATION));
     }
 
-    #[Override]
+
     public function prepareInputForAdd($input)
     {
         $input =  parent::prepareInputForAdd($input);
         if ($input === false) {
             return false;
         }
-
-        $this->processRules(RuleCommonITILObject::ONADD, $input);
 
         if (!isset($input['_skip_auto_assign']) || $input['_skip_auto_assign'] === false) {
             // Manage auto assign
@@ -181,21 +183,20 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $input;
     }
 
-    #[Override]
+
     public function prepareInputForUpdate($input)
     {
         $input = $this->transformActorsInput($input);
 
-        $entid = $input['entities_id'] ?? $this->fields['entities_id'];
-        $this->processRules(RuleCommonITILObject::ONUPDATE, $input, $entid);
-
         $input = parent::prepareInputForUpdate($input);
+
         return $input;
     }
 
-    #[Override]
+
     public function pre_deleteItem()
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (!isset($this->input['_disablenotif']) && $CFG_GLPI['use_notifications']) {
@@ -204,81 +205,39 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return true;
     }
 
-    #[Override]
+
     public function getSpecificMassiveActions($checkitem = null)
     {
+
         $actions = parent::getSpecificMassiveActions($checkitem);
 
-        if (Session::getCurrentInterface() === 'central') {
-            if (Change_Item::canCreate()) {
-                $actions['Change_Item' . MassiveAction::CLASS_ACTION_SEPARATOR . 'add_item']
-                = "<i class='ti ti-plus'></i>"
-                 . _sx('button', 'Add an item');
-            }
-
-            if (Change_Item::canDelete()) {
-                $actions['Change_Item' . MassiveAction::CLASS_ACTION_SEPARATOR . 'delete_item']
-                = _sx('button', 'Remove an item');
-            }
-        }
         if ($this->canAdminActors()) {
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'add_actor'] = __s('Add an actor');
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'update_notif']
-               = __s('Set notifications for all actors');
+            $actions[__CLASS__ . MassiveAction::CLASS_ACTION_SEPARATOR . 'add_actor'] = __('Add an actor');
+            $actions[__CLASS__ . MassiveAction::CLASS_ACTION_SEPARATOR . 'update_notif']
+               = __('Set notifications for all actors');
         }
 
         return $actions;
     }
 
-    #[Override]
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
 
         if (static::canView()) {
-            switch ($item::class) {
-                case self::class:
+            switch ($item->getType()) {
+                case __CLASS__:
                     $ong = [];
                     if ($item->canUpdate()) {
-                        $ong[1] = static::createTabEntry(__('Statistics'), 0, null, 'ti ti-chart-pie');
+                        $ong[1] = __('Statistics');
                     }
 
                     return $ong;
-
-                case User::class:
-                    $nb = 0;
-                    if ($_SESSION['glpishow_count_on_tabs']) {
-                        $nb = countElementsInTable(
-                            ['glpi_changes', 'glpi_changes_users'],
-                            [
-                                'glpi_changes_users.changes_id'  => new QueryExpression(DBmysql::quoteName('glpi_changes.id')),
-                                'glpi_changes_users.users_id'    => $item->getID(),
-                                'glpi_changes_users.type'        => CommonITILActor::REQUESTER,
-                                'glpi_changes.is_deleted'        => 0,
-                            ] + getEntitiesRestrictCriteria(self::getTable())
-                        );
-                    }
-                    return self::createTabEntry(__('Created changes'), $nb, $item::getType());
-
-                case Group::class:
-                    $nb = 0;
-                    if ($_SESSION['glpishow_count_on_tabs']) {
-                        $nb = countElementsInTable(
-                            ['glpi_changes', 'glpi_changes_groups'],
-                            [
-                                'glpi_changes_groups.changes_id' => new QueryExpression(DBmysql::quoteName('glpi_changes.id')),
-                                'glpi_changes_groups.groups_id'  => $item->getID(),
-                                'glpi_changes_groups.type'       => CommonITILActor::REQUESTER,
-                                'glpi_changes.is_deleted'        => 0,
-                            ] + getEntitiesRestrictCriteria(self::getTable())
-                        );
-                    }
-                    return self::createTabEntry(__('Created changes'), $nb, $item::getType());
             }
         }
         return '';
     }
 
-    #[Override]
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
 
@@ -290,47 +249,39 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         break;
                 }
                 break;
-
-            case User::class:
-            case Group::class:
-                return self::showListForItem($item, $withtemplate);
         }
         return true;
     }
 
-    #[Override]
+
     public function defineTabs($options = [])
     {
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(self::class, $ong, $options);
-        $this->addStandardTab(ChangeValidation::class, $ong, $options);
-        $this->addStandardTab(ChangeCost::class, $ong, $options);
-        $this->addStandardTab(Itil_Project::class, $ong, $options);
-        $this->addStandardTab(Change_Problem::class, $ong, $options);
-        $this->addStandardTab(Change_Ticket::class, $ong, $options);
-        $this->addStandardTab(Change_Item::class, $ong, $options);
+        $this->addStandardTab(__CLASS__, $ong, $options);
+        $this->addStandardTab('ChangeValidation', $ong, $options);
+        $this->addStandardTab('ChangeCost', $ong, $options);
+        $this->addStandardTab('Itil_Project', $ong, $options);
+        $this->addStandardTab('Change_Problem', $ong, $options);
+        $this->addStandardTab('Change_Ticket', $ong, $options);
+        $this->addStandardTab('Change_Item', $ong, $options);
         if ($this->hasImpactTab()) {
-            $this->addStandardTab(Impact::class, $ong, $options);
+            $this->addStandardTab('Impact', $ong, $options);
         }
-        $this->addStandardTab(KnowbaseItem_Item::class, $ong, $options);
-        $this->addStandardTab(Notepad::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('KnowbaseItem_Item', $ong, $options);
+        $this->addStandardTab('Notepad', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
-    #[Override]
+
     public function cleanDBonPurge()
     {
 
         // CommonITILTask does not extends CommonDBConnexity
         $ct = new ChangeTask();
         $ct->deleteByCriteria(['changes_id' => $this->fields['id']]);
-
-        // ChangeSatisfaction does not extends CommonDBConnexity
-        $cs = new ChangeSatisfaction();
-        $cs->deleteByCriteria(['changes_id' => $this->fields['id']]);
 
         $this->deleteChildrenAndRelationsFromDb(
             [
@@ -341,19 +292,18 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 Change_Ticket::class,
                 // Done by parent: Change_User::class,
                 ChangeCost::class,
-                ChangeValidationStep::class,
                 ChangeValidation::class,
                 // Done by parent: ITILSolution::class,
-                Change_Change::class,
             ]
         );
 
         parent::cleanDBonPurge();
     }
 
-    #[Override]
+
     public function post_updateItem($history = true)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         parent::post_updateItem($history);
@@ -373,7 +323,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             if (
                 isset($this->input["status"]) && $this->input["status"]
                 && in_array("status", $this->updates)
-                && in_array($this->input["status"], static::getSolvedStatusArray())
+                && in_array($this->input["status"], $this->getSolvedStatusArray())
             ) {
                 $mailtype = "solved";
             }
@@ -382,23 +332,21 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 isset($this->input["status"])
                 && $this->input["status"]
                 && in_array("status", $this->updates)
-                && in_array($this->input["status"], static::getClosedStatusArray())
+                && in_array($this->input["status"], $this->getClosedStatusArray())
             ) {
                 $mailtype = "closed";
             }
 
             // Read again change to be sure that all data are up to date
             $this->getFromDB($this->fields['id']);
-            $trigger = $this->input['_trigger'] ?? null;
-            NotificationEvent::raiseEvent($mailtype, $this, [], $trigger);
+            NotificationEvent::raiseEvent($mailtype, $this);
         }
-
-        $this->handleSatisfactionSurveyOnUpdate();
     }
 
-    #[Override]
+
     public function post_addItem()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         parent::post_addItem();
@@ -431,7 +379,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                     unset($row['tickets_id']);
                     unset($row['id']);
                     $row['changes_id'] = $this->fields['id'];
-                    $assoc->add($row);
+                    $assoc->add(Toolbox::addslashes_deep($row));
                 }
             }
         }
@@ -456,16 +404,34 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                     unset($row['problems_id']);
                     unset($row['id']);
                     $row['changes_id'] = $this->fields['id'];
-                    $assoc->add($row);
+                    $assoc->add(Toolbox::addslashes_deep($row));
                 }
             }
         }
 
         $this->handleNewItemNotifications();
+
+        if (
+            isset($this->input['_from_items_id'])
+            && isset($this->input['_from_itemtype'])
+        ) {
+            $change_item = new Change_Item();
+            $change_item->add([
+                'items_id'      => (int) $this->input['_from_items_id'],
+                'itemtype'      => $this->input['_from_itemtype'],
+                'changes_id'    => $this->fields['id'],
+                '_disablenotif' => true,
+            ]);
+        }
+
+        $this->handleItemsIdInput();
     }
 
-    #[Override]
-    public static function getDefaultSearchRequest(): array
+
+    /**
+     * Get default values to search engine to override
+     **/
+    public static function getDefaultSearchRequest()
     {
 
         $search = ['criteria' => [ 0 => ['field'      => 12,
@@ -480,7 +446,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $search;
     }
 
-    #[Override]
+
     public function rawSearchOptions()
     {
         $tab = [];
@@ -594,8 +560,6 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
 
         $tab = array_merge($tab, ChangeValidation::rawSearchOptionsToAdd());
 
-        $tab = array_merge($tab, ChangeSatisfaction::rawSearchOptionsToAdd());
-
         $tab = array_merge($tab, ITILFollowup::rawSearchOptionsToAdd());
 
         $tab = array_merge($tab, ChangeTask::rawSearchOptionsToAdd());
@@ -645,44 +609,16 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @return array
-     */
     public static function rawSearchOptionsToAdd(string $itemtype)
     {
-        global $CFG_GLPI;
-
         $tab = [];
-
-        if (in_array($itemtype, $CFG_GLPI["ticket_types"])) {
-            $tab[] = [
-                'id'            => 141,
-                'table'         => self::getTable(),
-                'field'         => "id",
-                'datatype'      => "count",
-                'name'          => _x('quantity', 'Number of changes'),
-                'forcegroupby'  => true,
-                'usehaving'     => true,
-                'massiveaction' => false,
-                'joinparams'    => [
-                    'beforejoin' => [
-                        'table' => self::getItemLinkClass()::getTable(),
-                        'joinparams' => [
-                            'jointype' => 'itemtype_item',
-                        ],
-                    ],
-                    'condition' => getEntitiesRestrictCriteria('NEWTABLE'),
-                ],
-            ];
-        }
 
         $tab[] = [
             'id'                 => 'change',
             'name'               => self::getTypeName(Session::getPluralNumber()),
         ];
 
-        if ($itemtype == Ticket::class) {
+        if ($itemtype == "Ticket") {
             $tab[] = [
                 'id'                 => '210',
                 'table'              => 'glpi_changes_tickets',
@@ -698,7 +634,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             ];
         }
 
-        if ($itemtype == Problem::class) {
+        if ($itemtype == "Problem") {
             $tab[] = [
                 'id'                 => '211',
                 'table'              => 'glpi_changes_problems',
@@ -717,12 +653,19 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    #[Override]
+
+    /**
+     * get the change status list
+     * To be overridden by class
+     *
+     * @param $withmetaforsearch boolean (default false)
+     *
+     * @return array
+     **/
     public static function getAllStatusArray($withmetaforsearch = false)
     {
 
-        $tab = [
-            self::INCOMING      => _x('status', 'New'),
+        $tab = [self::INCOMING      => _x('status', 'New'),
             self::EVALUATION    => __('Evaluation'),
             self::APPROVAL      => _n('Approval', 'Approvals', 1),
             self::ACCEPTED      => _x('status', 'Accepted'),
@@ -746,7 +689,14 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    #[Override]
+
+    /**
+     * Get the ITIL object closed status list
+     *
+     * @since 0.83
+     *
+     * @return array
+     **/
     public static function getClosedStatusArray()
     {
 
@@ -759,7 +709,14 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    #[Override]
+
+    /**
+     * Get the ITIL object solved or observe status list
+     *
+     * @since 0.83
+     *
+     * @return array
+     **/
     public static function getSolvedStatusArray()
     {
         // To be overridden by class
@@ -767,13 +724,26 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    #[Override]
+    /**
+     * Get the ITIL object new status list
+     *
+     * @since 0.83.8
+     *
+     * @return array
+     **/
     public static function getNewStatusArray()
     {
         return [self::INCOMING, self::ACCEPTED, self::EVALUATION, self::APPROVAL];
     }
 
-    #[Override]
+    /**
+     * Get the ITIL object test, qualification or accepted status list
+     * To be overridden by class
+     *
+     * @since 0.83
+     *
+     * @return array
+     **/
     public static function getProcessStatusArray()
     {
 
@@ -782,13 +752,11 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         return $tab;
     }
 
-    #[Override]
     public static function getReopenableStatusArray()
     {
         return array_merge(self::getClosedStatusArray(), [self::SOLVED]);
     }
 
-    #[Override]
     public function getRights($interface = 'central')
     {
 
@@ -797,23 +765,26 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
 
         $values[self::READALL] = __('See all');
         $values[self::READMY]  = __('See (author)');
-        $values[self::SURVEY]  = [
-            'short' => __('Reply to survey (my change)'),
-            'long'  => __('Reply to survey for ticket created by me'),
-        ];
 
         return $values;
     }
 
     /**
-     * @param CommonDBTM $item
-     * @param int    $withtemplate
+     * Display changes for an item
      *
-     * @return void|false
+     * Will also display changes of linked items
+     *
+     * @param CommonDBTM $item
+     * @param integer    $withtemplate
+     *
+     * @return boolean|void
      **/
     public static function showListForItem(CommonDBTM $item, $withtemplate = 0)
     {
-        if (!Session::haveRightsOr(self::$rightname, [self::READALL])) {
+        /** @var \DBmysql $DB */
+        global $DB;
+
+        if (!Session::haveRight(self::$rightname, self::READALL)) {
             return false;
         }
 
@@ -821,92 +792,169 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             return false;
         }
 
-        $options = [
-            'metacriteria' => [],
-        ];
-
-        switch (get_class($item)) {
-            case Group::class:
-                // Mini search engine
-                /** @var Group $item */
-                if ($item->haveChildren()) {
-                    $tree = (int) Session::getSavedOption(self::class, 'tree', 0);
-                    TemplateRenderer::getInstance()->display('components/form/item_itilobject_group.html.twig', [
-                        'tree' => $tree,
-                    ]);
-                } else {
-                    $tree = 0;
-                }
-                break;
-        }
-        Change_Item::showListForItem($item, $withtemplate, $options);
-    }
-
-    /**
-     * @param CommonDBTM $item
-     * @return array
-     */
-    public static function getListForItemRestrict(CommonDBTM $item)
-    {
         $restrict = [];
 
-        switch (true) {
-            case $item instanceof User:
+        switch (get_class($item)) {
+            case User::class:
                 $restrict['glpi_changes_users.users_id'] = $item->getID();
-                $restrict['glpi_changes_users.type'] = CommonITILActor::REQUESTER;
                 break;
 
-            case $item instanceof Supplier:
+            case Supplier::class:
                 $restrict['glpi_changes_suppliers.suppliers_id'] = $item->getID();
-                $restrict['glpi_changes_suppliers.type'] = CommonITILActor::ASSIGN;
                 break;
 
-            case $item instanceof Group:
+            case Group::class:
+                // Mini search engine
                 if ($item->haveChildren()) {
-                    $tree = Session::getSavedOption(self::class, 'tree', 0);
+                    $tree = Session::getSavedOption(__CLASS__, 'tree', 0);
+                    echo "<table class='tab_cadre_fixe'>";
+                    echo "<tr class='tab_bg_1'><th>" . __('Last changes') . "</th></tr>";
+                    echo "<tr class='tab_bg_1'><td class='center'>";
+                    echo __('Child groups');
+                    Dropdown::showYesNo(
+                        'tree',
+                        $tree,
+                        -1,
+                        ['on_change' => 'reloadTab("start=0&tree="+this.value)']
+                    );
                 } else {
                     $tree = 0;
                 }
+                echo "</td></tr></table>";
+
                 $restrict['glpi_changes_groups.groups_id'] = ($tree ? getSonsOf('glpi_groups', $item->getID()) : $item->getID());
-                $restrict['glpi_changes_groups.type'] = CommonITILActor::REQUESTER;
                 break;
 
             default:
-                $restrict['glpi_changes_items.items_id'] = $item->getID();
-                $restrict['glpi_changes_items.itemtype'] = $item->getType();
-                // you can only see your tickets
-                if (!Session::haveRight(self::$rightname, self::READALL)) {
-                    $or = [
-                        'glpi_changes.users_id_recipient'   => Session::getLoginUserID(),
-                        [
-                            'AND' => [
-                                'glpi_changes_users.changes_id'  => 'glpi_changes.id',
-                                'glpi_changes_users.users_id'    => Session::getLoginUserID(),
-                            ],
-                        ],
-                    ];
-                    if (count($_SESSION['glpigroups'])) {
-                        $or['glpi_changes_groups.groups_id'] = $_SESSION['glpigroups'];
-                    }
-                    $restrict[] = ['OR' => $or];
-                }
+                /** @var CommonDBTM $item */
+                $restrict['items_id'] = $item->getID();
+                $restrict['itemtype'] = $item->getType();
+                break;
         }
 
-        return $restrict;
+        // Link to open a new change
+        if (
+            $item->getID()
+            && Change::isPossibleToAssignType($item->getType())
+            && self::canCreate()
+            && !(!empty($withtemplate) && $withtemplate == 2)
+            && (!isset($item->fields['is_template']) || $item->fields['is_template'] == 0)
+        ) {
+            echo "<div class='firstbloc'>";
+            Html::showSimpleForm(
+                Change::getFormURL(),
+                '_add_fromitem',
+                __('New change for this item...'),
+                [
+                    '_from_itemtype' => $item->getType(),
+                    '_from_items_id' => $item->getID(),
+                    'entities_id'    => $item->fields['entities_id'],
+                ]
+            );
+            echo "</div>";
+        }
+
+        $criteria = self::getCommonCriteria();
+        $criteria['WHERE'] = $restrict + getEntitiesRestrictCriteria(self::getTable());
+        $criteria['LIMIT'] = (int) $_SESSION['glpilist_limit'];
+        $iterator = $DB->request($criteria);
+        $number = count($iterator);
+
+        // Ticket for the item
+        echo "<div><table class='tab_cadre_fixe'>";
+
+        $colspan = 11;
+        if (count($_SESSION["glpiactiveentities"]) > 1) {
+            $colspan++;
+        }
+        if ($number > 0) {
+            Session::initNavigateListItems(
+                'Change',
+                //TRANS : %1$s is the itemtype name,
+                //        %2$s is the name of the item (used for headings of a list)
+                sprintf(
+                    __('%1$s = %2$s'),
+                    $item->getTypeName(1),
+                    $item->getName()
+                )
+            );
+
+            echo "<tr><th colspan='$colspan'>";
+
+            //TRANS : %d is the number of problems
+            echo sprintf(_n('Last %d change', 'Last %d changes', $number), $number);
+
+            echo "</th></tr>";
+        } else {
+            echo "<tr><th>" . __('No change found.') . "</th></tr>";
+        }
+        // Ticket list
+        if ($number > 0) {
+            self::commonListHeader(Search::HTML_OUTPUT);
+
+            foreach ($iterator as $data) {
+                Session::addToNavigateListItems('Problem', $data["id"]);
+                self::showShort($data["id"]);
+            }
+            self::commonListHeader(Search::HTML_OUTPUT);
+        }
+
+        echo "</table></div>";
+
+        // Tickets for linked items
+        $linkeditems = $item->getLinkedItems();
+        $restrict = [];
+        if (count($linkeditems)) {
+            foreach ($linkeditems as $ltype => $tab) {
+                foreach ($tab as $lID) {
+                    $restrict[] = ['AND' => ['itemtype' => $ltype, 'items_id' => $lID]];
+                }
+            }
+        }
+
+        if (count($restrict)) {
+            $criteria         = self::getCommonCriteria();
+            $criteria['WHERE'] = ['OR' => $restrict]
+            + getEntitiesRestrictCriteria(self::getTable());
+            $iterator = $DB->request($criteria);
+            $number = count($iterator);
+
+            echo "<div class='spaced'><table class='tab_cadre_fixe'>";
+            echo "<tr><th colspan='$colspan'>";
+            echo __('Changes on linked items');
+
+            echo "</th></tr>";
+            if ($number > 0) {
+                self::commonListHeader(Search::HTML_OUTPUT);
+
+                foreach ($iterator as $data) {
+                    // Session::addToNavigateListItems(TRACKING_TYPE,$data["id"]);
+                    self::showShort($data["id"]);
+                }
+                self::commonListHeader(Search::HTML_OUTPUT);
+            } else {
+                echo "<tr><th>" . __('No change found.') . "</th></tr>";
+            }
+            echo "</table></div>";
+        }
     }
 
-    #[Override]
+
+    /**
+     * Display debug information for current object
+     *
+     * @since 0.90.2
+     **/
+    public function showDebug()
+    {
+        NotificationEvent::debugEvent($this);
+    }
+
     public static function getDefaultValues($entity = 0)
     {
-        if (is_numeric(Session::getLoginUserID(false))) {
-            $users_id_requester = Session::getLoginUserID();
-        } else {
-            $users_id_requester = 0;
-        }
-
         $default_use_notif = Entity::getUsedConfig('is_notif_enable_default', $_SESSION['glpiactive_entity'], '', 1);
         return [
-            '_users_id_requester'        => $users_id_requester,
+            '_users_id_requester'        => Session::getLoginUserID(),
             '_users_id_requester_notif'  => [
                 'use_notification'  => $default_use_notif,
                 'alternative_email' => '',
@@ -939,7 +987,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             'actiontime'                 => 0,
             'date'                       => 'NULL',
             '_add_validation'            => 0,
-            '_validation_targets'        => [],
+            'users_id_validate'          => [],
             '_tasktemplates_id'          => [],
             'controlistcontent'          => '',
             'impactcontent'              => '',
@@ -955,14 +1003,19 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         ];
     }
 
-
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param int $items_id
+     * Get active changes for an item
+     *
+     * @since 9.5
+     *
+     * @param string $itemtype     Item type
+     * @param integer $items_id    ID of the Item
+     *
      * @return DBmysqlIterator
      */
     public function getActiveChangesForItem($itemtype, $items_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         return $DB->request([
@@ -986,8 +1039,8 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 $this->getTable() . '.is_deleted' => 0,
                 'NOT'                         => [
                     $this->getTable() . '.status' => array_merge(
-                        static::getSolvedStatusArray(),
-                        static::getClosedStatusArray()
+                        $this->getSolvedStatusArray(),
+                        $this->getClosedStatusArray()
                     ),
                 ],
             ],
@@ -995,19 +1048,36 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
     }
 
 
-    #[Override]
     public static function getIcon()
     {
         return "ti ti-clipboard-check";
     }
 
-    #[Override]
     public static function getItemLinkClass(): string
     {
         return Change_Item::class;
     }
 
-    #[Override]
+    public static function getStatusClass($status)
+    {
+        $class = null;
+        $solid = true;
+
+        switch ($status) {
+            case self::REFUSED:
+            case self::CANCELED:
+                $class = 'circle';
+                break;
+            default:
+                return parent::getStatusClass($status);
+        }
+
+        return $class == null
+         ? ''
+         : 'itilstatus ' . ($solid ? 'fas fa-' : 'far fa-') . $class .
+         " " . static::getStatusKey($status);
+    }
+
     public static function getStatusKey($status)
     {
         switch ($status) {
@@ -1020,28 +1090,35 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         }
     }
 
-    #[Override]
-    public static function getContentTemplatesParametersClassInstance(): CommonITILObjectParameters
+    public static function getTaskClass()
     {
-        return new ChangeParameters();
+        return ChangeTask::class;
+    }
+
+    public static function getContentTemplatesParametersClass(): string
+    {
+        return ChangeParameters::class;
     }
 
     /**
-     * @param int $start
-     * @param string $status             (default 'proces)
-     * @param bool $showgroupchanges  (true by default)
+     * @param $start
+     * @param $status             (default 'process')
+     * @param $showgroupchanges  (true by default)
+     * @since 10.0.0
      *
-     * @return void
-     **/
+     */
     public static function showCentralList($start, $status = "process", $showgroupchanges = true)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         if (!static::canView()) {
-            return;
+            return false;
         }
 
-        $JOINS = [];
         $WHERE = [
             'is_deleted' => 0,
         ];
@@ -1087,28 +1164,6 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 );
                 break;
 
-            case "tovalidate": // changes waiting for validation
-                $JOINS['LEFT JOIN'] = [
-                    'glpi_changevalidations' => [
-                        'ON' => [
-                            'glpi_changevalidations'   => 'changes_id',
-                            'glpi_changes'             => 'id',
-                        ],
-                    ],
-                ];
-                $WHERE = array_merge(
-                    $WHERE,
-                    [
-                        ChangeValidation::getTargetCriteriaForUser(Session::getLoginUserID()),
-                        'glpi_changevalidations.status'  => CommonITILValidation::WAITING,
-                        'glpi_changes.global_validation' => CommonITILValidation::WAITING,
-                        'NOT'                            => [
-                            'glpi_changevalidations.status'   => [self::SOLVED, self::CLOSED],
-                        ],
-                    ]
-                );
-                break;
-
             default:
                 $WHERE = array_merge(
                     $WHERE,
@@ -1141,11 +1196,6 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             'WHERE'           => $WHERE + getEntitiesRestrictCriteria('glpi_changes'),
             'ORDERBY'         => 'date_mod DESC',
         ];
-
-        if (count($JOINS)) {
-            $criteria = array_merge_recursive($criteria, $JOINS);
-        }
-
         $iterator = $DB->request($criteria);
 
         $total_row_count = count($iterator);
@@ -1170,9 +1220,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = 'mygroups';
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Changes on pending status'), $displayed_row_count, $total_row_count)
-                            . "</a>";
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                         Toolbox::append_params($options, '&amp;') . "\">" .
+                         Html::makeTitle(__('Changes on pending status'), $displayed_row_count, $total_row_count) . "</a>";
                         break;
 
                     case "process":
@@ -1186,9 +1236,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = 'mygroups';
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Changes to be processed'), $displayed_row_count, $total_row_count)
-                            . "</a>";
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                        Toolbox::append_params($options, '&amp;') . "\">" .
+                        Html::makeTitle(__('Changes to be processed'), $displayed_row_count, $total_row_count) . "</a>";
                         break;
 
                     default:
@@ -1202,9 +1252,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = 'mygroups';
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Your changes in progress'), $displayed_row_count, $total_row_count)
-                            . "</a>";
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                        Toolbox::append_params($options, '&amp;') . "\">" .
+                        Html::makeTitle(__('Your changes in progress'), $displayed_row_count, $total_row_count) . "</a>";
                 }
             } else {
                 switch ($status) {
@@ -1219,49 +1269,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = Session::getLoginUserID();
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Changes on pending status'), $displayed_row_count, $total_row_count)
-                            . "</a>";
-                        break;
-
-                    case "tovalidate":
-                        $options['criteria'][0]['field']      = 55; // validation status
-                        $options['criteria'][0]['searchtype'] = 'equals';
-                        $options['criteria'][0]['value']      = CommonITILValidation::WAITING;
-                        $options['criteria'][0]['link']       = 'AND';
-
-                        $options['criteria'][1]['criteria'][0]['field']      = 59; // validation aprobator user
-                        $options['criteria'][1]['criteria'][0]['searchtype'] = 'equals';
-                        $options['criteria'][1]['criteria'][0]['value']      = 'myself'; // Resolved as current user's ID
-                        $options['criteria'][1]['criteria'][1]['field']      = 195; // validation aprobator substitute user
-                        $options['criteria'][1]['criteria'][1]['searchtype'] = 'equals';
-                        $options['criteria'][1]['criteria'][1]['value']      = 'myself'; // Resolved as current user's ID
-                        $options['criteria'][1]['criteria'][1]['link']       = 'OR';
-                        $options['criteria'][1]['criteria'][2]['field']      = 196; // validation aprobator group
-                        $options['criteria'][1]['criteria'][2]['searchtype'] = 'equals';
-                        $options['criteria'][1]['criteria'][2]['value']      = 'mygroups'; // Resolved as groups the current user belongs to
-                        $options['criteria'][1]['criteria'][2]['link']       = 'OR';
-                        $options['criteria'][1]['criteria'][3]['field']      = 197; // validation aprobator group
-                        $options['criteria'][1]['criteria'][3]['searchtype'] = 'equals';
-                        $options['criteria'][1]['criteria'][3]['value']      = 'myself'; // Resolved as groups the current user belongs to
-                        $options['criteria'][1]['criteria'][3]['link']       = 'OR';
-                        $options['criteria'][1]['link']       = 'AND';
-
-                        $options['criteria'][2]['field']      = 12; // validation aprobator
-                        $options['criteria'][2]['searchtype'] = 'equals';
-                        $options['criteria'][2]['value']      = 'notold';
-                        $options['criteria'][2]['link']       = 'AND';
-
-                        $options['criteria'][3]['field']      = 52; // global validation status
-                        $options['criteria'][3]['searchtype'] = 'equals';
-                        $options['criteria'][3]['value']      = CommonITILValidation::WAITING;
-                        $options['criteria'][3]['link']       = 'AND';
-                        $forcetab                         = 'ChangeValidation$1';
-
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Your changes to approve'), $displayed_row_count, $total_row_count)
-                            . "</a>";
-
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                         Toolbox::append_params($options, '&amp;') . "\">" .
+                         Html::makeTitle(__('Changes on pending status'), $displayed_row_count, $total_row_count) . "</a>";
                         break;
 
                     case "process":
@@ -1275,9 +1285,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = 'process';
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Changes to be processed'), $displayed_row_count, $total_row_count)
-                            . "</a>";
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                        Toolbox::append_params($options, '&amp;') . "\">" .
+                        Html::makeTitle(__('Changes to be processed'), $displayed_row_count, $total_row_count) . "</a>";
                         break;
 
                     default:
@@ -1291,9 +1301,9 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $options['criteria'][1]['value']      = 'notold';
                         $options['criteria'][1]['link']       = 'AND';
 
-                        $main_header = "<a href=\"" . htmlescape(Change::getSearchURL() . '?' . Toolbox::append_params($options)) . "\">"
-                            . Html::makeTitle(__('Your changes in progress'), $displayed_row_count, $total_row_count)
-                            . "</a>";
+                        $main_header = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/change.php?" .
+                        Toolbox::append_params($options, '&amp;') . "\">" .
+                        Html::makeTitle(__('Your changes in progress'), $displayed_row_count, $total_row_count) . "</a>";
                 }
             }
 
@@ -1330,10 +1340,10 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                     ];
 
                     if ($change->getFromDBwithData($data['id'])) {
-                        $bgcolor = htmlescape($_SESSION["glpipriority_" . $change->fields["priority"]]);
-                        $name = htmlescape(sprintf(__('%1$s: %2$s'), __('ID'), $change->fields["id"]));
+                        $bgcolor = $_SESSION["glpipriority_" . $change->fields["priority"]];
+                        $name = sprintf(__('%1$s: %2$s'), __('ID'), $change->fields["id"]);
                         $row['values'][] = [
-                            'class' => 'badge_block',
+                            'class' => 'priority_block',
                             'content' => "<span style='background: $bgcolor'></span>&nbsp;$name",
                         ];
 
@@ -1344,12 +1354,13 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         ) {
                             foreach ($change->users[CommonITILActor::REQUESTER] as $d) {
                                 if ($d["users_id"] > 0) {
-                                    $name = '<i class="fs-4 ti ti-user text-muted me-1"></i>'
-                                        . htmlescape(getUserName($d["users_id"]));
+                                    $userdata = getUserName($d["users_id"], 2);
+                                    $name = '<i class="fas fa-sm fa-fw fa-user text-muted me-1"></i>' .
+                                        $userdata['name'];
                                     $requesters[] = $name;
                                 } else {
-                                    $requesters[] = '<i class="fs-4 ti ti-mail text-muted me-1"></i>'
-                                        . htmlescape($d['alternative_email']);
+                                    $requesters[] = '<i class="fas fa-sm fa-fw fa-envelope text-muted me-1"></i>' .
+                                        $d['alternative_email'];
                                 }
                             }
                         }
@@ -1359,21 +1370,21 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                             && count($change->groups[CommonITILActor::REQUESTER])
                         ) {
                             foreach ($change->groups[CommonITILActor::REQUESTER] as $d) {
-                                $requesters[] = '<i class="fs-4 ti ti-users text-muted me-1"></i>'
-                                    . htmlescape(Dropdown::getDropdownName("glpi_groups", $d["groups_id"]));
+                                $requesters[] = '<i class="fas fa-sm fa-fw fa-users text-muted me-1"></i>' .
+                                    Dropdown::getDropdownName("glpi_groups", $d["groups_id"]);
                             }
                         }
                         $row['values'][] = implode('<br>', $requesters);
 
-                        $link = "<a id='change" . $change->getID() . $rand . "' href='"
-                            . htmlescape(Change::getFormURLWithID($change->fields["id"]));
+                        $link = "<a id='change" . $change->fields["id"] . $rand . "' href='" .
+                            Change::getFormURLWithID($change->fields["id"]);
                         if ($forcetab != '') {
-                            $link .= "&amp;forcetab=" . htmlescape($forcetab);
+                            $link .= "&amp;forcetab=" . $forcetab;
                         }
                         $link .= "'>";
-                        $link .= "<span class='b'>" . htmlescape($change->fields["name"]) . "</span></a>";
+                        $link .= "<span class='b'>" . $change->fields["name"] . "</span></a>";
                         $link = sprintf(
-                            __s('%1$s %2$s'),
+                            __('%1$s %2$s'),
                             $link,
                             Html::showToolTip(
                                 RichText::getEnhancedHtml($change->fields['content']),
@@ -1389,7 +1400,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         $row['values'] = [
                             [
                                 'colspan' => 6,
-                                'content' => "<i>" . __s('No ticket in progress.') . "</i>",
+                                'content' => "<i>" . __('No ticket in progress.') . "</i>",
                             ],
                         ];
                     }
@@ -1407,21 +1418,24 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
 
 
     /**
+     * Get changes count
+     *
+     * @since 10.0.0
      *
      * @param bool $foruser only for current login user as requester
      * @param bool $display if false, return html
-     * @return ($display is true ? void : string)
      **/
     public static function showCentralCount(bool $foruser = false, bool $display = true)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         // show a tab with count of jobs in the central and give link
         if (!static::canView()) {
-            if (!$display) {
-                return '';
-            }
-            return;
+            return false;
         }
         if (!Session::haveRight(self::$rightname, self::READALL)) {
             $foruser = true;
@@ -1523,7 +1537,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         $twig_params['items'][] = [
             'link'   => $CFG_GLPI["root_doc"] . "/front/change.php?" . Toolbox::append_params($options),
             'text'   => __('Deleted'),
-            'icon'   => 'ti ti-trash bg-red-lt',
+            'icon'   => 'fas fa-trash bg-red-lt',
             'count'  => $number_deleted,
         ];
 
@@ -1536,10 +1550,11 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
     }
 
     /**
-     * @param int $ID
-     * @param string $forcetab
-     * @return void
-     */
+     * @since 10.0.0
+     *
+     * @param $ID
+     * @param $forcetab  string   name of the tab to force at the display (default '')
+     **/
     public static function showVeryShort($ID, $forcetab = '')
     {
         // Prints a job in short form
@@ -1551,11 +1566,11 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
         $change   = new self();
         $rand      = mt_rand();
         if ($change->getFromDBwithData($ID)) {
-            $bgcolor = htmlescape($_SESSION["glpipriority_" . $change->fields["priority"]]);
-            $name    = htmlescape(sprintf(__('%1$s: %2$s'), __('ID'), $change->fields["id"]));
+            $bgcolor = $_SESSION["glpipriority_" . $change->fields["priority"]];
+            $name    = sprintf(__('%1$s: %2$s'), __('ID'), $change->fields["id"]);
             echo "<tr class='tab_bg_2'>";
             echo "<td>
-            <div class='badge_block' style='border-color: $bgcolor'>
+            <div class='priority_block' style='border-color: $bgcolor'>
                <span style='background: $bgcolor'></span>&nbsp;$name
             </div>
          </td>";
@@ -1566,17 +1581,16 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 && count($change->users[CommonITILActor::REQUESTER])
             ) {
                 foreach ($change->users[CommonITILActor::REQUESTER] as $d) {
-                    $user = new User();
-                    if ($d["users_id"] > 0 && $user->getFromDB($d["users_id"])) {
-                        $name     = "<span class='b'>" . htmlescape($user->getName()) . "</span>";
+                    if ($d["users_id"] > 0) {
+                        $userdata = getUserName($d["users_id"], 2);
+                        $name     = "<span class='b'>" . $userdata['name'] . "</span>";
                         if ($viewusers) {
                             $name = sprintf(
-                                __s('%1$s %2$s'),
+                                __('%1$s %2$s'),
                                 $name,
                                 Html::showToolTip(
-                                    $user->getInfoCard(),
-                                    [
-                                        'link'    => $user->getLinkURL(),
+                                    $userdata["comment"],
+                                    ['link'    => $userdata["link"],
                                         'display' => false,
                                     ]
                                 )
@@ -1584,7 +1598,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                         }
                         echo $name;
                     } else {
-                        echo htmlescape($d['alternative_email']) . "&nbsp;";
+                        echo $d['alternative_email'] . "&nbsp;";
                     }
                     echo "<br>";
                 }
@@ -1595,7 +1609,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
                 && count($change->groups[CommonITILActor::REQUESTER])
             ) {
                 foreach ($change->groups[CommonITILActor::REQUESTER] as $d) {
-                    echo htmlescape(Dropdown::getDropdownName("glpi_groups", $d["groups_id"]));
+                    echo Dropdown::getDropdownName("glpi_groups", $d["groups_id"]);
                     echo "<br>";
                 }
             }
@@ -1603,25 +1617,23 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             echo "</td>";
 
             echo "<td>";
-            $link = "<a id='change" . htmlescape($change->fields["id"] . $rand) . "' href='"
-                . htmlescape(Change::getFormURLWithID($change->fields["id"]));
+            $link = "<a id='change" . $change->fields["id"] . $rand . "' href='" .
+            Change::getFormURLWithID($change->fields["id"]);
             if ($forcetab != '') {
-                $link .= "&amp;forcetab=" . htmlescape($forcetab);
+                $link .= "&amp;forcetab=" . $forcetab;
             }
             $link .= "'>";
-            $link .= "<span class='b'>" . htmlescape($change->fields["name"]) . "</span></a>";
-            $link = sprintf(
-                __s('%1$s %2$s'),
+            $link .= "<span class='b'>" . $change->fields["name"] . "</span></a>";
+            $link = printf(
+                __('%1$s %2$s'),
                 $link,
                 Html::showToolTip(
-                    RichText::getEnhancedHtml($change->fields['content']),
-                    [
-                        'applyto' => 'change' . $change->fields["id"] . $rand,
+                    $change->fields['content'],
+                    ['applyto' => 'change' . $change->fields["id"] . $rand,
                         'display' => false,
                     ]
                 )
             );
-            echo $link;
 
             echo "</td>";
 
@@ -1629,34 +1641,7 @@ class Change extends CommonITILObject implements DefaultSearchRequestInterface
             echo "</tr>";
         } else {
             echo "<tr class='tab_bg_2'>";
-            echo "<td colspan='6' ><i>" . __s('No change found.') . "</i></td></tr>";
+            echo "<td colspan='6' ><i>" . __('No change found.') . "</i></td></tr>";
         }
-    }
-
-    /**
-     * Give cron information
-     *
-     * @param string $name  Task's name
-     *
-     * @return array{description?: string}
-     **/
-    public static function cronInfo($name)
-    {
-        if ($name === 'createinquestchange') {
-            return ['description' => __('Generation of changes satisfaction surveys')];
-        }
-        return [];
-    }
-
-    /**
-     * Cron for automatically creating changes satisfaction surveys
-     *
-     * @param CronTask $task
-     *
-     * @return int (0 : nothing done - 1 : done)
-     **/
-    public static function cronCreateInquestChange($task)
-    {
-        return parent::cronCreateInquest($task);
     }
 }

@@ -36,11 +36,10 @@
 /**
  * NotificationTargetMailCollector Class
  *
- * @extends NotificationTarget<MailCollector>
- */
+ * @since 0.85
+ **/
 class NotificationTargetMailCollector extends NotificationTarget
 {
-    #[Override]
     public function getEvents()
     {
         return ['error' => __('Receiver errors')];
@@ -72,7 +71,7 @@ class NotificationTargetMailCollector extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
 

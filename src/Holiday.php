@@ -171,6 +171,6 @@ class Holiday extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-calendar-off";
+        return "far fa-calendar-times";
     }
 }

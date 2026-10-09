@@ -33,10 +33,10 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 use Glpi\Socket;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -51,63 +51,27 @@ if (!isset($_GET["itemtype"])) {
 }
 
 $socket = new Socket();
-if (isset($_POST["add"]) || isset($_POST["execute_single"]) || isset($_POST["execute_multi"])) {
+if (isset($_POST["add"])) {
     $socket->check(-1, CREATE, $_POST);
 
-    if (!isset($_POST["execute_multi"])) {
-        if ($socket->add($_POST)) {
-            Event::log(
-                $_POST['items_id'],
-                $_POST['itemtype'],
-                4,
-                "socket",
-                //TRANS: %s is the user login
-                sprintf(__('%s adds a socket'), $_SESSION["glpiname"])
-            );
-            if ($_SESSION['glpibackcreated']) {
-                Html::redirect($socket->getLinkURL());
-            }
-        }
-    } else {
-        $initialName = $_POST["name"];
-        $wiring_side = $_POST["wiring_side"];
-
-        if ($_POST["_to"] < $_POST["_from"]) {
-            Session::addMessageAfterRedirect(
-                __s("'To' should not be smaller than 'From'"),
-                false,
-                ERROR
-            );
-            Html::back();
-        }
-
-        for ($i = $_POST["_from"]; $i <= $_POST["_to"]; $i++) {
-            $_POST["name"] = $_POST["_before"] . $initialName . $i . $_POST["_after"];
-            $_POST["position"] =  $i;
-
-            //create REAR and FRONT if needed
-            if ($wiring_side == Socket::BOTH) {
-                $_POST["wiring_side"] = Socket::REAR ;
-                $socket->add($_POST);
-                $_POST["wiring_side"] = Socket::FRONT ;
-                $socket->add($_POST);
-            } else {
-                $socket->add($_POST);
-            }
-        }
+    if ($socket->add($_POST)) {
         Event::log(
-            0,
+            $_POST['items_id'],
+            $_POST['itemtype'],
+            4,
             "socket",
-            5,
-            "setup",
-            sprintf(__('%1$s adds several sockets'), $_SESSION["glpiname"])
+            //TRANS: %s is the user login
+            sprintf(__('%s adds a socket'), $_SESSION["glpiname"])
         );
+        if ($_SESSION['glpibackcreated']) {
+            Html::redirect($socket->getLinkURL());
+        }
     }
     Html::back();
 } elseif (isset($_POST["purge"])) {
     $socket->check($_POST["id"], PURGE);
 
-    if ($socket->delete($_POST, true)) {
+    if ($socket->delete($_POST, 1)) {
         Event::log(
             $socket->fields['items_id'],
             $socket->fields['itemtype'],
@@ -132,8 +96,40 @@ if (isset($_POST["add"]) || isset($_POST["execute_single"]) || isset($_POST["exe
         );
     }
     Html::back();
+} elseif (isset($_POST["execute_multi"])) {
+    $socket->check(-1, CREATE, $_POST);
+
+    for ($i = $_POST["_from"]; $i <= $_POST["_to"]; $i++) {
+        $_POST["name"] = $_POST["_before"] . $i . $_POST["_after"];
+        $socket->add($_POST);
+    }
+    Event::log(
+        0,
+        "socket",
+        5,
+        "setup",
+        sprintf(__('%1$s adds several sockets'), $_SESSION["glpiname"])
+    );
+    Html::back();
+} elseif (isset($_POST["execute_single"])) {
+    $socket->check(-1, CREATE, $_POST);
+
+    if ($socket->add($_POST)) {
+        Event::log(
+            $_POST['items_id'],
+            $_POST['itemtype'],
+            4,
+            "socket",
+            //TRANS: %s is the user login
+            sprintf(__('%s adds a socket'), $_SESSION["glpiname"])
+        );
+        if ($_SESSION['glpibackcreated']) {
+            Html::redirect($socket->getLinkURL());
+        }
+    }
+    Html::back();
 } else {
-    $itemtype = Computer::class;
+    $itemtype = "Computer";
     if ($_GET['id'] != '') {
         $socket->getFromDB($_GET['id']);
     }
@@ -156,11 +152,8 @@ if (isset($_POST["add"]) || isset($_POST["execute_single"]) || isset($_POST["exe
         $options['itemtype'] = $itemtype;
     }
 
-    if (isset($_GET["several"])) {
-        $options['several'] = $_GET["several"];
-    }
-
     // Add a socket from item : format data
+    // see Socket::showNetworkPortForm()
     if (
         isset($_REQUEST['_add_fromitem'])
         && isset($_REQUEST['_from_itemtype'])
@@ -172,6 +165,6 @@ if (isset($_POST["add"]) || isset($_POST["execute_single"]) || isset($_POST["exe
         ];
     }
 
-    $menus = ["assets", "cable", Socket::class];
+    $menus = ["assets", "cable", "socket"];
     Socket::displayFullPageForItem($_GET["id"], $menus, $options);
 }

@@ -33,19 +33,19 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+use Glpi\Toolbox\Sanitizer;
 
-use function Safe\json_decode;
+include('../inc/includes.php');
 
 if (empty($_GET["id"])) {
     $_GET["id"] = '';
 }
 
-// as _actors virtual field stores json, bypass automatic escaping
-if (isset($_POST['_actors'])) {
-    $_POST['_actors'] = json_decode($_POST['_actors'], true);
+Session::checkLoginUser();
+
+if (isset($_UPOST['_actors'])) {
+    $_POST['_actors'] = Sanitizer::sanitize(json_decode($_UPOST['_actors'], true));
     $_REQUEST['_actors'] = $_POST['_actors'];
 }
 
@@ -53,7 +53,6 @@ $problem = new Problem();
 if (isset($_POST["add"])) {
     $problem->check(-1, CREATE, $_POST);
 
-    $_POST = $problem->enforceReadonlyFields($_POST, true);
     if ($newID = $problem->add($_POST)) {
         Event::log(
             $newID,
@@ -96,7 +95,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $problem->check($_POST["id"], PURGE);
 
-    $problem->delete($_POST, true);
+    $problem->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "problem",
@@ -109,7 +108,6 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["update"])) {
     $problem->check($_POST["id"], UPDATE);
 
-    $_POST = $problem->enforceReadonlyFields($_POST);
     $problem->update($_POST);
     Event::log(
         $_POST["id"],
@@ -128,7 +126,7 @@ if (isset($_POST["add"])) {
     }
 } elseif (isset($_POST['addme_observer'])) {
     $problem->check($_POST['problems_id'], READ);
-    $input = array_merge($problem->fields, [
+    $input = array_merge(Toolbox::addslashes_deep($problem->fields), [
         'id' => $_POST['problems_id'],
         '_itil_observer' => [
             '_type' => "user",
@@ -175,14 +173,14 @@ if (isset($_POST["add"])) {
             'documents_id' => $doc->getID(),
         ]);
         foreach ($found_document_items as $item) {
-            $document_item->delete($item, true);
+            $document_item->delete(Toolbox::addslashes_deep($item), true);
         }
     }
     Html::back();
 } elseif (isset($_POST['addme_as_actor'])) {
     $id = (int) $_POST['id'];
     $problem->check($id, READ);
-    $input = array_merge($problem->fields, [
+    $input = array_merge(Toolbox::addslashes_deep($problem->fields), [
         'id' => $id,
         '_itil_' . $_POST['actortype'] => [
             '_type' => "user",
@@ -201,34 +199,17 @@ if (isset($_POST["add"])) {
     );
     Html::redirect(Problem::getFormURLWithID($id));
 } else {
-    // Add a problem from item : format data
-    if (
-        isset($_REQUEST['_add_fromitem'], $_REQUEST['itemtype'], $_REQUEST['items_id'])
-    ) {
-        if ($_REQUEST['itemtype'] === User::class) {
-            $_REQUEST['_users_id_requester'] = $_REQUEST['items_id'];
-            unset($_REQUEST['itemtype']);
-            unset($_REQUEST['items_id']);
-        } else {
-            $_REQUEST['items_id'] = [$_REQUEST['itemtype'] => [$_REQUEST['items_id']]];
-        }
-    }
-
     if (isset($_GET['showglobalkanban']) && $_GET['showglobalkanban']) {
-        Html::header(sprintf(__('%s Kanban'), Problem::getTypeName(1)), '', "helpdesk", "problem");
+        Html::header(sprintf(__('%s Kanban'), Problem::getTypeName(1)), $_SERVER['PHP_SELF'], "helpdesk", "problem");
         $problem::showKanban(0);
         Html::footer();
     } else {
         $options = $_REQUEST;
         $id = (int) $_GET['id'];
-
-        $menus = ["helpdesk", "problem"];
-        Problem::displayFullPageForItem($id, $menus, $options);
-
         if ($id > 0) {
             $url = KnowbaseItem::getFormURLWithParam($_GET) . '&_in_modal=1&item_itemtype=Problem&item_items_id=' . $id;
-            if (str_contains($url, '_to_kb=')) {
-                echo Ajax::createIframeModalWindow(
+            if (strpos($url, '_to_kb=') !== false) {
+                $options['after_display'] = Ajax::createIframeModalWindow(
                     'savetokb',
                     $url,
                     [
@@ -240,6 +221,9 @@ if (isset($_POST["add"])) {
                 );
             }
         }
+
+        $menus = ["helpdesk", "problem"];
+        Problem::displayFullPageForItem($id, $menus, $options);
     }
 
     Html::footer();

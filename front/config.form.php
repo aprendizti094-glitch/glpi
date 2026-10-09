@@ -33,16 +33,18 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Cache\CacheManager;
 
+/** @var array $_UPOST */
+global $_UPOST;
+
+include('../inc/includes.php');
 Session::checkRight("config", READ);
 
 if (isset($_GET['check_version'])) {
     Session::checkRight("config", UPDATE);
     Session::addMessageAfterRedirect(
-        htmlescape(Toolbox::checkNewVersionAvailable())
+        Toolbox::checkNewVersionAvailable()
     );
     Html::back();
 }
@@ -56,18 +58,23 @@ if (!empty($_POST["update_auth"])) {
 }
 if (!empty($_POST["update"])) {
     Session::checkRight("config", UPDATE);
+    $context = array_key_exists('config_context', $_POST) ? $_POST['config_context'] : 'core';
+
+    $glpikey = new GLPIKey();
+    foreach (array_keys($_POST) as $field) {
+        if ($glpikey->isConfigSecured($context, $field)) {
+            // Field must not be altered, it will be encrypted and never displayed, so sanitize is not necessary.
+            $_POST[$field] = $_UPOST[$field];
+        }
+    }
+
     $config->update($_POST);
-    Html::redirect(Toolbox::getItemTypeFormURL('Config'));
-}
-if (!empty($_POST['reset_registration_key'])) {
-    $config->checkGlobal(UPDATE);
-    Config::setConfigurationValues('core', ['glpinetwork_registration_key' => '']);
     Html::redirect(Toolbox::getItemTypeFormURL('Config'));
 }
 if (!empty($_POST['reset_opcache'])) {
     $config->checkGlobal(UPDATE);
     if (opcache_reset()) {
-        Session::addMessageAfterRedirect(__s('PHP OPcache reset successful'));
+        Session::addMessageAfterRedirect(__('PHP OPcache reset successful'));
     }
     Html::redirect(Toolbox::getItemTypeFormURL('Config'));
 }
@@ -75,7 +82,7 @@ if (!empty($_POST['reset_core_cache'])) {
     $config->checkGlobal(UPDATE);
     $cache_manager = new CacheManager();
     if ($cache_manager->getCoreCacheInstance()->clear()) {
-        Session::addMessageAfterRedirect(__s('GLPI cache reset successful'));
+        Session::addMessageAfterRedirect(__('GLPI cache reset successful'));
     }
     Html::redirect(Toolbox::getItemTypeFormURL('Config'));
 }
@@ -83,7 +90,7 @@ if (!empty($_POST['reset_translation_cache'])) {
     $config->checkGlobal(UPDATE);
     $cache_manager = new CacheManager();
     if ($cache_manager->getTranslationsCacheInstance()->clear()) {
-        Session::addMessageAfterRedirect(__s('Translation cache reset successful'));
+        Session::addMessageAfterRedirect(__('Translation cache reset successful'));
     }
     Html::redirect(Toolbox::getItemTypeFormURL('Config'));
 }

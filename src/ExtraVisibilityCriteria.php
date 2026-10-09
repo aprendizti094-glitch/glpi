@@ -40,7 +40,7 @@ interface ExtraVisibilityCriteria
      *
      * @since 9.5
      *
-     * @param bool $forceall force all joins (false by default)
+     * @param boolean $forceall force all joins (false by default)
      *
      * @return array
      */

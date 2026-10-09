@@ -33,9 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 
 Html::header_nocache();
+Session::checkLoginUser();
 
 if (isset($_GET['get_raw']) && filter_var(($_GET['display_container'] ?? true), FILTER_VALIDATE_BOOLEAN)) {
     header("Content-Type: application/json; charset=UTF-8");

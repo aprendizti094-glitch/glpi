@@ -38,9 +38,9 @@
 class Reminder_User extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1          = Reminder::class;
+    public static $itemtype_1          = 'Reminder';
     public static $items_id_1          = 'reminders_id';
-    public static $itemtype_2          = User::class;
+    public static $itemtype_2          = 'User';
     public static $items_id_2          = 'users_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Reminder_User extends CommonDBRelation
     /**
      * Get users for a reminder
      *
-     * @param int $reminders_id ID of the reminder
+     * @param $reminders_id ID of the reminder
      *
      * @return array of users linked to a reminder
-     */
+     **/
     public static function getUsers($reminders_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $users = [];

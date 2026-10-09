@@ -43,6 +43,6 @@ class UserCategory extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-user-cog";
+        return "fas fa-user-tag";
     }
 }

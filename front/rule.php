@@ -33,13 +33,24 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+use Glpi\Application\View\TemplateRenderer;
 
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
-Html::header(Rule::getTypeName(Session::getPluralNumber()), '', "admin", "rule");
+Html::header(Rule::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "admin", "rule", -1);
 
-RuleCollection::showCollectionsList();
+echo TemplateRenderer::getInstance()->render(
+    'pages/admin/rules_list.html.twig',
+    [
+        'rules_group' => [
+            [
+                'type'    => __('Rule type'),
+                'entries' => RuleCollection::getRules(),
+            ],
+        ],
+    ]
+);
 
 Html::footer();

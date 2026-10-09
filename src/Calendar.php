@@ -33,17 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
-use function Safe\strtotime;
-
 /**
  * Calendar Class
  **/
 class Calendar extends CommonDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
     // From CommonDBTM
     public $dohistory                   = true;
@@ -85,8 +80,8 @@ class Calendar extends CommonDropdown
     {
 
         $ong = parent::defineTabs($options);
-        $this->addStandardTab(CalendarSegment::class, $ong, $options);
-        $this->addStandardTab(Calendar_Holiday::class, $ong, $options);
+        $this->addStandardTab('CalendarSegment', $ong, $options);
+        $this->addStandardTab('Calendar_Holiday', $ong, $options);
 
         return $ong;
     }
@@ -99,8 +94,8 @@ class Calendar extends CommonDropdown
         $actions = parent::getSpecificMassiveActions($checkitem);
 
         if ($isadmin) {
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'duplicate'] = _sx('button', 'Duplicate');
-            $actions[self::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'addholiday'] = __s('Add a close time');
+            $actions[__CLASS__ . MassiveAction::CLASS_ACTION_SEPARATOR . 'duplicate'] = _x('button', 'Duplicate');
+            $actions[__CLASS__ . MassiveAction::CLASS_ACTION_SEPARATOR . 'addholiday'] = __('Add a close time');
         }
         return $actions;
     }
@@ -135,7 +130,7 @@ class Calendar extends CommonDropdown
 
         switch ($ma->getAction()) {
             case 'duplicate': // For calendar duplicate in another entity
-                if (Toolbox::hasTrait($item, Clonable::class)) {
+                if (Toolbox::hasTrait($item, \Glpi\Features\Clonable::class)) {
                     $input = $ma->getInput();
                     $options = [];
                     if ($item->isEntityAssign()) {
@@ -210,10 +205,7 @@ class Calendar extends CommonDropdown
     }
 
     /**
-     * @param CommonDBTM $source
-     * @param bool $history
-     *
-     * @return void
+     * @see Glpi\Features\Clonable::post_clone
      */
     public function post_clone($source, $history)
     {
@@ -237,23 +229,14 @@ class Calendar extends CommonDropdown
      *
      * @param string $date Date of the day to check
      *
-     * @return bool
+     * @return boolean
      **/
     public function isHoliday($date)
     {
-        // Check if date is null or emtpy
-        if (empty($date)) {
-            return false;
-        }
-
         $calendar_holiday = new Calendar_Holiday();
         $holidays = $calendar_holiday->getHolidaysForCalendar($this->fields['id']);
 
         foreach ($holidays as $holiday) {
-            // CHeck if begin_date and end_date are not null or empty
-            if (empty($holiday['begin_date']) || empty($holiday['end_date'])) {
-                continue;
-            }
             if ($holiday['is_perpetual']) {
                 // Compare only month and day for holidays that occurs every year.
                 $date_to_compare = date('m-d', strtotime($date));
@@ -276,31 +259,20 @@ class Calendar extends CommonDropdown
 
 
     /**
-     * Seconds elapsed between two dates
-     *
-     * Taking opening hours into account unless param $include_inactive_time is true
+     * Get active time between to date time for the active calendar
      *
      * @param string $start                 begin datetime
      * @param string $end                   end datetime
      * @param bool   $include_inactive_time true to just get the time passed between start time and end time
      *
-     * @return int seconds elapsed between the two dates, taking opening hours into account.
+     * @return int timestamp of delay
      *
-     * @FIXME Remove `$include_inactive_time` parameter in GLPI 11.0. It does not seems to be used and makes no sense.
+     * @FIXME Remove `$include_inactive_time` parameter in GLPI 10.1. It does not seems to be used and makes no sense.
      */
     public function getActiveTimeBetween($start, $end, $include_inactive_time = false)
     {
 
         if (!isset($this->fields['id'])) {
-            return 0;
-        }
-
-        // `$start` and/or `$end` may be the `'NULL'` SQL sentinel string (for
-        // instance, reopening a solved/closed ITIL object resets `solvedate` and
-        // `closedate` to `'NULL'`) or be empty. These are not parseable dates:
-        // return early instead of letting `Safe\strtotime()` (used below) throw an
-        // uncaught `DatetimeException`.
-        if (empty($start) || empty($end) || $start === 'NULL' || $end === 'NULL') {
             return 0;
         }
 
@@ -366,9 +338,9 @@ class Calendar extends CommonDropdown
      *
      * @since 0.84
      *
-     * @param int $time Time to check
+     * @param integer $time Time to check
      *
-     * @return bool
+     * @return boolean
      */
     public function isAWorkingDay($time)
     {
@@ -385,7 +357,7 @@ class Calendar extends CommonDropdown
      *
      * @since 9.4.3
      *
-     * @return bool
+     * @return boolean
      */
     public function hasAWorkingDay()
     {
@@ -401,9 +373,9 @@ class Calendar extends CommonDropdown
      *
      * @since 0.85
      *
-     * @param int $time Time to check
+     * @param integer $time Time to check
      *
-     * @return bool
+     * @return boolean
      */
     public function isAWorkingHour($time)
     {
@@ -427,16 +399,16 @@ class Calendar extends CommonDropdown
      * else work in minutes
      *
      * @param string   $start               begin
-     * @param int  $delay               delay to add (in seconds)
-     * @param int  $additional_delay    delay to add (default 0)
-     * @param bool  $work_in_days        force working in days (false by default)
-     * @param bool  $end_of_working_day  end of working day (false by default)
+     * @param integer  $delay               delay to add (in seconds)
+     * @param integer  $additional_delay    delay to add (default 0)
+     * @param boolean  $work_in_days        force working in days (false by default)
+     * @param boolean  $end_of_working_day  end of working day (false by default)
      *
-     * @return bool|string end date
+     * @return boolean|string end date
      **/
     public function computeEndDate($start, $delay, $additional_delay = 0, $work_in_days = false, $end_of_working_day = false)
     {
-        // TODO 11.0: parameter $work_in_day make calculation for duration exprimed
+        // TODO 10.1: parameter $work_in_day make calculation for duration exprimed
         // in days (e.g "+ 5 days") but we don't have anything for month.
         // +1 month will push the date 30 working day when it should get the next
         // valid calendar date at least one month away from the starting date.
@@ -644,13 +616,6 @@ class Calendar extends CommonDropdown
         return $actualdate;
     }
 
-    /**
-     * @param int $current_time
-     * @param int $number
-     * @param bool $negative
-     *
-     * @return int
-     */
     public static function getActualTime($current_time, $number = 0, $negative = false)
     {
         if ($negative) {
@@ -664,7 +629,7 @@ class Calendar extends CommonDropdown
     /**
      * Get days durations including all segments of the current calendar
      *
-     * @return bool|array
+     * @return boolean|array
      **/
     public function getDurationsCache()
     {
@@ -687,7 +652,7 @@ class Calendar extends CommonDropdown
     /**
      * Get days durations including all segments of the current calendar
      *
-     * @return bool|array
+     * @return boolean|array
      **/
     public function getDaysDurations()
     {
@@ -712,7 +677,7 @@ class Calendar extends CommonDropdown
     /**
      * Update the calendar cache
      *
-     * @param int $calendars_id ID of the calendar
+     * @param integer $calendars_id ID of the calendar
      *
      * @return bool True if successful in updating the cache, otherwise returns false.
      */
@@ -733,9 +698,9 @@ class Calendar extends CommonDropdown
     /**
      * Get day number (in week) for a date.
      *
-     * @param int $date Date as a UNIX timestamp
+     * @param integer $date Date as a UNIX timestamp
      *
-     * @return int
+     * @return integer
      */
     public static function getDayNumberInWeek($date)
     {
@@ -744,6 +709,6 @@ class Calendar extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-calendar";
+        return "far fa-calendar-alt";
     }
 }

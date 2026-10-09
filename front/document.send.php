@@ -33,15 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Exception\Http\AccessDeniedHttpException;
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\Http\HttpException;
-use Glpi\Exception\Http\NotFoundHttpException;
 use Glpi\Inventory\Conf;
 
-use function Safe\sha1_file;
+$SECURITY_STRATEGY = 'no_check'; // may allow unauthenticated access, for public FAQ images
+
+include('../inc/includes.php');
 
 $doc = new Document();
 
@@ -53,30 +49,23 @@ if (isset($_GET['docid'])) {
     // Document::canViewFile() will do appropriate checks depending on GLPI configuration.
 
     if (!$doc->getFromDB($_GET['docid'])) {
-        $exception = new NotFoundHttpException();
-        $exception->setMessageToDisplay(__('Unknown file'));
-        throw $exception;
+        Html::displayErrorAndDie(__('Unknown file'), true);
     }
 
     if (!file_exists(GLPI_DOC_DIR . "/" . $doc->fields['filepath'])) {
-        $exception = new NotFoundHttpException();
-        $exception->setMessageToDisplay(sprintf(__('File %s not found.'), $doc->fields['filename']));
-        throw $exception;
+        Html::displayErrorAndDie(sprintf(__('File %s not found.'), $doc->fields['filename']), true); // Not found
     } elseif ($doc->canViewFile($_GET)) {
         if (
             $doc->fields['sha1sum']
             && $doc->fields['sha1sum'] != sha1_file(GLPI_DOC_DIR . "/" . $doc->fields['filepath'])
         ) {
-            $exception = new HttpException(500);
-            $exception->setMessageToDisplay(__('File is altered (bad checksum)'));
-            throw $exception;
+            Html::displayErrorAndDie(__('File is altered (bad checksum)'), true); // Doc alterated
         } else {
-            return $doc->getAsResponse();
+            $context = $_GET['context'] ?? null;
+            $doc->send($context);
         }
     } else {
-        $exception = new AccessDeniedHttpException();
-        $exception->setMessageToDisplay(__('Unauthorized access to this file'));
-        throw $exception;
+        Html::displayErrorAndDie(__('Unauthorized access to this file'), true); // No right
     }
 } elseif (isset($_GET["file"])) {
     // Get file corresponding to given path.
@@ -88,6 +77,13 @@ if (isset($_GET['docid'])) {
     if (count($splitter) == 2) {
         $expires_headers = false;
         $send = false;
+        if (
+            ($splitter[0] == "_dumps")
+            && Session::haveRight("backup", CREATE)
+        ) {
+            $send = GLPI_DUMP_DIR . '/' . $splitter[1];
+        }
+
         if ($splitter[0] == "_pictures") {
             if (Document::isImage(GLPI_PICTURE_DIR . '/' . $splitter[1])) {
                 // Can use expires header as picture file path changes when picture changes.
@@ -112,15 +108,11 @@ if (isset($_GET['docid'])) {
         }
 
         if ($send && file_exists($send)) {
-            return Toolbox::getFileAsResponse($send, $splitter[1], $mime, $expires_headers);
+            Toolbox::sendFile($send, $splitter[1], $mime, $expires_headers);
         } else {
-            $exception = new AccessDeniedHttpException();
-            $exception->setMessageToDisplay(__('Unauthorized access to this file'));
-            throw $exception;
+            Html::displayErrorAndDie(__('Unauthorized access to this file'), true);
         }
     } else {
-        $exception = new BadRequestHttpException();
-        $exception->setMessageToDisplay(__('Invalid filename'));
-        throw $exception;
+        Html::displayErrorAndDie(__('Invalid filename'), true);
     }
 }

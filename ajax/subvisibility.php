@@ -33,13 +33,23 @@
  * ---------------------------------------------------------------------
  */
 
-header("Content-Type: text/html; charset=UTF-8");
-Html::header_nocache();
+// Direct access to file
+if (strpos($_SERVER['PHP_SELF'], "subvisibility.php")) {
+    $AJAX_INCLUDE = 1;
+    include('../inc/includes.php');
+    header("Content-Type: text/html; charset=UTF-8");
+    Html::header_nocache();
+}
 
-if (!empty($_POST['type']) && isset($_POST['items_id']) && ($_POST['items_id'] > 0)) {
+Session::checkLoginUser();
+
+if (
+    isset($_POST['type']) && !empty($_POST['type'])
+    && isset($_POST['items_id']) && ($_POST['items_id'] > 0)
+) {
     $prefix = '';
     $suffix = '';
-    if (!empty($_POST['prefix'])) {
+    if (isset($_POST['prefix']) && !empty($_POST['prefix'])) {
         $prefix = $_POST['prefix'] . '[';
         $suffix = ']';
     }
@@ -54,11 +64,11 @@ if (!empty($_POST['type']) && isset($_POST['items_id']) && ($_POST['items_id'] >
                 $params['toadd'] = [-1 => __('No restriction')];
             }
             echo "<table class='tab_format'><tr><td>";
-            echo htmlescape(Entity::getTypeName(1));
+            echo Entity::getTypeName(1);
             echo "</td><td>";
             Entity::dropdown($params);
             echo "</td><td>";
-            echo __s('Child entities');
+            echo __('Child entities');
             echo "</td><td>";
             Dropdown::showYesNo($prefix . 'is_recursive' . $suffix);
             echo "</td></tr></table>";

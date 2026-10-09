@@ -33,11 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
 
+include '../inc/includes.php';
 Session::checkRight('itiltemplate', UPDATE);
 
 /**
@@ -46,18 +44,14 @@ Session::checkRight('itiltemplate', UPDATE);
  */
 
 if (!isset($itiltype)) {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie("Missing ITIL type");
 }
 
 if (!isset($fieldtype)) {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie("Missing field type");
 }
 
 $item_class = $itiltype . 'Template' . $fieldtype . 'Field';
-if (!is_a($item_class, ITILTemplateField::class, true)) {
-    throw new BadRequestHttpException();
-}
-
 $item = new $item_class();
 
 if ($fieldtype == 'Predefined') {
@@ -71,7 +65,7 @@ if ($fieldtype == 'Predefined') {
 if (isset($_POST["add"]) || isset($_POST['massiveaction'])) {
     $item->check(-1, UPDATE, $_POST);
 
-    if (!empty($_POST['num']) && $item->add($_POST)) {
+    if ($item->add($_POST)) {
         $fieldtype_name = '';
         switch ($fieldtype) {
             case 'Hidden':
@@ -82,9 +76,6 @@ if (isset($_POST["add"]) || isset($_POST['massiveaction'])) {
                 break;
             case 'Predefined':
                 $fieldtype_name = __('predefined');
-                break;
-            case 'Readonly':
-                $fieldtype_name = __('readonly');
                 break;
         }
 
@@ -104,4 +95,4 @@ if (isset($_POST["add"]) || isset($_POST['massiveaction'])) {
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

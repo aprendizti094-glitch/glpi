@@ -32,9 +32,13 @@
  */
 
 :root[data-high-contrast="1"] {
-    $hc-border-color: var(--tblr-gray-600);
-    $hc-tr-background-color: var(--tblr-gray-600);
-    $hc-border-color-contrast: var(--tblr-gray-800);
+    $hc-border-color: $gray-600;
+    $hc-tr-background-color: $gray-600;
+    $hc-border-color-contrast: $gray-800;
+
+    @if $is-dark {
+        $hc-border-color-contrast: $gray-400;
+    }
 
     /****** TABLES ******/
 
@@ -75,7 +79,7 @@
     }
 
     .order_DESC::before {
-        color: var(--tblr-dark);
+        color: $dark;
     }
 
     .tab_cadre_pager {
@@ -154,12 +158,23 @@
     }
 
     @each $color, $value in $theme-colors {
-        @each $color, $value in $theme-colors {
-            .btn-#{$color} {
-                border-color: color-mix(in srgb, $value, black 45%);
+        @if $is-dark {
+            @each $color, $value in $theme-colors {
+                .btn-#{$color} {
+                    border-color: lighten($value, 15%);
+                }
+                .btn-outline-#{$color} {
+                    border-color: lighten($value, 15%);
+                }
             }
-            .btn-outline-#{$color} {
-                border-color: color-mix(in srgb, $value, black 45%);
+        } @else {
+            @each $color, $value in $theme-colors {
+                .btn-#{$color} {
+                    border-color: darken($value, 45%);
+                }
+                .btn-outline-#{$color} {
+                    border-color: darken($value, 45%);
+                }
             }
         }
     }
@@ -174,8 +189,8 @@
     }
 
     .subheader .box {
-        background-color: var(--tblr-light);
-        border: 2px solid var(--tblr-dark);
+        background-color: $light;
+        border: 2px solid $dark;
         margin-right: 2px;
     }
 
@@ -212,7 +227,7 @@
     }
 
     #navbar-menu .dropdown-toggle {
-        border: 1px solid var(--tblr-dark);
+        border: 1px solid $dark;
     }
 
     .nav.nav-tabs .nav-item .nav-link {
@@ -250,20 +265,5 @@
 
     .timeline-buttons .answer-action {
         border: 1px solid $hc-border-color-contrast;
-    }
-}
-
-:root[data-high-contrast="1"][glpi-theme-dark="1"] {
-    $hc-border-color-contrast: var(--tblr-gray-400);
-
-    @each $color, $value in $theme-colors {
-        @each $color, $value in $theme-colors {
-            .btn-#{$color} {
-                border-color: color-mix(in srgb, $value, white 15%);
-            }
-            .btn-outline-#{$color} {
-                border-color: color-mix(in srgb, $value, white 15%);
-            }
-        }
     }
 }

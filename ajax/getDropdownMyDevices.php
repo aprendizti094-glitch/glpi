@@ -36,7 +36,10 @@
  * List of user devices for dropdown with lazy loading.
  */
 
+include('../inc/includes.php');
+
 header("Content-Type: application/json; charset=UTF-8");
 Html::header_nocache();
 
+Session::checkLoginUser();
 echo Dropdown::getDropdownMyDevices($_POST);

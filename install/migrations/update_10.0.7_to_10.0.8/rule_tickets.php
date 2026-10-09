@@ -33,14 +33,16 @@
  */
 
 /**
- * @var DBmysql $DB
+ * @var \DBmysql $DB
  */
-$DB->update(
+
+$DB->updateOrDie(
     'glpi_rulecriterias',
     [
         'criteria' => '_locations_id_of_item',
     ],
     [
         'criteria' => 'items_locations',
-    ]
+    ],
+    '10.0.8 replace old rule criteria items_locations'
 );

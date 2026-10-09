@@ -39,14 +39,8 @@
     height: auto;
     align-items: flex-start;
     vertical-align: middle;
-    border: 1px solid transparent;
 
-    .badge {
-        min-height: 100%;
-        margin: -0.25rem -0.25rem -0.25rem 0.5rem;
-
-        a {
-            color: inherit;
-        }
+    .badge a {
+        color: inherit;
     }
 }

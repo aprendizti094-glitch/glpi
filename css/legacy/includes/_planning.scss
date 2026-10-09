@@ -71,8 +71,8 @@
       }
 
       h3 {
-         background: var(--glpi-form-header-bg);
-         color: var(--glpi-form-header-fg);
+         background: $header-bg;
+         color: $header-fg;
          margin: 2px 0 0 0;
          padding: .5em .5em .5em .7em;
          font-weight: normal;
@@ -82,6 +82,7 @@
 
       ul.filters {
          border: 0;
+         padding: 5px;
          list-style: none;
          margin: 0;
          padding: 0;
@@ -91,6 +92,13 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
+
+            .actor_icon {
+               padding-bottom: 2px;
+               vertical-align: top;
+               font-size: 14px;
+               margin-left: 5px;
+            }
 
             label {
                padding-left: 5px;
@@ -102,7 +110,7 @@
                white-space: nowrap;
 
                > i {
-                  color: var(--tblr-warning);
+                  color: $warning;
                   float: right;
                }
             }
@@ -210,11 +218,13 @@
       }
    }
 
-   .planning-view {
+   #planning {
       flex-grow: 1;
       min-height: calc(100vh - 160px);
 
       .fc-time-grid-event {
+         // TODO check new version,
+         // Fullcalendar 2.4.0 seems to have removed this property
          overflow: hidden;
       }
 
@@ -227,19 +237,6 @@
 
       }
 
-      .fc-button-primary {
-         background-color: var(--tblr-secondary) !important;
-         border-color: var(--tblr-secondary) !important;
-         color: var(--tblr-secondary-fg, #fff) !important;
-
-         &:not(:disabled):active,
-         &:not(:disabled).fc-button-active {
-            background-color: var(--tblr-primary) !important;
-            border-color: var(--tblr-primary) !important;
-            color: var(--tblr-primary-fg, #fff) !important;
-         }
-      }
-
       .event_today {
          background: #fcf8e3;
       }
@@ -247,7 +244,7 @@
       .fc-event {
          font-weight: normal;
          display: block;
-         min-height: 20px;
+         min-height: 13px;
 
          .fc-content {
             margin-right: 8px;
@@ -316,18 +313,20 @@
          background-color: rgba(59, 140, 190, 0.5);
       }
 
+      .fc-day-grid-event .fc-resizer {
+         width: 10px;
+      }
+
+      .fc-time-grid-event .fc-resizer {
+         height: 10px;
+      }
+
       .fc-divider {
          border: 1px dashed #cccccc;
       }
 
       .fc-list-empty-wrap2 {
          position: initial;
-      }
-
-      .fc-scroller:has(.fc-list-empty) {
-         display: flex;
-         align-items: center;
-         justify-content: center;
       }
    }
 
@@ -358,10 +357,6 @@
    }
 }
 
-.fc-time-grid .fc-slats td {
-   height: 2.5em;
-}
-
 .available {
    background-color: green;
 }
@@ -375,7 +370,7 @@
    background-image: -moz-linear-gradient(left, red 50%, green 0%);
    background-image: -ms-linear-gradient(left, red 50%, green 0%);
    background-image: -o-linear-gradient(left, red 50%, green 0%);
-   background-image: linear-gradient(to left, red 50%, green 0%);
+   background-image: linear-gradient(left, red 50%, green 0%);
 }
 
 .partialavailablebegin {
@@ -383,7 +378,7 @@
    background-image: -moz-linear-gradient(left, green 50%, red 0%);
    background-image: -ms-linear-gradient(left, green 50%, red 0%);
    background-image: -o-linear-gradient(left, green 50%, red 0%);
-   background-image: linear-gradient(to left, green 50%, red 0%);
+   background-image: linear-gradient(left, green 50%, red 0%);
 }
 
 .planning-context-menu {

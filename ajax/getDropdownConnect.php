@@ -37,14 +37,12 @@
  * @since 0.85
  */
 
-header("Content-Type: application/json; charset=UTF-8");
-Html::header_nocache();
+if (strpos($_SERVER['PHP_SELF'], "getDropdownConnect.php")) {
+    include('../inc/includes.php');
+    header("Content-Type: application/json; charset=UTF-8");
+    Html::header_nocache();
+} elseif (!defined('GLPI_ROOT')) {
+    die("Sorry. You can't access this file directly");
+}
 
-/**
- * Safe JSON response.
- * @psalm-taint-escape has_quotes
- * @psalm-taint-escape html
- */
-$response = Dropdown::getDropdownConnect($_POST);
-
-echo $response;
+echo Dropdown::getDropdownConnect($_POST);

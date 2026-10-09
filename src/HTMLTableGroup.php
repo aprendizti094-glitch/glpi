@@ -38,53 +38,84 @@
  **/
 class HTMLTableGroup extends HTMLTableBase
 {
-    /** @var string */
     private $name;
-    /** @var string */
     private $content;
-    /** @var ?HTMLTableHeader[] */
+    private $new_headers = [];
     private $ordered_headers;
-    /** @var HTMLTableMain */
     private $table;
-    /** @var HTMLTableRow[] */
     private $rows = [];
 
+
     /**
-     * @param HTMLTableMain $table
-     * @param string $name
-     * @param string $content
-     */
+     * @param $table     HTMLTableMain object
+     * @param $name
+     * @param $content
+     **/
     public function __construct(HTMLTableMain $table, $name, $content)
     {
+
         parent::__construct(false);
         $this->table      = $table;
         $this->name       = $name;
         $this->content    = $content;
     }
 
-    /**
-     * @return string
-     */
+
+    public function __get(string $property)
+    {
+        // TODO Deprecate access to variables in GLPI 10.1.
+        $value = null;
+        switch ($property) {
+            case 'ordered_headers':
+                $value = $this->$property;
+                break;
+            default:
+                $trace = debug_backtrace();
+                trigger_error(
+                    sprintf('Undefined property: %s::%s in %s on line %d', __CLASS__, $property, $trace[0]['file'], $trace[0]['line']),
+                    E_USER_WARNING
+                );
+                break;
+        }
+        return $value;
+    }
+
+    public function __set(string $property, $value)
+    {
+        // TODO Deprecate access to variables in GLPI 10.1.
+        switch ($property) {
+            case 'ordered_headers':
+                $this->$property = $value;
+                break;
+            default:
+                $trace = debug_backtrace();
+                trigger_error(
+                    sprintf('Undefined property: %s::%s in %s on line %d', __CLASS__, $property, $trace[0]['file'], $trace[0]['line']),
+                    E_USER_WARNING
+                );
+                break;
+        }
+    }
+
+
     public function getName()
     {
         return $this->name;
     }
 
-    /**
-     * @return HTMLTableMain
-     */
+
     public function getTable()
     {
         return $this->table;
     }
 
+
     /**
-     * @param HTMLTableHeader $header
-     *
-     * @return bool
-     */
+     * @param $header    HTMLTableHeader object
+     **/
     public function haveHeader(HTMLTableHeader $header)
     {
+
         $header_name    = '';
         $subheader_name = '';
         $header->getHeaderAndSubHeaderName($header_name, $subheader_name);
@@ -100,16 +131,16 @@ class HTMLTableGroup extends HTMLTableBase
         return isset($subheaders[$subheader_name]);
     }
 
+
     public function tryAddHeader()
     {
+
         if ($this->ordered_headers !== null) {
-            throw new Exception('Implementation error: must define all headers before any row');
+            throw new \Exception('Implementation error: must define all headers before any row');
         }
     }
 
-    /**
-     * @return HTMLTableRow
-     */
+
     public function createRow()
     {
         $new_row      = new HTMLTableRow($this);
@@ -117,11 +148,10 @@ class HTMLTableGroup extends HTMLTableBase
         return $new_row;
     }
 
-    /**
-     * @return void
-     */
+
     public function prepareDisplay()
     {
+
         foreach ($this->table->getHeaderOrder() as $super_header_name) {
             $super_header = $this->table->getSuperHeaderByName($super_header_name);
 
@@ -136,12 +166,10 @@ class HTMLTableGroup extends HTMLTableBase
                     }
                 }
 
-                if ($count === 0) {
+                if ($count == 0) {
                     $this->ordered_headers[] = $super_header;
                 } else {
-                    if ($super_header instanceof HTMLTableSuperHeader) {
-                        $super_header->updateNumberOfSubHeader($count);
-                    }
+                    $super_header->updateNumberOfSubHeader($count);
                     foreach ($sub_header_names as $sub_header_name) {
                         $sub_header = $this->getHeaderByName($super_header_name, $sub_header_name);
                         if ($sub_header->hasToDisplay()) {
@@ -160,10 +188,11 @@ class HTMLTableGroup extends HTMLTableBase
         }
     }
 
+
     /**
      * Display the current group (with headers and rows)
      *
-     * @param int $totalNumberOfColumn  Total number of columns : to span correctly the title
+     * @param integer $totalNumberOfColumn  Total number of columns : to span correctly the title
      * @param array   $params               array of possible options:
      *     'display_super_for_each_group'           display the super header (ie.: big header of the table)
      *                                              before the group specific headers
@@ -176,20 +205,23 @@ class HTMLTableGroup extends HTMLTableBase
      **/
     public function displayGroup($totalNumberOfColumn, array $params)
     {
-        $p = array_replace([
-            'display_header_for_each_group'         => true,
-            'display_header_on_foot_for_each_group' => false,
-            'display_super_for_each_group'          => true,
-            'display_title_for_each_group'          => true,
-        ], $params);
+
+        $p['display_header_for_each_group']         = true;
+        $p['display_header_on_foot_for_each_group'] = false;
+        $p['display_super_for_each_group']          = true;
+        $p['display_title_for_each_group']          = true;
+
+        foreach ($params as $key => $val) {
+            $p[$key] = $val;
+        }
 
         if ($this->getNumberOfRows() > 0) {
             if (
                 $p['display_title_for_each_group']
                 && !empty($this->content)
             ) {
-                echo "\t<tbody><tr><th colspan='" . ((int) $totalNumberOfColumn) . "'>" . htmlescape($this->content)
-                 . "</th></tr></tbody>\n";
+                echo "\t<tbody><tr><th colspan='$totalNumberOfColumn'>" . $this->content .
+                 "</th></tr></tbody>\n";
             }
 
             if ($p['display_super_for_each_group']) {
@@ -222,8 +254,8 @@ class HTMLTableGroup extends HTMLTableBase
                 }
                 $currentNumberOfSubRow = $row->getNumberOfSubRows();
                 if (($previousNumberOfSubRows * $currentNumberOfSubRow) > 1) {
-                    echo "\t<tbody><tr class='tab_bg_1'><td colspan='" . ((int) $totalNumberOfColumn) . "'><hr></td></tr>"
-                    . "</tbody>\n";
+                    echo "\t<tbody><tr class='tab_bg_1'><td colspan='$totalNumberOfColumn'><hr></td></tr>" .
+                    "</tbody>\n";
                 }
                 $row->displayRow($this->ordered_headers);
                 $previousNumberOfSubRows = $currentNumberOfSubRow;
@@ -248,21 +280,23 @@ class HTMLTableGroup extends HTMLTableBase
         }
     }
 
-    /**
-     * @return int
-     */
+
     public function getNumberOfRows()
     {
-        return count(array_filter($this->rows, static fn($r) => $r->notEmpty()));
+
+        $numberOfRows = 0;
+        foreach ($this->rows as $row) {
+            if ($row->notEmpty()) {
+                $numberOfRows++;
+            }
+        }
+        return $numberOfRows;
     }
 
-    /**
-     * @param string $name
-     *
-     * @return HTMLTableHeader
-     */
+
     public function getSuperHeaderByName($name)
     {
+
         try {
             return $this->getHeaderByName($name, '');
         } catch (HTMLTableUnknownHeader $e) {

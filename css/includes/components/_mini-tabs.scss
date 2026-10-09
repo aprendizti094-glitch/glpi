@@ -36,7 +36,9 @@
     text-align: right;
     float: right;
 
-    button {
+    i {
+        margin-left: 0.5em;
+
         &.selected {
             color: green;
         }

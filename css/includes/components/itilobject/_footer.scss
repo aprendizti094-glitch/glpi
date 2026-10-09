@@ -40,15 +40,7 @@
         left: 0;
         right: 0;
         bottom: 8px;
-        z-index: var(--glpi-zindex-fixed);
-    }
-
-    .main-actions {
-        &.btn-splitted {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
+        z-index: $zindex-fixed;
     }
 
     .answer-action {
@@ -58,31 +50,37 @@
     }
 
     .action-task {
-        background-color: var(--glpi-timeline-task-bg);
-        color: var(--glpi-timeline-task-fg);
+        background-color: $timeline-task-bg;
+        color: $timeline-task-fg;
     }
 
     .action-solution {
-        background-color: var(--glpi-timeline-solution-bg);
-        color: var(--glpi-timeline-solution-fg);
+        background-color: $timeline-sol-bg;
+        color: $timeline-sol-fg;
     }
 
     .action-validation {
-        background-color: var(--glpi-timeline-itil-content-bg);
-        color: var(--glpi-timeline-itil-content-fg);
+        background-color: $timeline-itilc-bg;
+        color: $timeline-itilc-fg;
     }
 
     .action-document {
-        background-color: var(--glpi-timeline-document-bg);
-        color: var(--glpi-timeline-document-fg);
+        background-color: $timeline-doc-bg;
+        color: $timeline-doc-fg;
+    }
+
+    #debugajax {
+        position: absolute;
+        top: 10px;
+        left: 50%;
     }
 
     .buttons-bar {
-        background-color: var(--glpi-itil-secondary-bg);
+        background-color: $itil-secondary-bg;
 
         .form-buttons {
             background-color: inherit;
-            border-left: 1px solid var(--tblr-border-color);
+            border-left: 1px solid $card-border-color;
 
             @include media-breakpoint-down(md) {
                 border-left: 0 !important;

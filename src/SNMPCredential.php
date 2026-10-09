@@ -34,7 +34,6 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\Inventory\Inventory;
 
 /**
  * SNMP credentials
@@ -45,24 +44,11 @@ class SNMPCredential extends CommonDBTM
     public $dohistory                   = true;
     public static $rightname = 'snmpcredential';
 
-    public static $undisclosedFields = [
-        'auth_passphrase',
-        'priv_passphrase',
-    ];
-
     public static function getTypeName($nb = 0)
     {
         return _n('SNMP credential', 'SNMP credentials', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['admin', Inventory::class, self::class];
-    }
-
-    /**
-     * @return array
-     */
     public static function rawSearchOptionsToAdd()
     {
         $tab = [];
@@ -109,12 +95,18 @@ class SNMPCredential extends CommonDBTM
         return $tab;
     }
 
+    /**
+     * Define tabs to display on form page
+     *
+     * @param array $options
+     * @return array containing the tabs name
+     */
     public function defineTabs($options = [])
     {
 
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -180,6 +172,7 @@ class SNMPCredential extends CommonDBTM
             default:
                 return '';
         }
+        return '';
     }
 
     /**
@@ -235,20 +228,18 @@ class SNMPCredential extends CommonDBTM
         return $input;
     }
 
-    private function checkRequiredFields(array $input): bool
+    private function checkRequiredFields($input): bool
     {
         // Require a snmpversion
-        $snmp_version = (int) ($input['snmpversion'] ?? $this->fields['snmpversion'] ?? 0);
-        if ($snmp_version === 0) {
-            Session::addMessageAfterRedirect(__s('You must select an SNMP version'), false, ERROR);
+        if (!isset($input['snmpversion']) || $input['snmpversion'] == '0') {
+            Session::addMessageAfterRedirect(__('You must select an SNMP version'), false, ERROR);
             return false;
         }
 
         // Require username if using version 3
-        if ($snmp_version === 3) {
-            $username = $input['username'] ?? $this->fields['username'] ?? null;
-            if (empty($username)) {
-                Session::addMessageAfterRedirect(__s('You must enter a username'), false, ERROR);
+        if ($input['snmpversion'] == 3) {
+            if (empty($input['username'])) {
+                Session::addMessageAfterRedirect(__('You must enter a username'), false, ERROR);
                 return false;
             }
         }

@@ -33,12 +33,14 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 Session::checkRight("reports", READ);
 
-Html::header(Report::getTypeName(Session::getPluralNumber()), '', "tools", "report");
+Html::header(Report::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "tools", "report");
 
 Report::title();
+
 Report::showDefaultReport();
+
 Html::footer();

@@ -33,8 +33,9 @@
  */
 
 /**
- * @var DBmysql $DB
+ * @var \DBmysql $DB
  */
+
 $default_charset = DBConnection::getDefaultCharset();
 $default_collation = DBConnection::getDefaultCollation();
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
@@ -54,5 +55,5 @@ if (!$DB->tableExists('glpi_projecttasklinks')) {
        KEY `projecttasks_id_source` (`projecttasks_id_source`),
        KEY `projecttasks_id_target` (`projecttasks_id_target`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "Adding table glpi_projecttasklinks");
 }

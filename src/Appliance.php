@@ -35,24 +35,14 @@
 
 use Glpi\Application\View\TemplateRenderer;
 use Glpi\Features\AssetImage;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
-use Glpi\Features\StateInterface;
 
 /**
  * Appliances Class
  **/
-class Appliance extends CommonDBTM implements AssignableItemInterface, StateInterface
+class Appliance extends CommonDBTM
 {
-    /** @use Clonable<static> */
-    use Clonable;
-    use Glpi\Features\State;
+    use Glpi\Features\Clonable;
     use AssetImage;
-    use AssignableItem {
-        prepareInputForAdd as prepareInputForAddAssignableItem;
-        prepareInputForUpdate as prepareInputForUpdateAssignableItem;
-    }
 
     // From CommonDBTM
     public $dohistory                   = true;
@@ -68,21 +58,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             Infocom::class,
             Notepad::class,
             KnowbaseItem_Item::class,
-            Certificate_Item::class,
-            Domain_Item::class,
-            Item_Project::class,
-            ManualLink::class,
         ];
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['management', self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'inventory';
     }
 
     public static function getTypeName($nb = 0)
@@ -95,21 +71,20 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
         $ong = [];
         $this->addDefaultFormTab($ong)
          ->addImpactTab($ong, $options)
-         ->addStandardTab(Appliance_Item::class, $ong, $options)
-         ->addStandardTab(Contract_Item::class, $ong, $options)
-         ->addStandardTab(Document_Item::class, $ong, $options)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Certificate_Item::class, $ong, $options)
-         ->addStandardTab(Domain_Item::class, $ong, $options)
-         ->addStandardTab(KnowbaseItem_Item::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Item_Project::class, $ong, $options)
-         ->addStandardTab(ManualLink::class, $ong, $options)
-         ->addStandardTab(DatabaseInstance::class, $ong, $options)
-         ->addStandardTab(Notepad::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Appliance_Item', $ong, $options)
+         ->addStandardTab('Contract_Item', $ong, $options)
+         ->addStandardTab('Document_Item', $ong, $options)
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Certificate_Item', $ong, $options)
+         ->addStandardTab('Domain_Item', $ong, $options)
+         ->addStandardTab('KnowbaseItem_Item', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('ManualLink', $ong, $options)
+         ->addStandardTab('DatabaseInstance', $ong, $options)
+         ->addStandardTab('Notepad', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -117,19 +92,13 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
 
     public function prepareInputForAdd($input)
     {
-        $input = $this->prepareInputForAddAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
+        $input = parent::prepareInputForAdd($input);
         return $this->managePictures($input);
     }
 
     public function prepareInputForUpdate($input)
     {
-        $input = $this->prepareInputForUpdateAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
+        $input = parent::prepareInputForUpdate($input);
         return $this->managePictures($input);
     }
 
@@ -141,7 +110,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
      *     - target filename : where to go when done.
      *     - withtemplate boolean : template or basic item
      *
-     * @return bool item found
+     * @return boolean item found
      */
     public function showForm($ID, array $options = [])
     {
@@ -161,7 +130,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'id'            => '4',
             'table'         => self::getTable(),
             'field'         =>  'comment',
-            'name'          =>  _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'          =>  __('Comments'),
             'datatype'      =>  'text',
         ];
 
@@ -185,7 +154,6 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'field'         => 'name',
             'name'          => User::getTypeName(1),
             'datatype'      => 'dropdown',
-            'right'         => 'all',
         ];
 
         $tab[] = [
@@ -194,18 +162,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'field'         => 'completename',
             'name'          => Group::getTypeName(1),
             'condition'     => ['is_itemgroup' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_NORMAL],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
-            'datatype'           => 'dropdown',
+            'datatype'      => 'dropdown',
         ];
 
         $tab[] = [
@@ -246,21 +203,10 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'id'            => '49',
             'table'         => Group::getTable(),
             'field'         => 'completename',
-            'linkfield'     => 'groups_id',
+            'linkfield'     => 'groups_id_tech',
             'name'          => __('Group in charge'),
             'condition'     => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
-            'datatype'           => 'dropdown',
+            'datatype'      => 'dropdown',
         ];
 
         $tab[] = [
@@ -276,7 +222,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'id'            => '10',
             'table'         => ApplianceEnvironment::getTable(),
             'field'         => 'name',
-            'name'          => _n('Environment', 'Environments', 1),
+            'name'          => __('Environment'),
             'datatype'      => 'dropdown',
         ];
 
@@ -345,11 +291,11 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
 
         $tab[] = [
             'id'                 => '32',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_appliance' => 1],
         ];
 
         $tab = array_merge($tab, Certificate::rawSearchOptionsToAdd());
@@ -358,11 +304,6 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
     }
 
 
-    /**
-     * @param string $itemtype
-     *
-     * @return array
-     */
     public static function rawSearchOptionsToAdd(string $itemtype)
     {
         $tab = [];
@@ -444,18 +385,11 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
             'datatype'           => 'dropdown',
             'joinparams'         => [
                 'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
+                    'table'              => self::getTable(),
                     'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                        'beforejoin'         => [
-                            'table'              => self::getTable(),
-                            'joinparams'         => [
-                                'beforejoin' => [
-                                    'table'      => Appliance_Item::getTable(),
-                                    'joinparams' => ['jointype' => 'itemtype_item'],
-                                ],
-                            ],
+                        'beforejoin' => [
+                            'table'      => Appliance_Item::getTable(),
+                            'joinparams' => ['jointype' => 'itemtype_item'],
                         ],
                     ],
                 ],
@@ -485,12 +419,13 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
     /**
      * Get item types that can be linked to an appliance
      *
-     * @param bool $all Get all possible types or only allowed ones
+     * @param boolean $all Get all possible types or only allowed ones
      *
      * @return array
      */
     public static function getTypes($all = false): array
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $types = $CFG_GLPI['appliance_types'];
@@ -509,18 +444,35 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
 
     public function getSpecificMassiveActions($checkitem = null)
     {
+
         $isadmin = static::canUpdate();
         $actions = parent::getSpecificMassiveActions($checkitem);
 
         if ($isadmin) {
             $prefix                    = 'Appliance_Item' . MassiveAction::CLASS_ACTION_SEPARATOR;
-            $actions[$prefix . 'add']    = "<i class='ti ti-package'></i>" . _sx('button', 'Add an item');
-            $actions[$prefix . 'remove'] = "<i class='ti ti-package-off'></i>" . _sx('button', 'Remove an item');
+            $actions[$prefix . 'add']    = _x('button', 'Add an item');
+            $actions[$prefix . 'remove'] = _x('button', 'Remove an item');
         }
 
-        KnowbaseItem_Item::getMassiveActionsForItemtype($actions, self::class, false, $checkitem);
+        KnowbaseItem_Item::getMassiveActionsForItemtype($actions, __CLASS__, 0, $checkitem);
 
         return $actions;
+    }
+
+    public static function getMassiveActionsForItemtype(
+        array &$actions,
+        $itemtype,
+        $is_deleted = false,
+        ?CommonDBTM $checkitem = null
+    ) {
+        if (in_array($itemtype, self::getTypes())) {
+            if (self::canUpdate()) {
+                $action_prefix                    = 'Appliance_Item' . MassiveAction::CLASS_ACTION_SEPARATOR;
+                $actions[$action_prefix . 'add']    = "<i class='fa-fw fas fa-file-contract'></i>" .
+                                                _x('button', 'Add to an appliance');
+                $actions[$action_prefix . 'remove'] = _x('button', 'Remove from an appliance');
+            }
+        }
     }
 
     public static function showMassiveActionsSubForm(MassiveAction $ma)
@@ -531,6 +483,7 @@ class Appliance extends CommonDBTM implements AssignableItemInterface, StateInte
                 Appliance::dropdown();
                 echo Html::submit(_x('button', 'Post'), ['name' => 'massiveaction']);
                 return true;
+                break;
         }
         return parent::showMassiveActionsSubForm($ma);
     }

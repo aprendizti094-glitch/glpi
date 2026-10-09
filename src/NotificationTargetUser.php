@@ -33,37 +33,20 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\strtotime;
-
-/**
- * @extends NotificationTarget<User>
- */
+// Class NotificationTarget
 class NotificationTargetUser extends NotificationTarget
 {
-    #[Override]
     public function getEvents()
     {
         return [
             'passwordexpires' => __('Password expires'),
             'passwordforget'  => __('Forgotten password?'),
-            'passwordinit'    => __('Password initialization'),
         ];
     }
 
-    #[Override()]
-    public function getEventsToSendImmediately(): array
-    {
-        return [
-            'passwordexpires',
-            'passwordforget',
-            'passwordinit',
-        ];
-    }
-
-    #[Override]
     public function canNotificationContentBeDisclosed(string $event): bool
     {
-        if ($event === 'passwordforget' || $event === 'passwordinit') {
+        if ($event === 'passwordforget') {
             return false;
         }
 
@@ -73,7 +56,6 @@ class NotificationTargetUser extends NotificationTarget
     /**
      * @see NotificationTarget::addNotificationTargets()
      **/
-    #[Override]
     public function addNotificationTargets($entity)
     {
         $this->addTarget(Notification::USER, User::getTypeName(1));
@@ -83,16 +65,6 @@ class NotificationTargetUser extends NotificationTarget
         }
     }
 
-    #[Override]
-    protected function canNotificationBeDisabled(string $event): bool
-    {
-        if (in_array($event, ['passwordinit', 'passwordforget', 'passwordexpires'])) {
-            // Notifications related to passwords should never be disabled.
-            return false;
-        }
-
-        return true;
-    }
 
     /**
      * @see NotificationTarget::addSpecificTargets()
@@ -121,8 +93,10 @@ class NotificationTargetUser extends NotificationTarget
         }
     }
 
+
     public function addDataForTemplate($event, $options = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $events = $this->getEvents();
@@ -161,27 +135,13 @@ class NotificationTargetUser extends NotificationTarget
                 );
                 break;
             case 'passwordforget':
-            case 'passwordinit':
                 $encrypted_token = $this->obj->fields['password_forget_token'];
                 $token = (new GLPIKey())->decrypt($encrypted_token);
 
-                $this->data['##user.token##'] = $token;
-
-                $routes = [
-                    'passwordforget' => [
-                        'key'  => '##user.passwordforgeturl##',
-                        'path' => '/front/lostpassword.php',
-                    ],
-                    'passwordinit' => [
-                        'key'  => '##user.passwordiniturl##',
-                        'path' => '/front/initpassword.php',
-                    ],
-                ];
-
-                $this->data[$routes[$event]['key']] = $this->getUrlBase()
-                    . $routes[$event]['path']
-                    . '?password_forget_token='
-                    . rawurlencode((string) $token);
+                $this->data['##user.token##']             = $token;
+                $this->data['##user.passwordforgeturl##'] = urldecode($CFG_GLPI["url_base"]
+                . "/front/lostpassword.php?password_forget_token="
+                . $token);
                 break;
         }
 
@@ -193,7 +153,7 @@ class NotificationTargetUser extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
 
@@ -230,7 +190,7 @@ class NotificationTargetUser extends NotificationTarget
      *
      * @return void
      */
-    private function addTagsForEvent(string $event): void
+    private function addTagsForEvent($event)
     {
         $lang_tags = [];
         $values_tags = [];
@@ -258,17 +218,6 @@ class NotificationTargetUser extends NotificationTarget
                 $lang_tags = [
                     'passwordforget.information' => __('You have been made a request to reset your account password.'),
                     'passwordforget.link'        => __('Just follow this link (you have one day):'),
-                ];
-                break;
-            case 'passwordinit':
-                $values_tags = [
-                    'user.token'           => __('Token'),
-                    'user.passwordiniturl' => __('URL'),
-                ];
-
-                $lang_tags = [
-                    'passwordinit.information' => __('Your account has just been created. Please set your password.'),
-                    'passwordinit.link'        => __('Just follow this link:'),
                 ];
                 break;
         }

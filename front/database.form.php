@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight('database', READ);
 
@@ -93,7 +93,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $database->check($_POST["id"], PURGE);
 
-    $database->delete($_POST, true);
+    $database->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "database",

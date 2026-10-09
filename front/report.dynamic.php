@@ -33,23 +33,20 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Exception\Http\AccessDeniedHttpException;
-use Glpi\Plugin\Hooks;
+include('../inc/includes.php');
 
 if (!isset($_GET['item_type']) || !is_string($_GET['item_type']) || !is_a($_GET['item_type'], CommonGLPI::class, true)) {
     return;
 }
 
-/** @var class-string<AllAssets|CommonDBTM> $itemtype */
 $itemtype = $_GET['item_type'];
-$item = getItemForItemtype($itemtype);
-if ($item instanceof AllAssets) {
+if ($itemtype === 'AllAssets') {
     Session::checkCentralAccess();
 } else {
-    if (!$item::canView()) {
-        throw new AccessDeniedHttpException();
+    Session::checkValidSessionId();
+    $item = new $itemtype();
+    if (!$item->canView()) {
+        Html::displayRightError();
     }
 }
 
@@ -60,12 +57,33 @@ if (isset($_GET["display_type"])) {
     }
 
     switch ($itemtype) {
+        case 'KnowbaseItem':
+            KnowbaseItem::showList($_GET, $_GET["type"]);
+            break;
+
         case 'Stat':
             if (isset($_GET["item_type_param"])) {
                 $params = Toolbox::decodeArrayFromInput($_GET["item_type_param"]);
                 switch ($params["type"]) {
-                    case "device":
                     case "comp_champ":
+                        $val = Stat::getItems(
+                            $_GET["itemtype"],
+                            $params["date1"],
+                            $params["date2"],
+                            $params["dropdown"]
+                        );
+                        Stat::showTable(
+                            $_GET["itemtype"],
+                            $params["type"],
+                            $params["date1"],
+                            $params["date2"],
+                            $params["start"],
+                            $val,
+                            $params["dropdown"]
+                        );
+                        break;
+
+                    case "device":
                         $val = Stat::getItems(
                             $_GET["itemtype"],
                             $params["date1"],
@@ -102,16 +120,16 @@ if (isset($_GET["display_type"])) {
                             $val2
                         );
                 }
-            } elseif (isset($_GET["type"]) && ($_GET["type"] === "hardwares")) {
-                Stat::showItems("", $_GET["date1"], $_GET["date2"], $_GET['start'], $_GET["itemtype"]);
+            } elseif (isset($_GET["type"]) && ($_GET["type"] == "hardwares")) {
+                Stat::showItems("", $_GET["date1"], $_GET["date2"], $_GET['start']);
             }
             break;
 
         default:
             // Plugin case
             if ($plug = isPluginItemType($itemtype)) {
-                if (Plugin::doOneHook($plug['plugin'], Hooks::AUTO_DYNAMIC_REPORT, $_GET)) {
-                    return;
+                if (Plugin::doOneHook($plug['plugin'], 'dynamicReport', $_GET)) {
+                    exit();
                 }
             }
             $params = Search::manageParams($itemtype, $_GET);

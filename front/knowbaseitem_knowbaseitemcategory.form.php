@@ -33,16 +33,18 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
+
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 
 $category = new KnowbaseItem_KnowbaseItemCategory();
 
 if (isset($_POST["add"])) {
     if (!isset($_POST['knowbaseitems_id']) || !isset($_POST['knowbaseitemcategories_id'])) {
-        Session::addMessageAfterRedirect(__s('Mandatory fields are not filled!'), false, ERROR);
+        $message = __('Mandatory fields are not filled!');
+        Session::addMessageAfterRedirect($message, false, ERROR);
         Html::back();
     }
 
@@ -58,4 +60,4 @@ if (isset($_POST["add"])) {
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

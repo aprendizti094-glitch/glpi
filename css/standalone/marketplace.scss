@@ -71,18 +71,18 @@ $break_s_screen: 1400px;
 
             .tag {
                 border-radius: 3px;
-                border: 1px solid rgb(100, 100, 100, 20%);
+                border: 1px solid rgba(100, 100, 100, 20%);
                 padding: 5px;
                 margin: 0 3px 3px 0;
                 text-align: center;
                 cursor: pointer;
 
                 &:hover {
-                    background: rgb(100, 100, 100, 50%);
+                    background: rgba(100, 100, 100, 50%);
                 }
 
                 &.active {
-                    background: rgb(100, 100, 100, 50%);
+                    background: rgba(100, 100, 100, 50%);
                     color: #fff;
                     border-color: transparent;
                 }
@@ -116,14 +116,6 @@ $break_s_screen: 1400px;
                         text-overflow: clip;
                         text-overflow: unset;
                         padding-left: 0;
-
-                        .select2-selection__rendered {
-                            line-height: 22px;
-                        }
-
-                        .select2-selection__arrow {
-                            height: 22px;
-                        }
                     }
 
                     .select2-selection.select2-selection--single::before {
@@ -157,9 +149,10 @@ $break_s_screen: 1400px;
                 left: 0;
                 right: 0;
                 backdrop-filter: blur(2px);
-                background-color: rgb(0, 0, 0, 50%);
+                background-color: rgba(0, 0, 0, 50%);
 
-                .spinner-border {
+                i.fas,
+                i.fa-solid {
                     position: absolute;
                     top: 50%;
                     left: calc(50% - 1.5rem);
@@ -179,8 +172,8 @@ $break_s_screen: 1400px;
                 margin: calc(#{$margin_width} / 2);
                 margin-bottom: 10px;
                 border-radius: 2px;
-                background-color: rgb(100, 100, 100, 3%);
-                border: 1px solid rgb(100, 100, 100, 30%);
+                background-color: rgba(100, 100, 100, 3%);
+                border: 1px solid rgba(100, 100, 100, 30%);
                 display: flex;
                 flex-direction: column;
                 align-items: stretch;
@@ -259,14 +252,9 @@ $break_s_screen: 1400px;
                         padding: 5px;
                         margin-left: auto;
 
-                        &:has(> .fa-cog:only-child) {
-                            display: block;
-                            text-align: center;
-                        }
-
                         button {
-                            background-color: rgb(100, 100, 100, 10%);
-                            border: 1px solid rgb(100, 100, 100, 40%);
+                            background-color: rgba(100, 100, 100, 10%);
+                            border: 1px solid rgba(100, 100, 100, 40%);
                             border-radius: 2px;
                             cursor: pointer;
                             width: 28px;
@@ -274,7 +262,7 @@ $break_s_screen: 1400px;
                             margin: 1px;
 
                             &:hover {
-                                background-color: rgb(100, 100, 100, 20%);
+                                background-color: rgba(100, 100, 100, 20%);
                             }
 
                             i {
@@ -353,7 +341,7 @@ $break_s_screen: 1400px;
                 }
 
                 .footer {
-                    background-color: rgb(0, 0, 0, 3%);
+                    background-color: rgba(0, 0, 0, 3%);
                     display: flex;
                     align-items: stretch;
                     justify-content: space-between;
@@ -432,11 +420,11 @@ $break_s_screen: 1400px;
             li {
                 padding: 8px 16px;
                 transition: background-color 0.1s;
-                border: 1px solid rgb(100, 100, 100, 20%);
+                border: 1px solid rgba(100, 100, 100, 20%);
 
                 &.current {
-                    background-color: rgb(100, 100, 100, 50%);
-                    border: 1px solid rgb(100, 100, 100, 40%);
+                    background-color: rgba(100, 100, 100, 50%);
+                    border: 1px solid rgba(100, 100, 100, 40%);
                     color: white;
                     font-weight: bold;
 
@@ -458,7 +446,7 @@ $break_s_screen: 1400px;
                     padding: 8px 10px;
                 }
 
-                &:not(.current, .nb_plugin, .nav-disabled):hover {
+                &:not(.current):not(.nb_plugin):not(.nav-disabled):hover {
                     background-color: #ddd;
                     cursor: pointer;
                 }
@@ -499,7 +487,7 @@ $break_s_screen: 1400px;
 
                     .details {
                         flex: 1;
-                        border-right: 1px solid rgb(100, 100, 100, 30%);
+                        border-right: 1px solid rgba(100, 100, 100, 30%);
                         padding: 5px 0 0 10px;
                         height: 100%;
                         display: flex;

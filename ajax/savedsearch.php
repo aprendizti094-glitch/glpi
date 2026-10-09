@@ -33,27 +33,28 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
-
+include('../inc/includes.php');
 header('Content-Type: application/json; charset=UTF-8');
 Html::header_nocache();
+
+Session::checkLoginUser();
 
 $savedsearch = new SavedSearch();
 
 if (isset($_POST["name"])) {
-    //Add a saved search
+    //Add a new saved search
     header("Content-Type: application/json; charset=UTF-8");
     $savedsearch->check(-1, CREATE, $_POST);
     if ($savedsearch->add($_POST)) {
         Session::addMessageAfterRedirect(
-            __s('Search has been saved'),
+            __('Search has been saved'),
             false,
             INFO
         );
         echo json_encode(['success' => true]);
     } else {
         Session::addMessageAfterRedirect(
-            __s('Search has not been saved'),
+            __('Search has not been saved'),
             false,
             ERROR
         );
@@ -85,7 +86,8 @@ if ($action == 'display_mine') {
     header("Content-Type: text/html; charset=UTF-8");
     $savedsearch->displayMine(
         $_GET["itemtype"],
-        (bool) ($_GET["inverse"] ?? false)
+        (bool) ($_GET["inverse"] ?? false),
+        false
     );
 }
 

@@ -35,7 +35,7 @@
 return [
     [
         'key'     => 'central',
-        'name'    => "Central",
+        'name'    => __("Central"),
         'context' => 'core',
         '_items'  => [
             [
@@ -172,7 +172,7 @@ return [
         ],
     ], [
         'key'     => 'assets',
-        'name'    => "Assets",
+        'name'    => __("Assets"),
         'context' => 'core',
         '_items'  => [
             [
@@ -254,7 +254,7 @@ return [
         ],
     ], [
         'key'     => 'assistance',
-        'name'    => "Assistance",
+        'name'    => __("Assistance"),
         'context' => 'core',
         '_items'  => [
             [
@@ -341,7 +341,7 @@ return [
         ],
     ], [
         'key'     => 'mini_tickets',
-        'name'    => "Mini tickets dashboard",
+        'name'    => __("Mini tickets dashboard"),
         'context' => 'mini_core',
         '_items'  => [
             [

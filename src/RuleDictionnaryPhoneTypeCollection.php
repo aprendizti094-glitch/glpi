@@ -38,6 +38,9 @@ class RuleDictionnaryPhoneTypeCollection extends RuleDictionnaryDropdownCollecti
     public $item_table  = "glpi_phonetypes";
     public $menu_option = "type.phone";
 
+    /**
+     * @see RuleCollection::getTitle()
+     **/
     public function getTitle()
     {
         return __('Dictionary of phone types');

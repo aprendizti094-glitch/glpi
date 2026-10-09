@@ -33,11 +33,17 @@
  * ---------------------------------------------------------------------
  */
 
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
+
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 
 // Send UTF8 Headers
 header("Content-Type: text/html; charset=UTF-8");
 Html::header_nocache();
+
+Session::checkLoginUser();
 
 use Glpi\Application\View\TemplateRenderer;
 
@@ -47,59 +53,66 @@ if (
 ) {
     // Security
     if (!is_subclass_of($_POST["itemtype"], "CommonDBTM")) {
-        return;
+        exit();
     }
 
     switch ($_POST["itemtype"]) {
         case User::getType():
-            $link = null;
-            $comments = [];
             if ($_POST['value'] == 0) {
-                $link = $CFG_GLPI['root_doc'] . "/front/user.php";
+                $tmpname = [
+                    'link'    => $CFG_GLPI['root_doc'] . "/front/user.php",
+                    'comment' => "",
+                ];
             } else {
-                $user = new User();
+                $user = new \User();
                 if (is_array($_POST["value"])) {
+                    $comments = [];
                     foreach ($_POST["value"] as $users_id) {
                         if ($user->getFromDB($users_id) && $user->canView()) {
-                            $comments[] = $user->getInfoCard();
+                            $username   = getUserName($users_id, 2);
+                            $comments[] = $username['comment'] ?? "";
                         }
                     }
+                    $tmpname = [
+                        'comment' => implode("<br>", $comments),
+                    ];
                     unset($_POST['withlink']);
                 } else {
                     if ($user->getFromDB($_POST['value']) && $user->canView()) {
-                        $link = $user->getLinkURL();
-                        $comments[] = $user->getInfoCard();
+                        $tmpname = getUserName($_POST["value"], 2);
                     }
                 }
             }
+            echo($tmpname["comment"] ?? '');
 
-            echo(implode("<br>", $comments));
-
-            if (isset($_POST['withlink']) && $link !== null) {
-                echo Html::scriptBlock(
-                    sprintf(
-                        '$("#%s").attr("href", "%s");',
-                        jsescape($_POST['withlink']),
-                        jsescape($link)
-                    )
-                );
+            if (isset($_POST['withlink']) && isset($tmpname['link'])) {
+                echo "<script type='text/javascript' >\n";
+                echo Html::jsGetElementbyID($_POST['withlink']) . ".attr('href', '" . $tmpname['link'] . "');";
+                echo "</script>\n";
             }
             break;
 
         case Group::getType():
+            $tmpname = [
+                'comment' => "",
+            ];
             if ($_POST['value'] != 0) {
-                $group = new Group();
+                $group = new \Group();
                 if (!is_array($_POST["value"]) && $group->getFromDB($_POST['value']) && $group->canView()) {
                     $group_params = [
                         'id' => $group->getID(),
                         'group_name' => $group->fields['completename'],
                         'comment' => $group->fields['comment'],
                     ];
-                    TemplateRenderer::getInstance()->display('components/group/info_card.html.twig', [
+                    $comment = TemplateRenderer::getInstance()->render('components/group/info_card.html.twig', [
                         'group' => $group_params,
                     ]);
+                    $tmpname = [
+                        'comment' => $comment,
+                    ];
                 }
             }
+            echo($tmpname["comment"]);
             break;
 
         case Supplier::getType():
@@ -107,7 +120,7 @@ if (
                 'comment' => "",
             ];
             if ($_POST['value'] != 0) {
-                $supplier = new Supplier();
+                $supplier = new \Supplier();
                 if (!is_array($_POST["value"]) && $supplier->getFromDB($_POST['value']) && $supplier->canView()) {
                     $supplier_params = [
                         'id' => $supplier->getID(),
@@ -140,7 +153,7 @@ if (
                         '_idor_token' => $_POST['_idor_token'] ?? "",
                     ])
                 ) {
-                    return;
+                    exit();
                 }
 
                 $itemtype = $_POST['itemtype'];
@@ -149,43 +162,34 @@ if (
                 } else {
                     $table = getTableForItemType($_POST['itemtype']);
                 }
-
-                echo Dropdown::getDropdownComments($table, (int) $_POST["value"]);
+                $tmpname = Dropdown::getDropdownName($table, $_POST["value"], 1);
+                if (is_array($tmpname) && isset($tmpname["comment"])) {
+                    echo $tmpname["comment"];
+                }
 
                 if (isset($_POST['withlink'])) {
-                    echo Html::scriptBlock(
-                        sprintf(
-                            '$("#%s").attr("href", "%s");',
-                            jsescape($_POST['withlink']),
-                            jsescape($_POST['itemtype']::getFormURLWithID($_POST["value"]))
-                        )
-                    );
+                    echo "<script type='text/javascript' >\n";
+                    echo Html::jsGetElementbyID($_POST['withlink']) . ".
+                    attr('href', '" . $_POST['itemtype']::getFormURLWithID($_POST["value"]) . "');";
+                    echo "</script>\n";
                 }
 
                 if (isset($_POST['with_dc_position'])) {
                     $item = getItemForItemtype($_POST['itemtype']);
+                    echo "<script type='text/javascript' >\n";
 
                     //if item have a DC position (reload url to it's rack)
                     if (
-                        method_exists($item, 'getParentRack')
-                        && ($rack = $item->getParentRack())
+                        method_exists($item, 'isRackPart')
+                        && ($rack = $item->isRackPart($_POST['itemtype'], $_POST["value"], true))
                     ) {
-                        echo Html::scriptBlock(
-                            sprintf(
-                                '$("#%s").html("href", "&nbsp;<a class=\'ti ti-crosshairs\' href=\'%s\'></a>");',
-                                jsescape($_POST['with_dc_position']),
-                                jsescape(htmlescape($rack->getLinkURL()))
-                            )
-                        );
+                        echo Html::jsGetElementbyID($_POST['with_dc_position']) . ".
+                  html(\"&nbsp;<a class='fas fa-crosshairs' href='" . $rack->getLinkURL() . "'></a>\");";
                     } else {
                         //remove old dc position
-                        echo Html::scriptBlock(
-                            sprintf(
-                                '$("#%s").empty();',
-                                jsescape($_POST['with_dc_position'])
-                            )
-                        );
+                        echo Html::jsGetElementbyID($_POST['with_dc_position']) . ".empty();";
                     }
+                    echo "</script>\n";
                 }
             }
     }

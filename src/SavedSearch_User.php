@@ -37,10 +37,10 @@ class SavedSearch_User extends CommonDBRelation
 {
     public $auto_message_on_action = false;
 
-    public static $itemtype_1 = SavedSearch::class;
+    public static $itemtype_1          = 'SavedSearch';
     public static $items_id_1          = 'savedsearches_id';
 
-    public static $itemtype_2 = User::class;
+    public static $itemtype_2          = 'User';
     public static $items_id_2          = 'users_id';
 
 
@@ -52,9 +52,9 @@ class SavedSearch_User extends CommonDBRelation
         switch ($field) {
             case 'users_id':
                 if (!empty($values[$field])) {
-                    return "<span class='ti ti-star-filled bookmark_default'><span class='sr-only'>" . __s('Yes') . "</span></span>";
+                    return "<span class='fa fa-star bookmark_default'><span class='sr-only'>" . __('Yes') . "</span></span>";
                 } else {
-                    return "<span class='ti ti-star bookmark_record'><span class='sr-only'>" . __s('No') . "</span></span>";
+                    return "<span class='fa fa-star bookmark_record'><span class='sr-only'>" . __('No') . "</span></span>";
                 }
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
@@ -92,11 +92,12 @@ class SavedSearch_User extends CommonDBRelation
      * Summary of getDefault
      * @param mixed $users_id id of the user
      * @param mixed $itemtype type of item
-     * @return array|bool same output than SavedSearch::getParameters()
+     * @return array|boolean same output than SavedSearch::getParameters()
      * @since 9.2
      */
     public static function getDefault($users_id, $itemtype)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iter = $DB->request(['SELECT' => 'savedsearches_id',

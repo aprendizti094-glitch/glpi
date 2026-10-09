@@ -33,9 +33,10 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 // Remove unexpected values for `pdffont` config and user preference
 $migration->addPostQuery(
     $DB->buildUpdate(

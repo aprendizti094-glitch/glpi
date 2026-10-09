@@ -33,9 +33,10 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 if (!$DB->fieldExists('glpi_softwarelicenses', 'ancestors_cache')) {
     $migration->addField('glpi_softwarelicenses', 'ancestors_cache', 'longtext');
 }

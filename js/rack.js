@@ -31,20 +31,15 @@
  * ---------------------------------------------------------------------
  */
 
-/* eslint no-var: 0 */
 /* global grid_link_url, grid_rack_add_tip, grid_rack_id, grid_rack_units, GridStack */
 /* global glpi_ajax_dialog, displayAjaxMessageAfterRedirect */
 /* global grid_item_ajax_url */
-/* global _ */
 
-let pos_before_drag = {x: 0, y: 0};
+var x_before_drag = 0;
+var y_before_drag = 0;
 var dirty = false;
 
 var initRack = function() {
-    const getGSPosition = (el) => {
-        return {x: Number(el.attr('gs-x')) || 0, y: Number(el.attr('gs-y')) || 0};
-    };
-
     // global grid events
     $(document)
         .on("click", "#sviewlist", function() {
@@ -86,20 +81,8 @@ var initRack = function() {
                 }
             });
         })
-        .on('click', 'a.edit_rack_item', (e) => {
-            e.preventDefault();
-            const href = $(e.currentTarget).attr('href');
-            glpi_ajax_dialog({
-                url : href,
-                method : 'get',
-                dialogclass: 'modal-xl',
-                params: {
-                    ajax: true
-                }
-            });
-        })
 
-        .on("click", "#add_pdu", (event) => {
+        .on("click", "#add_pdu", function(event) {
             event.preventDefault();
 
             glpi_ajax_dialog({
@@ -117,7 +100,7 @@ var initRack = function() {
 
 
     // init all gridstack found in DOM
-    const grids = GridStack.initAll({
+    let grids = GridStack.initAll({
         cellHeight: 21,
         margin: 0,
         marginBottom: 1,
@@ -129,15 +112,16 @@ var initRack = function() {
     });
 
     // iterate on each initialized grid to apply events
-    grids.forEach((grid) => {
+    grids.forEach(function(grid) {
         var is_pdu_grid = $(grid.el).hasClass('side_pdus_graph');
 
         grid
-            .on('dragstart', (event) => {
+            .on('dragstart', function(event) {
                 var element = $(event.target);
 
                 // store position before drag
-                pos_before_drag = getGSPosition(element);
+                x_before_drag = Number(element.attr('gs-x'));
+                y_before_drag = Number(element.attr('gs-y'));
 
                 // disable qtip
                 element.qtip('hide', true);
@@ -149,29 +133,32 @@ var initRack = function() {
         // - if ajax answer return a fail, we restore item to the old position
         //   and we display a message explaning the failure
         // - else we move the other side of asset (if exists)
-            .on('change', (event, items) => {
+            .on('change', function(event, items) {
                 if (dirty) {
                     return;
                 }
                 var is_rack_rear = $(grid.el).parents('.racks_col').hasClass('rack_rear');
-                $.each(items, (index, item) => {
+                $.each(items, function(index, item) {
                     var j_item       = $(item.el);
                     var is_half_rack = j_item.hasClass('half_rack');
                     var new_pos      = grid_rack_units
-                                  - getGSPosition(j_item).y
-                                  - (j_item.attr('gs-h') ?? 1)
+                                  - j_item.attr('gs-y')
+                                  - j_item.attr('gs-h')
                                   + 1;
 
                     $.post(grid_item_ajax_url, {
                         'id': item.id,
                         'action': is_pdu_grid ? 'move_pdu' : 'move_item',
                         'position': new_pos,
-                        'hpos': getHpos(getGSPosition(j_item).x, is_half_rack, is_rack_rear),
-                    }, (answer) => {
+                        'hpos': getHpos(j_item.attr('gs-x'), is_half_rack, is_rack_rear),
+                    }, function(answer) {
                         // reset to old position
                         if (!answer.status) {
                             dirty = true;
-                            grid.update(item.el, pos_before_drag);
+                            grid.update(item.el, {
+                                'x': x_before_drag,
+                                'y': y_before_drag
+                            });
                             dirty = false;
                             displayAjaxMessageAfterRedirect();
                         } else {
@@ -179,28 +166,35 @@ var initRack = function() {
                             var other_side_cls = j_item.hasClass('item_rear')
                                 ? "item_front"
                                 : "item_rear";
-                            var other_side_el = $(`.grid-stack-item.${CSS.escape(other_side_cls)}[gs-id=${CSS.escape(j_item.attr('gs-id'))}]`);
+                            var other_side_el = $('.grid-stack-item.'+other_side_cls+'[gs-id='+j_item.attr('gs-id')+']');
 
                             if (other_side_el.length) {
                                 //retrieve other side gridstack instance
                                 var other_side_grid = GridStack.init({}, $(other_side_el).closest('.grid-stack')[0]);
 
                                 // retrieve new coordinates
-                                const new_pos = getGSPosition(j_item);
+                                var new_x = parseInt(j_item.attr('gs-x'));
+                                var new_y = parseInt(j_item.attr('gs-y'));
                                 if (j_item.attr('gs-w') == 1) {
-                                    new_pos.x = (new_pos.x === 0 ? 1 : 0);
+                                    new_x = (j_item.attr('gs-x') == 0 ? 1 : 0);
                                 }
                                 dirty = true;
 
                                 // update other side element coordinates
-                                other_side_grid.update(other_side_el[0], new_pos);
+                                other_side_grid.update(other_side_el[0], {
+                                    'x': new_x,
+                                    'y': new_y
+                                });
                                 dirty = false;
                             }
                         }
-                    }).fail(() => {
+                    }).fail(function() {
                         // reset to old position
                         dirty = true;
-                        grid.update(item.el, pos_before_drag);
+                        grid.update(item.el, {
+                            'x': x_before_drag,
+                            'y': y_before_drag
+                        });
                         dirty = false;
                         displayAjaxMessageAfterRedirect();
                     });
@@ -208,10 +202,11 @@ var initRack = function() {
             })
 
         // store coordinates before start dragging
-            .on('dragstart', (event) => {
+            .on('dragstart', function(event) {
                 var element = $(event.target);
 
-                pos_before_drag = getGSPosition(element);
+                x_before_drag = Number(element.attr('gs-x'));
+                y_before_drag = Number(element.attr('gs-y'));
 
                 // disable qtip
                 element.qtip('hide', true);
@@ -238,11 +233,11 @@ var initRack = function() {
 
     for (var i = grid_rack_units; i >= 1; i--) {
         // add index number front of each rows
-        $('.indexes').append(`<li>${i}</li>`);
+        $('.indexes').append('<li>' + i + '</li>');
 
         // append cells for adding new items
         $('.racks_add').append(
-            `<div class="cell_add"><span class="tipcontent">${_.escape(grid_rack_add_tip)}</span></div>`
+            '<div class="cell_add"><span class="tipcontent">'+grid_rack_add_tip+'</span></div>'
         );
     }
 };
@@ -261,11 +256,3 @@ var getHpos = function(x, is_half_rack, is_rack_rear) {
         return 2;
     }
 };
-
-/* eslint-disable no-undef */
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        initRack,
-        getHpos
-    };
-}

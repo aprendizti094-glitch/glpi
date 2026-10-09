@@ -33,9 +33,10 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 $default_charset = DBConnection::getDefaultCharset();
 $default_collation = DBConnection::getDefaultCollation();
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
@@ -53,5 +54,5 @@ if (!$DB->tableExists('glpi_dashboards_filters')) {
          KEY `dashboards_dashboards_id` (`dashboards_dashboards_id`),
          KEY `users_id` (`users_id`)
       ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC DEFAULT CHARSET = {$default_charset} COLLATE = {$default_collation};";
-    $DB->doQuery($query);
+    $DB->doQueryOrDie($query, "10.0 add table glpi_dashboards_filters");
 }

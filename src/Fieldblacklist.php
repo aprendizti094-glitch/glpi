@@ -49,12 +49,15 @@ class Fieldblacklist extends CommonDropdown
     }
 
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return static::canUpdate();
     }
 
-    public static function canPurge(): bool
+    /**
+     * @since 0.85
+     **/
+    public static function canPurge()
     {
         return static::canUpdate();
     }
@@ -80,6 +83,11 @@ class Fieldblacklist extends CommonDropdown
     }
 
 
+    /**
+     * Get search function for the class
+     *
+     * @return array of search option
+     **/
     public function rawSearchOptions()
     {
         $tab = parent::rawSearchOptions();
@@ -134,7 +142,7 @@ class Fieldblacklist extends CommonDropdown
                 if (isset($values['itemtype']) && !empty($values['itemtype'])) {
                     $target       = getItemForItemtype($values['itemtype']);
                     $searchOption = $target->getSearchOptionByField('field', $values[$field]);
-                    return htmlescape($searchOption['name']);
+                    return $searchOption['name'];
                 }
                 break;
 
@@ -238,13 +246,14 @@ class Fieldblacklist extends CommonDropdown
      **/
     public function showItemtype()
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if ($this->fields['id'] > 0) {
             if ($item = getItemForItemtype($this->fields['itemtype'])) {
-                echo htmlescape($item->getTypeName(1));
+                echo $item->getTypeName(1);
             }
-            echo "<input type='hidden' name='itemtype' value='" . htmlescape($this->fields['itemtype']) . "'>";
+            echo "<input type='hidden' name='itemtype' value='" . $this->fields['itemtype'] . "'>";
         } else {
             //Add criteria : display dropdown
             $options = [];
@@ -277,11 +286,9 @@ class Fieldblacklist extends CommonDropdown
     }
 
 
-    /**
-     * @return void
-     */
     public function selectCriterias()
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         echo "<span id='span_fields' name='span_fields'>";
@@ -322,11 +329,10 @@ class Fieldblacklist extends CommonDropdown
      *
      * @param string $itemtype
      * @param array  $options
-     *
-     * @return string|int|false
-     */
+     **/
     public static function dropdownField($itemtype, $options = [])
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $p['name']    = 'field';
@@ -367,8 +373,6 @@ class Fieldblacklist extends CommonDropdown
 
     /**
      * @param string $field  (default '')
-     *
-     * @return void
      **/
     public function selectValues($field = '')
     {
@@ -399,10 +403,11 @@ class Fieldblacklist extends CommonDropdown
      * @param string $field         the field to check
      * @param string $value         the field's value
      *
-     * @return bool true is value if blacklisted, false otherwise
+     * @return true is value if blacklisted, false otherwise
      **/
     public static function isFieldBlacklisted($itemtype, $entities_id, $field, $value)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $result = $DB->request([

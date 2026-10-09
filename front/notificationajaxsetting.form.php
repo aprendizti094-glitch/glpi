@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight("config", UPDATE);
 $notificationajax = new NotificationAjaxSetting();
@@ -53,6 +53,6 @@ if (!empty($_POST["test_ajax_send"])) {
     Html::back();
 }
 
-$menus = ["config", "notification", NotificationAjaxSetting::class];
+$menus = ["config", "notification", "config"];
 $config_id = Config::getConfigIDForContext('core');
 NotificationAjaxSetting::displayFullPageForItem($config_id, $menus);

@@ -33,43 +33,43 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+$SECURITY_STRATEGY = 'no_check'; // CSS must be accessible also on public pages
 
-use Glpi\Application\Environment;
-use Glpi\UI\ThemeManager;
-
-use function Safe\preg_match;
-
-if (preg_match('~^css/glpi(\.scss)?$~', $_GET['file'] ?? '') === 1) {
-    // Ensure to have enough memory to not reach memory limit.
-    $max_memory = Html::MAIN_SCSS_COMPILATION_REQUIRED_MEMORY;
-    if (Toolbox::getMemoryLimit() < $max_memory) {
-        Toolbox::safeIniSet('memory_limit', $max_memory);
-    }
+if (!defined('GLPI_ROOT')) {
+    define('GLPI_ROOT', dirname(__DIR__));
 }
 
-// If a custom theme is requested, we need to get the real path of the theme
-if (isset($_GET['file']) && isset($_GET['is_custom_theme']) && $_GET['is_custom_theme']) {
-    $theme = ThemeManager::getInstance()->getTheme($_GET['file']);
+use Glpi\Application\ErrorHandler;
 
-    if (!$theme) {
-        trigger_error(sprintf('Unable to find theme `%s`.', $_GET['file']), E_USER_WARNING);
-        $theme = ThemeManager::getInstance()->getTheme(ThemeManager::DEFAULT_THEME);
-    }
+$_GET["donotcheckversion"]   = true;
+$dont_check_maintenance_mode = true;
+$skip_db_check               = true;
 
-    $_GET['file'] = $theme->getPath();
+//std cache, with DB connection
+include_once GLPI_ROOT . "/inc/db.function.php";
+include_once GLPI_ROOT . '/inc/config.php';
+
+// Main CSS compilation requires about 140MB of memory on PHP 7.4 (110MB on PHP 8.2).
+// Ensure to have enough memory to not reach memory limit.
+$max_memory = 192;
+if (Toolbox::getMemoryLimit() < ($max_memory * 1024 * 1024)) {
+    ini_set('memory_limit', sprintf('%dM', $max_memory));
 }
+
+// Ensure warnings will not break CSS output.
+ErrorHandler::getInstance()->disableOutput();
 
 $css = Html::compileScss($_GET);
 
 header('Content-Type: text/css');
 
-$is_cacheable = !isset($_GET['nocache']) && Environment::get()->shouldForceExtraBrowserCache();
+$is_cacheable = !isset($_GET['debug']) && !isset($_GET['nocache']);
 if ($is_cacheable) {
     // Makes CSS cacheable by browsers and proxies
-    $max_age = MONTH_TIMESTAMP;
-    // no `must-revalidate`, a `v=xxx` param is used to prevent extensive caching issues
-    header('Cache-Control: public, max-age=' . $max_age);
+    $max_age = WEEK_TIMESTAMP;
+    header_remove('Pragma');
+    header('Cache-Control: public');
+    header('Cache-Control: max-age=' . $max_age);
     header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + $max_age));
 }
 

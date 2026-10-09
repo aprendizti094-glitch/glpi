@@ -39,7 +39,7 @@
 class TicketValidation extends CommonITILValidation
 {
     // From CommonDBChild
-    public static $itemtype = Ticket::class;
+    public static $itemtype           = 'Ticket';
     public static $items_id           = 'tickets_id';
 
     public static $rightname                 = 'ticketvalidation';
@@ -56,10 +56,6 @@ class TicketValidation extends CommonITILValidation
         return [static::CREATEREQUEST, static::CREATEINCIDENT];
     }
 
-    public static function getTypeName($nb = 0)
-    {
-        return _n('Ticket approval', 'Ticket approvals', $nb);
-    }
 
     public static function getValidateRights()
     {
@@ -70,13 +66,12 @@ class TicketValidation extends CommonITILValidation
     /**
      * @since 0.85
      **/
-    public function canCreateItem(): bool
+    public function canCreateItem()
     {
 
         if ($this->canChildItem('canViewItem', 'canView')) {
-            $parent_loaded = $this->isParentAlreadyLoaded();
-            $ticket = $parent_loaded ? $this->item : new Ticket();
-            if ($parent_loaded || $ticket->getFromDB($this->fields['tickets_id'])) {
+            $ticket = new Ticket();
+            if ($ticket->getFromDB($this->fields['tickets_id'])) {
                 // No validation for closed tickets
                 if (in_array($ticket->fields['status'], $ticket->getClosedStatusArray())) {
                     return false;
@@ -107,16 +102,16 @@ class TicketValidation extends CommonITILValidation
 
         $values[self::CREATEREQUEST]
                               = ['short' => __('Create for request'),
-                                  'long'  => __('Create an approval request for a request'),
+                                  'long'  => __('Create a validation request for a request'),
                               ];
         $values[self::CREATEINCIDENT]
                               = ['short' => __('Create for incident'),
-                                  'long'  => __('Create an approval request for an incident'),
+                                  'long'  => __('Create a validation request for an incident'),
                               ];
         $values[self::VALIDATEREQUEST]
-                              = __('Approve a request');
+                              = __('Validate a request');
         $values[self::VALIDATEINCIDENT]
-                              = __('Approve an incident');
+                              = __('Validate an incident');
 
         if ($interface == 'helpdesk') {
             unset($values[PURGE]);

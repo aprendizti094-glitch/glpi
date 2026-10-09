@@ -43,45 +43,23 @@
  **/
 class SLA extends LevelAgreement
 {
-    /**
-     * @var string
-     */
     protected static $prefix            = 'sla';
-    /**
-     * @var string
-     */
     protected static $prefixticket      = '';
-    protected static $levelclass        = SlaLevel::class;
-    protected static $levelticketclass  = SlaLevel_Ticket::class;
-    protected static $forward_entity_to = [SlaLevel::class];
+    protected static $levelclass        = 'SlaLevel';
+    protected static $levelticketclass  = 'SlaLevel_Ticket';
+    protected static $forward_entity_to = ['SlaLevel'];
 
     public static function getTypeName($nb = 0)
     {
-        // Acronym, no plural
+        // Acronymous, no plural
         return __('SLA');
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['config', SLM::class, self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'setup';
-    }
-
-    public static function getIcon()
-    {
-        return SLM::getIcon();
     }
 
     public function showFormWarning() {}
 
-    public function getAddConfirmation(): array
+    public function getAddConfirmation()
     {
-        return [
-            __("The assignment of a SLA to a ticket causes the recalculation of the date."),
+        return [__("The assignment of a SLA to a ticket causes the recalculation of the date."),
             __("Escalations defined in the SLA will be triggered under this new date."),
         ];
     }

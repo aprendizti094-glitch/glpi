@@ -33,8 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
+use Glpi\Toolbox\Sanitizer;
 
 /**
  *  NotificationAjax
@@ -47,7 +46,7 @@ class NotificationAjax implements NotificationInterface
      * @param mixed $value   The data to check (may differ for every notification mode)
      * @param array $options Optional special options (may be needed)
      *
-     * @return bool
+     * @return boolean
      **/
     public static function check($value, $options = [])
     {
@@ -72,25 +71,30 @@ class NotificationAjax implements NotificationInterface
         ]);
     }
 
-    #[Override]
+
     public function sendNotification($options = [])
     {
+
         $data = [];
         $data['itemtype']                             = $options['_itemtype'];
         $data['items_id']                             = $options['_items_id'];
         $data['notificationtemplates_id']             = $options['_notificationtemplates_id'];
         $data['entities_id']                          = $options['_entities_id'];
+
         $data['sendername']                           = $options['fromname'];
+
         $data['name']                                 = $options['subject'];
         $data['body_text']                            = $options['content_text'];
         $data['recipient']                            = $options['to'];
+
         $data['event'] = $options['event'] ?? null; // `event` has been added in GLPI 10.0.7
+
         $data['mode'] = Notification_NotificationTemplate::MODE_AJAX;
 
         $queue = new QueuedNotification();
 
-        if (!$queue->add($data)) {
-            Session::addMessageAfterRedirect(__s('Error inserting browser notification to queue'), true, ERROR);
+        if (!$queue->add(Sanitizer::sanitize($data))) {
+            Session::addMessageAfterRedirect(__('Error inserting browser notification to queue'), true, ERROR);
             return false;
         } else {
             //TRANS to be written in logs %1$s is the to email / %2$s is the subject of the mail
@@ -117,21 +121,20 @@ class NotificationAjax implements NotificationInterface
      */
     public static function getMyNotifications()
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $return = [];
         if ($CFG_GLPI['notifications_ajax']) {
-            $secs = $CFG_GLPI["notifications_ajax_expiration_delay"] * DAY_TIMESTAMP;
             $iterator = $DB->request([
                 'FROM'   => 'glpi_queuednotifications',
                 'WHERE'  => [
                     'is_deleted'   => false,
                     'recipient'    => Session::getLoginUserID(),
                     'mode'         => Notification_NotificationTemplate::MODE_AJAX,
-                    new QueryExpression(
-                        QueryFunction::unixTimestamp('send_time') . ' + ' . $secs
-                            . ' > ' . QueryFunction::unixTimestamp()
-                    ),
                 ],
             ]);
 
@@ -163,12 +166,13 @@ class NotificationAjax implements NotificationInterface
     /**
      * Mark raised notification as deleted
      *
-     * @param int $id Notification id
+     * @param integer $id Notification id
      *
      * @return void
      */
     public static function raisedNotification($id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $now = date('Y-m-d H:i:s');

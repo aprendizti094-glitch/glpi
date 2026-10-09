@@ -33,47 +33,44 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_decode;
-use function Safe\json_encode;
+use Glpi\Toolbox\Sanitizer;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
 if (!isset($_REQUEST["action"])) {
-    return;
+    exit;
 }
 
 $extevent = new PlanningExternalEvent();
 
 if ($_REQUEST["action"] == "get_events") {
     header("Content-Type: application/json; charset=UTF-8");
-    if (isset($_REQUEST['state_done'])) {
-        $_REQUEST['state_done'] = filter_var($_REQUEST['state_done'], FILTER_VALIDATE_BOOLEAN);
-    }
     echo json_encode(Planning::constructEventsArray($_REQUEST));
-    return;
+    exit;
 }
 
 if (($_POST["action"] ?? null) == "update_event_times") {
     echo Planning::updateEventTimes($_POST);
-    return;
+    exit;
 }
 
 if (($_POST["action"] ?? null) == "view_changed") {
     Planning::viewChanged($_POST['view']);
-    return;
+    exit;
 }
 
 if (($_POST["action"] ?? null) == "clone_event") {
     $extevent->check(-1, CREATE);
     echo Planning::cloneEvent($_POST['event']);
-    return;
+    exit;
 }
 
 if (($_POST["action"] ?? null) == "delete_event") {
-    $event = $_POST['event'];
-    // rights check is done inside `Planning::deleteEvent()`, depending on the event itemtype
-    echo Planning::deleteEvent($event);
-    return;
+    $extevent->check((int) $_POST['event']['items_id'], DELETE);
+    echo Planning::deleteEvent($_POST['event']);
+    exit;
 }
 
 if ($_REQUEST["action"] == "get_externalevent_template") {
@@ -85,13 +82,11 @@ if ($_REQUEST["action"] == "get_externalevent_template") {
         $template = new PlanningExternalEventTemplate();
         $template->getFromDB($_POST[$key]);
 
-        // Decode rrule field only if not empty
-        if (!empty($template->fields['rrule'])) {
-            $template->fields['rrule'] = json_decode($template->fields['rrule'], true);
-        }
+        $template->fields = Sanitizer::decodeHtmlSpecialCharsRecursive($template->fields);
+        $template->fields['rrule'] = json_decode($template->fields['rrule'], true);
         header("Content-Type: application/json; charset=UTF-8");
         echo json_encode($template->fields, JSON_NUMERIC_CHECK);
-        return;
+        exit;
     }
 }
 
@@ -149,3 +144,5 @@ if (($_POST["action"] ?? null) == "color_filter") {
 if (($_POST["action"] ?? null) == "delete_filter") {
     Planning::deleteFilter($_POST);
 }
+
+Html::ajaxFooter();

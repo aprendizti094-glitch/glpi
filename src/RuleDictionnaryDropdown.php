@@ -35,5 +35,8 @@
 
 class RuleDictionnaryDropdown extends Rule
 {
+    // From Rule
+    public $can_sort      = true;
+
     public static $rightname     = 'rule_dictionnary_dropdown';
 }

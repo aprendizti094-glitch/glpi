@@ -33,23 +33,22 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Exception\Http\AccessDeniedHttpException;
-use Glpi\Exception\Http\NotFoundHttpException;
+use Glpi\Http\Response;
 
-use function Safe\json_encode;
-
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 header("Content-Type: application/json; charset=UTF-8");
 Html::header_nocache();
+
+Session::checkLoginUser();
 
 if (isset($_POST['action']) && isset($_POST['id'])) {
     $id = (int) $_POST['id'];
 
     $agent = new Agent();
-    if (!$agent->getFromDB($id)) {
-        throw new NotFoundHttpException('Unable to load agent #' . $id);
-    }
-    if (!$agent->can($id, READ)) {
-        throw new AccessDeniedHttpException();
+    if (!$agent->getFromDB($id) || !$agent->can($id, READ)) {
+        Response::sendError(404, 'Unable to load agent #' . $id);
+        return;
     }
     $answer = [];
 

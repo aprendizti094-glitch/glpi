@@ -33,14 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 if (!isset($_GET["id"])) {
     $_GET["id"] = "";
 }
 $remind = new Reminder();
+Session::checkLoginUser();
 
 if (isset($_POST["add"])) {
     $remind->check(-1, CREATE, $_POST);
@@ -60,7 +61,7 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST["purge"])) {
     $remind->check($_POST["id"], PURGE);
-    $remind->delete($_POST, true);
+    $remind->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "reminder",

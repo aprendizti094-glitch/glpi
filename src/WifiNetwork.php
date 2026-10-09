@@ -49,9 +49,6 @@ class WifiNetwork extends CommonDropdown
         return _n('Wifi network', 'Wifi networks', $nb);
     }
 
-    /**
-     * @return array<string,string>
-     */
     public static function getWifiCardVersion()
     {
         return [
@@ -65,33 +62,25 @@ class WifiNetwork extends CommonDropdown
             'ac'        => 'ac', // Wifi 5
             'ax'        => 'ax', // Wifi 6/6E
             'be'        => 'be', // Wifi 7
-            'bn'        => 'bn', // Wifi 8
         ];
     }
 
 
-    /**
-     * @return array<string,string>
-     */
     public static function getWifiCardModes()
     {
 
-        return [
-            ''          => Dropdown::EMPTY_VALUE,
-            'ad-hoc'    => _x('wifi_card_mode', 'Ad-hoc'),
-            'managed'   => _x('wifi_card_mode', 'Managed'),
-            'master'    => _x('wifi_card_mode', 'Master'),
-            'repeater'  => _x('wifi_card_mode', 'Repeater'),
-            'secondary' => _x('wifi_card_mode', 'Secondary'),
-            'monitor'   => _x('wifi_card_mode', 'Monitor'),
-            'auto'      => _x('wifi_card_mode', 'Automatic'),
+        return [''          => Dropdown::EMPTY_VALUE,
+            'ad-hoc'    => __('Ad-hoc'),
+            'managed'   => __('Managed'),
+            'master'    => __('Master'),
+            'repeater'  => __('Repeater'),
+            'secondary' => __('Secondary'),
+            'monitor'   => Monitor::getTypeName(1),
+            'auto'      => __('Automatic'),
         ];
     }
 
 
-    /**
-     * @return array<string,string>
-     */
     public static function getWifiNetworkModes()
     {
 
@@ -107,7 +96,7 @@ class WifiNetwork extends CommonDropdown
 
         $ong  = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(NetworkPort::class, $ong, $options);
+        $this->addStandardTab('NetworkPort', $ong, $options);
 
         return $ong;
     }
@@ -163,6 +152,6 @@ class WifiNetwork extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-wifi";
+        return "fas fa-wifi";
     }
 }

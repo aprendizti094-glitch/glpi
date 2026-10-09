@@ -33,14 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\ItemLinkException;
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
-$iapp = new Appliance_Item();
+$iapp = new \Appliance_Item();
 $app = new Appliance();
 
 if (isset($_POST['update'])) {
@@ -53,19 +50,14 @@ if (isset($_POST['update'])) {
     }
     Html::redirect($url);
 } elseif (isset($_POST['add'])) {
-    try {
-        $iapp->check(-1, CREATE, $_POST);
-    } catch (ItemLinkException $e) {
-        Html::back();
-    }
-
+    $iapp->check(-1, CREATE, $_POST);
     $iapp->add($_POST);
     Html::back();
 } elseif (isset($_POST['purge'])) {
     $iapp->check($_POST['id'], PURGE);
-    $iapp->delete($_POST, true);
+    $iapp->delete($_POST, 1);
     $url = $app->getFormURLWithID($_POST['appliances_id']);
     Html::redirect($url);
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

@@ -42,7 +42,7 @@
     .fc-popover,
     .fc-list-view,
     .fc-list-heading td {
-        border-color: var(--tblr-border-color);
+        border-color: $table_border;
     }
 
     .fc-list-empty {
@@ -50,18 +50,18 @@
     }
 
     td.fc-today {
-        background: rgb(var(--tblr-emphasis-color-rgb), 0.1);
+        background: $table-active-bg;
     }
 
     .fc-divider,
     .fc-popover .fc-header,
     .fc-list-heading td {
-        background: var(--tblr-bg-surface-tertiary);
-        color: var(--tblr-secondary);
+        background: $table-head-bg;
+        color: $table-head-color;
     }
 
     .fc-list-item:hover td {
-        background: rgb(var(--tblr-emphasis-color-rgb), 0.075);
-        color: inherit;
+        background: $table-hover-bg;
+        color: $table-hover-color;
     }
 }

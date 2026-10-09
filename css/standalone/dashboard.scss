@@ -31,10 +31,17 @@
  * ---------------------------------------------------------------------
  */
 
+$item_margin: 3px;
 $toolbar_height: 40px;
 $filter_height: 62px;
 $break_phones: 700px;
 $break_tablet: 1400px;
+
+@mixin soft-shadow {
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 12%),
+        0 1px 2px rgba(0, 0, 0, 24%) !important;
+}
 
 @mixin custom-scroll-bar() {
     // firefox
@@ -58,24 +65,16 @@ $break_tablet: 1400px;
 
         // chrome
         &::-webkit-scrollbar-thumb {
-            background-color: rgb(0, 0, 0, 30%);
+            background-color: rgba(0, 0, 0, 30%);
         }
 
         &::-webkit-scrollbar-track {
-            background-color: rgb(0, 0, 0, 20%);
+            background-color: rgba(0, 0, 0, 20%);
         }
-    }
-}
-
-@container mini-dashboard-grid (min-width: 100px) {
-    .grid-stack {
-        min-height: calc((100cqw / var(--gs-col-count)) * (var(--gs-row-count) + 1));
     }
 }
 
 .dashboard {
-    --glpi-dashboard-soft-border: rgb(color-mix(in srgb, var(--tblr-light), var(--tblr-dark) 64%), 0.24);
-
     position: relative;
     padding-top: $toolbar_height;
 
@@ -90,8 +89,6 @@ $break_tablet: 1400px;
         margin-bottom: -45px !important;
         z-index: 1;
         box-sizing: content-box;
-        container-name: mini-dashboard-grid;
-        container-type: inline-size;
 
         & + .search_page {
             z-index: 2;
@@ -107,7 +104,7 @@ $break_tablet: 1400px;
 
         .main-icon {
             font-size: 1.5em;
-            inset-inline-end: 3px;
+            right: 3px;
             bottom: 3px;
         }
 
@@ -190,23 +187,11 @@ $break_tablet: 1400px;
 
         .toolbar {
             .change-dashboard {
-                display: none !important;
+                display: none;
             }
 
             .edit-dashboard-properties {
                 display: inline-flex;
-            }
-        }
-    }
-
-    &.filter-mode {
-        .toolbar {
-            .change-dashboard {
-            display: none;
-            }
-
-            .filter-dashboard-properties {
-            display: inline-block;
             }
         }
 
@@ -255,7 +240,7 @@ $break_tablet: 1400px;
             }
 
             .filters-control {
-                border-color: var(--glpi-dashboard-soft-border);
+                border-color: var(--light-mix);
 
                 .add-filter {
                     display: inline-block;
@@ -300,13 +285,13 @@ $break_tablet: 1400px;
 
         select.dashboard_select {
             padding: 5px;
-            border: 2px solid var(--tblr-border-color);
+            border: 2px solid var(--input-border);
             border-radius: 3px;
             min-width: 140px;
             cursor: pointer;
 
             option {
-                border-color: var(--tblr-border-color) !important;
+                border-color: var(--input-border) !important;
             }
         }
 
@@ -315,19 +300,22 @@ $break_tablet: 1400px;
         i.far,
         i.fa-regular,
         i.ti {
-            padding: 5px 8px;
+            font-size: 1.35em;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 5px;
             border: 2px solid transparent;
-            margin-left: 3px;
+
+            &.ti {
+                font-size: 1.75em;
+            }
 
             @media screen and (max-width: $break_phones) {
                 display: none;
             }
 
-            &.active:not(:hover) {
-                // override tabler styles
-                border: 2px inset var(--tblr-border-color);
-                color: var(--tblr-secondary);
-                background-color: rgb(var(--tblr-secondary-rgb), 0.1);
+            &.active {
+                border: 2px inset currentcolor;
             }
 
             &.fa-moon {
@@ -338,7 +326,7 @@ $break_tablet: 1400px;
         .edit-dashboard-properties {
             display: none;
 
-            input.dashboard-name:not(.submit, [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], .select2-search__field) {
+            input.dashboard-name:not(.submit):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not(.select2-search__field) {
                 min-width: 200px;
                 resize: horizontal;
             }
@@ -380,9 +368,7 @@ $break_tablet: 1400px;
             align-items: stretch;
 
             fieldset.filter {
-                --tblr-box-shadow-input: none;
-
-                border: 2px solid var(--tblr-border-color);
+                border: 2px solid var(--input-border);
                 border-radius: 4px;
                 padding: 6px 12px 5px;
                 text-align: center;
@@ -414,9 +400,8 @@ $break_tablet: 1400px;
                 .flatpickr {
                     position: relative;
 
-                    button[data-clear] {
+                    a[data-clear] {
                         display: none;
-                        border: none;
                     }
 
                     &::after {
@@ -533,7 +518,7 @@ $break_tablet: 1400px;
                             display: none;
                         }
 
-                        button[data-clear] {
+                        a[data-clear] {
                             display: inline-block;
                             color: #509ee3;
                         }
@@ -570,15 +555,13 @@ $break_tablet: 1400px;
     .grid-guide {
         display: none;
         position: absolute;
-        top: 0;
-        bottom: var(--gs-cell-height);
+        top: calc(#{$toolbar_height} + #{$filter_height} + 5px);
         width: calc(100% + 1px);
-        border: 1px solid var(--tblr-body-bg);
+        border: 1px solid var(--input-border);
         border-width: 0 1px 1px 0;
         background-image:
-            linear-gradient(to right, var(--tblr-body-bg) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--tblr-body-bg) 1px, transparent 1px);
-        background-size: var(--gs-cell-height) var(--gs-cell-height);
+            linear-gradient(to right, var(--input-border) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--input-border) 1px, transparent 1px);
 
         .cell-add {
             opacity: 0;
@@ -586,8 +569,6 @@ $break_tablet: 1400px;
             position: relative;
             cursor: pointer;
             border: 2px dashed #777;
-            width: var(--gs-cell-height);
-            height: var(--gs-cell-height);
 
             &:hover {
                 opacity: 1;
@@ -606,7 +587,7 @@ $break_tablet: 1400px;
     }
 
     .grid-stack {
-        &.gs-1 {
+        &.grid-stack-one-column-mode {
             max-width: 100%;
 
             .grid-stack-item {
@@ -649,6 +630,11 @@ $break_tablet: 1400px;
                 }
             }
 
+            .placeholder-content {
+                left: $item_margin;
+                right: $item_margin;
+            }
+
             .loading-card {
                 height: 100%;
                 border: 1px solid rgba($color: #000, $alpha: 5%);
@@ -679,15 +665,15 @@ $break_tablet: 1400px;
             }
 
             .card-error {
-                border-color: rgb(100, 0, 0, 30%);
-                background: rgb(255, 0, 0, 10%);
-                color: rgb(100, 0, 0, 50%);
+                border-color: rgba(100, 0, 0, 30%);
+                background: rgba(255, 0, 0, 10%);
+                color: rgba(100, 0, 0, 50%);
             }
 
             .card-warning {
-                border-color: rgb(105, 100, 32, 30%);
-                background: rgb(255, 238, 0, 17.8%);
-                color: rgb(105, 100, 32, 30%);
+                border-color: rgba(105, 100, 32, 30%);
+                background: rgba(255, 238, 0, 17.8%);
+                color: rgba(105, 100, 32, 30%);
             }
 
             .no-data {
@@ -732,7 +718,7 @@ $break_tablet: 1400px;
                 .debug-card {
                     z-index: 10;
                     position: absolute;
-                    color: rgb(255, 0, 0, 50%);
+                    color: rgba(255, 0, 0, 50%);
                     font-size: 10px;
                     bottom: 5px;
                     left: 5px;
@@ -742,15 +728,20 @@ $break_tablet: 1400px;
     }
 
     .card {
-        text-align: start;
+        @include soft-shadow;
+
+        text-align: left;
         padding: 5px;
         height: 100%;
         width: 100%;
+        margin: 2px 0 0 2px;
         display: block;
-        color: rgb(0, 0, 0, 70%);
+        color: rgba(0, 0, 0, 70%);
         border: 2px solid transparent;
-        border-radius: 3px !important;
+        border-radius: 3px;
+        border-top-left-radius: 3px !important;
         position: relative;
+        background-color: #ddd;
 
         img {
             max-width: 100%;
@@ -763,7 +754,7 @@ $break_tablet: 1400px;
         }
 
         .main-icon {
-            inset-inline-end: 5px;
+            right: 5px;
             top: 5px;
         }
 
@@ -791,7 +782,7 @@ $break_tablet: 1400px;
     .main-icon {
         font-size: 3em;
         position: absolute;
-        inset-inline-end: 5px;
+        right: 5px;
         bottom: 5px;
 
         @media screen and (min-width: $break_phones) and (max-width: $break_tablet) {
@@ -852,11 +843,11 @@ $break_tablet: 1400px;
 
                     &:not(:first-child) {
                         border: 0;
-                        border-left: 1px solid rgb(125, 125, 125, 20%);
+                        border-left: 1px solid rgba(125, 125, 125, 20%);
                     }
 
                     &:hover {
-                        background-color: rgb(125, 125, 125, 10%);
+                        background-color: rgba(125, 125, 125, 10%);
                         cursor: pointer;
                         border-radius: 3px;
                         border-left-color: transparent;
@@ -919,7 +910,7 @@ $break_tablet: 1400px;
                 }
 
                 .icon {
-                    color: rgb(0, 0, 0, 50%);
+                    color: rgba(0, 0, 0, 50%);
                 }
             }
         }
@@ -1123,6 +1114,16 @@ $break_tablet: 1400px;
             stroke-width: 13px;
         }
 
+        &.pie,
+        &.line.multiple,
+        &.bar.tab10 {
+            @import "../includes/components/chartist/palette_d3_tab_10";
+        }
+
+        &.bar.tab20 {
+            @import "../includes/components/chartist/palette_d3_cat_20";
+        }
+
         .ct-legend {
             text-align: left;
             padding: 10px 0 10px 38px;
@@ -1151,7 +1152,7 @@ $break_tablet: 1400px;
 
     .markdown {
         $mdmargin_v: 15px;
-        $editor_border: 1px solid rgb(0, 0, 0, 30%);
+        $editor_border: 1px solid rgba(0, 0, 0, 30%);
 
         overflow-y: auto;
 
@@ -1164,7 +1165,7 @@ $break_tablet: 1400px;
             resize: none;
             padding: 5px;
             margin: $mdmargin_v 0;
-            background-color: rgb(255, 255, 255, 90%);
+            background-color: rgba(255, 255, 255, 90%);
             border: 1px solid currentcolor;
             border-radius: 1px;
             outline: none;
@@ -1228,7 +1229,7 @@ $break_tablet: 1400px;
                 }
 
                 .tab_bg_1 {
-                    background-color: rgb(0, 0, 0, 3%);
+                    background-color: rgba(0, 0, 0, 3%);
                 }
 
                 .tab_bg_2 {
@@ -1248,7 +1249,7 @@ $break_tablet: 1400px;
 
         .main-icon {
             font-size: 2em;
-            inset-inline-end: 5px;
+            right: 5px;
             bottom: 5px;
         }
 
@@ -1261,20 +1262,27 @@ $break_tablet: 1400px;
     }
 }
 
+.chartist-tooltip.dashboard-tooltip {
+    $bg-color: rgba($color: #fff, $alpha: 65%);
+
+    z-index: 1080;
+    background-color: $bg-color;
+
+    @include soft-shadow;
+
+    &::before {
+        border-top-color: $bg-color;
+    }
+}
+
 .embed_block {
     border: 1px dashed #a0a0a04f;
     padding: 5px 10px;
 }
 
-.palette_preview {
-    width: calc(100% - 10px);
-}
-
 .widgettype_field {
     .widget-list {
         max-width: 400px;
-        display: flex;
-        flex-wrap: wrap;
     }
 
     input[type="radio"].widget-select {
@@ -1289,7 +1297,6 @@ $break_tablet: 1400px;
             display: none;
             text-align: center;
             font-weight: bold;
-            width: 30%;
 
             &:hover {
                 background: rgba($color: #000, $alpha: 10%);
@@ -1325,27 +1332,21 @@ $break_tablet: 1400px;
         }
     }
 
-    background: var(--tblr-dark);
-    color: var(--tblr-light);
+    background: var(--dark);
+    color: var(--contrast-light);
 
     .grid-guide {
-        border: 1px solid var(--glpi-dashboard-soft-border);
+        border: 1px solid var(--light-mix);
         background-image:
-            linear-gradient(to right, var(--glpi-dashboard-soft-border) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--glpi-dashboard-soft-border) 1px, transparent 1px);
+            linear-gradient(to right, var(--light-mix) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--light-mix) 1px, transparent 1px);
     }
 
     .filters_toolbar {
         .filters {
             fieldset.filter:not(.filled) {
-                border: 2px solid var(--glpi-dashboard-soft-border);
+                border: 2px solid var(--light-mix);
             }
         }
-    }
-}
-
-html[data-glpi-theme-dark="1"] {
-    .widgettype_field img {
-        filter: invert(1);
     }
 }

@@ -46,7 +46,7 @@ class APIClient extends CommonDBTM
     public const DOLOG_HISTORICAL = 2;
 
     public static $rightname = 'config';
-    protected $displaylist = true;
+    protected $displaylist = false;
 
     // From CommonDBTM
     public $dohistory                   = true;
@@ -55,12 +55,12 @@ class APIClient extends CommonDBTM
         'app_token',
     ];
 
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return Session::haveRight(static::$rightname, UPDATE);
     }
 
-    public static function canPurge(): bool
+    public static function canPurge()
     {
         return Session::haveRight(static::$rightname, UPDATE);
     }
@@ -70,29 +70,32 @@ class APIClient extends CommonDBTM
         return _n("API client", "API clients", $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ["config", Config::class, self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'setup';
-    }
-
     public function defineTabs($options = [])
     {
 
         $ong = [];
         $this->addDefaultFormTab($ong)
-           ->addStandardTab(Log::class, $ong, $options);
+           ->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
     public function rawSearchOptions()
     {
-        $tab = parent::rawSearchOptions();
+        $tab = [];
+
+        $tab[] = [
+            'id'                 => 'common',
+            'name'               => self::GetTypeName(),
+        ];
+
+        $tab[] = [
+            'id'                 => '1',
+            'table'              => $this->getTable(),
+            'field'              => 'name',
+            'name'               => __('Name'),
+            'datatype'           => 'itemlink',
+        ];
 
         $tab[] = [
             'id'                 => '2',
@@ -157,14 +160,6 @@ class APIClient extends CommonDBTM
             'datatype'           => 'text',
         ];
 
-        $tab[] = [
-            'id'                 => '80',
-            'table'              => 'glpi_entities',
-            'field'              => 'completename',
-            'name'               => Entity::getTypeName(1),
-            'datatype'           => 'dropdown',
-        ];
-
         return $tab;
     }
 
@@ -174,19 +169,27 @@ class APIClient extends CommonDBTM
         switch ($field) {
             case 'dolog_method':
                 $methods = self::getLogMethod();
-                return htmlescape($methods[$values[$field]]);
+                return $methods[$values[$field]];
 
             case 'ipv4_range_start':
             case 'ipv4_range_end':
                 if (empty($values[$field])) {
                     return '';
                 }
-                return htmlescape(long2ip((int) $values[$field]));
+                return long2ip((int) $values[$field]);
         }
 
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }
 
+    /**
+     * Show form
+     *
+     * @param integer $ID      Item ID
+     * @param array   $options Options
+     *
+     * @return void
+     */
     public function showForm($ID, $options = [])
     {
         $this->initForm($ID, $options);
@@ -272,10 +275,14 @@ class APIClient extends CommonDBTM
      */
     public static function getUniqueAppToken()
     {
+
+        $ok = false;
         do {
-            $key = Toolbox::getRandomString(40);
-        } while (countElementsInTable(self::getTable(), ['app_token' => $key]) != 0);
-        return $key;
+            $key    = Toolbox::getRandomString(40);
+            if (countElementsInTable(self::getTable(), ['app_token' => $key]) == 0) {
+                return $key;
+            }
+        } while (!$ok);
     }
 
     public static function getIcon()

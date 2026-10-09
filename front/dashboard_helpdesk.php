@@ -33,16 +33,16 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Dashboard\Dashboard;
-use Glpi\Dashboard\Grid;
-use Glpi\Exception\Http\AccessDeniedHttpException;
 
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
 
+include('../inc/includes.php');
+
+
 Session::checkCentralAccess();
-$default = Grid::getDefaultDashboardForMenu('helpdesk');
+$default = Glpi\Dashboard\Grid::getDefaultDashboardForMenu('helpdesk');
 
 // Redirect to "/front/ticket.php" if no dashboard found
 if ($default == "") {
@@ -51,12 +51,13 @@ if ($default == "") {
 
 $dashboard = new Dashboard($default);
 if (!$dashboard->canViewCurrent()) {
-    throw new AccessDeniedHttpException();
+    Html::displayRightError();
+    exit();
 }
 
-Html::header(__('Helpdesk Dashboard'), '', "helpdesk", "dashboard");
+Html::header(__('Helpdesk Dashboard'), $_SERVER['PHP_SELF'], "helpdesk", "dashboard");
 
-$grid = new Grid($default);
+$grid = new Glpi\Dashboard\Grid($default);
 $grid->showDefault();
 
 Html::footer();

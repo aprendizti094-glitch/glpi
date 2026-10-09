@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -67,7 +67,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $alert->check($_POST["id"], PURGE);
 
-    if ($alert->delete($_POST, true)) {
+    if ($alert->delete($_POST, 1)) {
         Event::log(
             $alert->fields['savedsearches_id'],
             "savedsearches",

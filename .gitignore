@@ -56,3 +56,11 @@ phpstan.neon
 # Binarios temporarios de tunel
 ngrok.exe
 ngrok.zip
+
+# Arquivos temporarios de testes locais
+test_*
+ticket_full_*
+live_ticket_*
+*.bak
+*.orig
+node_modules/

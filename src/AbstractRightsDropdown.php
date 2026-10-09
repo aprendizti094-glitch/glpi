@@ -33,14 +33,14 @@
  * ---------------------------------------------------------------------
  */
 
+use Glpi\Toolbox\Sanitizer;
+
 abstract class AbstractRightsDropdown
 {
     /**
      * Max limit per itemtype
      */
     public const LIMIT = 50;
-
-    public const ALL_USERS = "all";
 
     /**
      * To be redefined by subclasses, URL to front file
@@ -52,28 +52,20 @@ abstract class AbstractRightsDropdown
     /**
      * To be redefined by subclasses, specify enabled types
      *
-     * @param array $options Additional options
-     *
      * @return array
      */
-    abstract protected static function getTypes(array $options = []): array;
-
-    protected static function addAllUsersOption(): bool
-    {
-        return false;
-    }
+    abstract protected static function getTypes(): array;
 
     /**
      * Check if a given type is enabled
      *
      * @param string $type Class to check
-     * @param array $options Additional options
      *
      * @return bool
      */
-    protected static function isTypeEnabled(string $type, array $options = []): bool
+    protected static function isTypeEnabled(string $type): bool
     {
-        $types = array_flip(static::getTypes($options));
+        $types = array_flip(static::getTypes());
         return isset($types[$type]);
     }
 
@@ -85,7 +77,7 @@ abstract class AbstractRightsDropdown
      *
      * @return string
      */
-    public static function show(string $name, array $values, array $params = []): string
+    public static function show(string $name, array $values): string
     {
         // Flatten values
         $dropdown_values = [];
@@ -102,19 +94,12 @@ abstract class AbstractRightsDropdown
         $url = static::getAjaxUrl();
 
         // Build params
-        $params = array_merge([
+        $params = [
             'name'        => $name . "[]",
+            'values'      => $dropdown_values,
+            'valuesnames' => self::getValueNames($dropdown_values),
             'multiple'    => true,
-            'width'       => '100%',
-        ], $params);
-
-        if ($params['multiple']) {
-            $params['values'] = $dropdown_values;
-            $params['valuesnames'] = static::getValueNames($dropdown_values);
-        } elseif (count($dropdown_values) > 0) {
-            $params['value'] = $dropdown_values[0];
-            $params['valuename'] = static::getValueNames($dropdown_values)[0];
-        }
+        ];
         return Html::jsAjaxDropdown($params['name'], $field_id, $url, $params);
     }
 
@@ -122,11 +107,10 @@ abstract class AbstractRightsDropdown
      * Get possible data for profiles
      *
      * @param string $text Search string
-     * @param array $options Additional options
      *
      * @return array
      */
-    public static function fetchValues(string $text = "", array $options = []): array
+    public static function fetchValues(string $text = ""): array
     {
         $possible_rights = [];
 
@@ -141,23 +125,13 @@ abstract class AbstractRightsDropdown
         }
 
         // Add users if enabled
-        if (self::isTypeEnabled(User::getType(), $options)) {
-            $possible_rights[User::getType()] = self::getUsers($text, $options);
+        if (self::isTypeEnabled(User::getType())) {
+            $possible_rights[User::getType()] = self::getUsers($text);
         }
 
         // Add groups if enabled
-        if (self::isTypeEnabled(Group::getType(), $options)) {
-            $possible_rights[Group::getType()] = self::getGroups($text, $options);
-        }
-
-        // Add contacts if enabled
-        if (self::isTypeEnabled(Contact::getType())) {
-            $possible_rights[Contact::getType()] = self::getContacts($text);
-        }
-
-        // Add suppliers if enabled
-        if (self::isTypeEnabled(Supplier::getType())) {
-            $possible_rights[Supplier::getType()] = self::getSuppliers($text, $options);
+        if (self::isTypeEnabled(Group::getType())) {
+            $possible_rights[Group::getType()] = self::getGroups($text);
         }
 
         $results = [];
@@ -177,7 +151,7 @@ abstract class AbstractRightsDropdown
         }
 
         $ret = [
-            'results' => $results,
+            'results' => Sanitizer::unsanitize($results),
             'count' =>  count($results),
         ];
 
@@ -195,16 +169,13 @@ abstract class AbstractRightsDropdown
     {
         return array_map(function ($value) {
             $data = explode("-", $value);
+            $itemtype = getItemtypeForForeignKeyField($data[0]);
             $items_id = $data[1];
-            $item = getItemForForeignKeyField($data[0]);
+            $item = new $itemtype();
 
-            if ($items_id == self::ALL_USERS) {
-                return $item::getTypeName(1) . " - " . __("All users");
-            }
-
-            return $item::getTypeName(1) . " - " . Dropdown::getDropdownName(
+            return $itemtype::getTypeName(1) . " - " . Dropdown::getDropdownName(
                 $item->getTable(),
-                (int) $items_id
+                $items_id
             );
         }, $values);
     }
@@ -261,24 +232,13 @@ abstract class AbstractRightsDropdown
      * Get possible values for users
      *
      * @param string $text Search string
-     * @param array $options Additional options
      *
      * @return array
      */
-    protected static function getUsers(string $text, array $options): array
+    protected static function getUsers(string $text): array
     {
-        $page = $options['page'] ?? 1;
-        $page_size = $options['page_size'] ?? self::LIMIT;
-        $start = ($page - 1) * $page_size;
-
-        $users = User::getSqlSearchResult(false, "all", -1, 0, [], $text, $start, $page_size);
+        $users = User::getSqlSearchResult(false, "all", -1, 0, [], $text, 0, self::LIMIT);
         $users_items = [];
-
-        if (static::addAllUsersOption()) {
-            $new_key = 'users_id-' . self::ALL_USERS;
-            $users_items[$new_key] = __("All users");
-        }
-
         foreach ($users as $user) {
             $new_key = 'users_id-' . $user['id'];
             $users_items[$new_key] = $user['name'];
@@ -291,35 +251,19 @@ abstract class AbstractRightsDropdown
      * Get possible values for groups
      *
      * @param string $text Search string
-     * @param array $options Additional options
      *
      * @return array
      */
-    protected static function getGroups(string $text, array $options): array
+    protected static function getGroups(string $text): array
     {
-        /** @var DBmysql $DB */
-        global $DB;
-
-        $page = $options['page'] ?? 1;
-        $page_size = $options['page_size'] ?? self::LIMIT;
-        $start = ($page - 1) * $page_size;
-
-        $additional_conditions = [];
-        if (isset($options['group_conditions'])) {
-            $additional_conditions = $options['group_conditions'];
-        }
-
-        $groups = $DB->request([
-            'FROM' => Group::getTable(),
-            'WHERE' => [
+        $group_item = new Group();
+        $groups = $group_item->find(
+            [
                 'name' => ["LIKE", "%$text%"],
-            ] + getEntitiesRestrictCriteria(
-                table: Group::getTable(),
-                is_recursive: true,
-            ) + $additional_conditions,
-            'START' => $start,
-            'LIMIT' => $page_size,
-        ]);
+            ] + getEntitiesRestrictCriteria(Group::getTable()),
+            [],
+            self::LIMIT
+        );
         $groups_items = [];
         foreach ($groups as $group) {
             $new_key = 'groups_id-' . $group['id'];
@@ -327,72 +271,6 @@ abstract class AbstractRightsDropdown
         }
 
         return $groups_items;
-    }
-
-    /**
-     * Get possible values for contacts
-     *
-     * @param string $text Search string
-     *
-     * @return array
-     */
-    protected static function getContacts(string $text): array
-    {
-        $contact_item = new Contact();
-        $contacts = $contact_item->find(
-            [
-                'name' => ["LIKE", "%$text%"],
-            ] + getEntitiesRestrictCriteria(
-                table: Contact::getTable(),
-                is_recursive: true,
-            ),
-            [],
-            self::LIMIT
-        );
-        $contacts_item = [];
-        foreach ($contacts as $contact) {
-            $new_key = 'contacts_id-' . $contact['id'];
-            $contacts_item[$new_key] = $contact['name'];
-        }
-
-        return $contacts_item;
-    }
-
-    /**
-     * Get possible values for suppliers
-     *
-     * @param string $text Search string
-     *
-     * @return array
-     */
-    protected static function getSuppliers(string $text, array $options = []): array
-    {
-        /** @var DBmysql $DB */
-        global $DB;
-
-        $page = $options['page'] ?? 1;
-        $page_size = $options['page_size'] ?? self::LIMIT;
-        $start = ($page - 1) * $page_size;
-
-        $suppliers = $DB->request([
-            'FROM' => Supplier::getTable(),
-            'WHERE' => [
-                'name' => ["LIKE", "%$text%"],
-            ] + getEntitiesRestrictCriteria(
-                table: Supplier::getTable(),
-                is_recursive: true,
-            ),
-            'START' => $start,
-            'LIMIT' => $page_size,
-        ]);
-
-        $suppliers_item = [];
-        foreach ($suppliers as $supplier) {
-            $new_key = 'suppliers_id-' . $supplier['id'];
-            $suppliers_item[$new_key] = $supplier['name'];
-        }
-
-        return $suppliers_item;
     }
 
     /**
@@ -424,11 +302,7 @@ abstract class AbstractRightsDropdown
             // Split fkey and ids
             $parsed_values = explode("-", $value);
             $fkey  = $parsed_values[0];
-
-            $value = $parsed_values[1];
-            if (is_numeric($value)) {
-                $value = (int) $value;
-            }
+            $value = (int) $parsed_values[1];
 
             if ($fkey == $class::getForeignKeyField()) {
                 $inflated_values[] = $value;

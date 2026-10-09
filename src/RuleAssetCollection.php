@@ -45,8 +45,10 @@ class RuleAssetCollection extends RuleCollection
         return __('Business rules for assets');
     }
 
+
     public function cleanTestOutputCriterias(array $output)
     {
+
         if (isset($output["_rule_process"])) {
             unset($output["_rule_process"]);
         }

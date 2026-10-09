@@ -38,9 +38,9 @@
 class Profile_Reminder extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = Reminder::class;
+    public static $itemtype_1          = 'Reminder';
     public static $items_id_1          = 'reminders_id';
-    public static $itemtype_2 = Profile::class;
+    public static $itemtype_2          = 'Profile';
     public static $items_id_2          = 'profiles_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Profile_Reminder extends CommonDBRelation
     /**
      * Get profiles for a reminder
      *
-     * @param int $reminders_id ID of the reminder
+     * @param $reminders_id ID of the reminder
      *
-     * @return array
-     */
+     * @return array of profiles linked to a reminder
+     **/
     public static function getProfiles($reminders_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $prof  = [];

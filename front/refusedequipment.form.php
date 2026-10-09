@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight("refusedequipment", READ);
 
@@ -49,7 +49,7 @@ if (!isset($_GET["withtemplate"])) {
 $refusedequipment = new RefusedEquipment();
 if (isset($_POST["purge"])) {
     $refusedequipment->check($_POST["id"], PURGE);
-    if ($refusedequipment->delete($_POST, true)) {
+    if ($refusedequipment->delete($_POST, 1)) {
         Event::log(
             $_POST["id"],
             "refusedequipment",
@@ -73,7 +73,7 @@ if (isset($_POST["purge"])) {
     );
     Html::back();
 } else {
-    $menus = ["admin", "glpi\inventory\inventory", "RefusedEquipment"];
+    $menus = ["admin", "glpi\inventory\inventory", "refusedequipment"];
     RefusedEquipment::displayFullPageForItem($_GET["id"], $menus, [
         'withtemplate' => $_GET["withtemplate"],
         'formoptions'  => "data-track-changes=true",

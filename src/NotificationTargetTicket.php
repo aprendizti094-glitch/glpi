@@ -35,16 +35,13 @@
 
 /**
  * NotificationTargetTicket Class
- *
- * @extends NotificationTargetCommonITILObject<Ticket>
- */
+ **/
 class NotificationTargetTicket extends NotificationTargetCommonITILObject
 {
     public const HEADERTAG = '=-=-=-=';
     public const FOOTERTAG = '=_=_=_=';
 
-    #[Override]
-    public function validateSendTo($event, array $infos, $notify_me = false, $emitter = null): bool
+    public function validateSendTo($event, array $infos, $notify_me = false, $emitter = null)
     {
         // Always send notification for satisfaction : if send on ticket closure
         // Always send notification for new ticket
@@ -55,9 +52,10 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         return parent::validateSendTo($event, $infos, $notify_me, $emitter);
     }
 
-    #[Override]
+
     public function getSubjectPrefix($event = '')
     {
+
         if ($event != 'alertnotclosed') {
             $perso_tag = trim(Entity::getUsedConfig(
                 'notification_subject_tag',
@@ -74,41 +72,46 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         return parent::getSubjectPrefix();
     }
 
-    #[Override]
+    /**
+     * Get header to add to content
+     **/
     public function getContentHeader()
     {
 
         if (
-            $this->getMode() == Notification_NotificationTemplate::MODE_MAIL
+            $this->getMode() == \Notification_NotificationTemplate::MODE_MAIL
             && MailCollector::countActiveCollectors()
             && $this->allowResponse()
         ) {
-            return self::HEADERTAG . ' ' . __('To answer by email, write above this line') . ' '
-                . self::HEADERTAG;
+            return self::HEADERTAG . ' ' . __('To answer by email, write above this line') . ' ' .
+                self::HEADERTAG;
         }
 
         return '';
     }
 
-    #[Override]
+
+    /**
+     * Get footer to add to content
+     **/
     public function getContentFooter()
     {
 
         if (
-            $this->getMode() == Notification_NotificationTemplate::MODE_MAIL
+            $this->getMode() == \Notification_NotificationTemplate::MODE_MAIL
             && MailCollector::countActiveCollectors()
             && $this->allowResponse()
         ) {
-            return self::FOOTERTAG . ' ' . __('To answer by email, write under this line') . ' '
-                . self::FOOTERTAG;
+            return self::FOOTERTAG . ' ' . __('To answer by email, write under this line') . ' ' .
+                self::FOOTERTAG;
         }
 
         return '';
     }
 
-    #[Override]
     public function getObjectItem($event = '')
     {
+
         if ($this->obj && isset($this->obj->fields['id']) && !empty($this->obj->fields['id'])) {
             $item_ticket = new Item_Ticket();
             $data = $item_ticket->find(['tickets_id' => $this->obj->fields['id']]);
@@ -125,7 +128,9 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         }
     }
 
-    #[Override]
+    /**
+     *Get events related to tickets
+     **/
     public function getEvents()
     {
 
@@ -133,9 +138,8 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
             'update'            => __('Update of a ticket'),
             'solved'            => __('Ticket solved'),
             'rejectsolution'    => __('Solution rejected'),
-            'validation'        => __('Approval request'),
-            'validation_answer' => __('Approval request answer'),
-            'validation_reminder' => __('Approval reminder'),
+            'validation'        => __('Validation request'),
+            'validation_answer' => __('Validation request answer'),
             'closed'            => __('Closing of the ticket'),
             'delete'            => __('Deletion of a ticket'),
             'alertnotclosed'    => __('Not solved tickets'),
@@ -150,25 +154,18 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         return $events;
     }
 
-    #[Override]
+
     public function getDataForObject(CommonDBTM $item, array $options, $simple = false)
     {
         // Common ITIL data
         $data = parent::getDataForObject($item, $options, $simple);
 
         $data['##ticket.content##'] = $data['##ticket.description##'];
-
         // Specific data
-        $anchor = null;
-        if (isset($options['validation_id']) && $options['validation_id']) {
-            $anchor = "TicketValidation_" . $options['validation_id'];
-        }
-
         $data['##ticket.urlvalidation##']
                         = $this->formatURL(
                             $options['additionnaloption']['usertype'],
-                            "ticket_" . $item->getField("id") . '_Ticket$main',
-                            $anchor
+                            "ticket_" . $item->getField("id") . '_Ticket$main'
                         );
         $data['##ticket.globalvalidation##']
                         = TicketValidation::getStatus($item->getField('global_validation'));
@@ -418,8 +415,39 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
 
         $data['##ticket.numberofitems##'] = count($data['items']);
 
-        // Get followups, log, validation
+        // Get followups, log, validation, satisfaction, linked tickets
         if (!$simple) {
+            // Linked tickets
+            $linked_tickets         = Ticket_Ticket::getLinkedTicketsTo($item->getField('id'));
+            $data['linkedtickets'] = [];
+            if (count($linked_tickets)) {
+                $linkedticket = new Ticket();
+                foreach ($linked_tickets as $row) {
+                    if ($linkedticket->getFromDB($row['tickets_id'])) {
+                        $tmp = [];
+
+                        $tmp['##linkedticket.id##']
+                                    = $row['tickets_id'];
+                        $tmp['##linkedticket.link##']
+                                    = Ticket_Ticket::getLinkName($row['link']);
+                        $tmp['##linkedticket.url##']
+                                    = $this->formatURL(
+                                        $options['additionnaloption']['usertype'],
+                                        "ticket_" . $row['tickets_id']
+                                    );
+
+                        $tmp['##linkedticket.title##']
+                                    = $linkedticket->getField('name');
+                        $tmp['##linkedticket.content##']
+                                    = $linkedticket->getField('content');
+
+                        $data['linkedtickets'][] = $tmp;
+                    }
+                }
+            }
+
+            $data['##ticket.numberoflinkedtickets##'] = count($data['linkedtickets']);
+
             $restrict          = ['tickets_id' => $item->getField('id')];
             $problems          = getAllDataFromTable('glpi_problems_tickets', $restrict);
             $data['problems'] = [];
@@ -481,7 +509,7 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
 
             // Approbation of solution
             $solution_restrict = [
-                'itemtype' => Ticket::class,
+                'itemtype' => 'Ticket',
                 'items_id' => $item->getField('id'),
             ];
             $replysolved = getAllDataFromTable(
@@ -513,66 +541,76 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
             $data['validations'] = [];
             foreach ($validations as $validation) {
                 $tmp = [];
-                $tmp['##validation.submission.title##'] = sprintf(
-                    __('An approval request has been submitted by %s'),
-                    getUserName($validation['users_id'])
-                );
-                $tmp['##validation.answer.title##'] = sprintf(
-                    __('An answer to an approval request was produced by %s'),
-                    getUserName($validation['users_id_validate'])
-                );
-                $tmp['##validation.author##'] = getUserName($validation['users_id']);
-                $tmp['##validation.status##'] = TicketValidation::getStatus($validation['status']);
-                $tmp['##validation.storestatus##'] = $validation['status'];
-                $tmp['##validation.submissiondate##'] = Html::convDateTime($validation['submission_date']);
-                $tmp['##validation.commentsubmission##'] = $validation['comment_submission'];
+                $tmp['##validation.submission.title##']
+                              //TRANS: %s is the user name
+                              = sprintf(
+                                  __('An approval request has been submitted by %s'),
+                                  getUserName($validation['users_id'])
+                              );
+                $tmp['##validation.answer.title##']
+                             //TRANS: %s is the user name
+                             = sprintf(
+                                 __('An answer to an approval request was produced by %s'),
+                                 getUserName($validation['users_id_validate'])
+                             );
 
-                $itemtype_target = $validation['itemtype_target'];
-                $items_id_target = $validation['items_id_target'];
-                /** @var CommonDBTM $validation_target */
-                $validation_target = getItemForItemtype($itemtype_target);
-                $validation_target->getFromDB($items_id_target);
-                $validation_target_name = ($itemtype_target === 'User') ? getUserName($items_id_target) : $validation_target->getName();
-                $tmp['##validation.validator_target_type##'] = $itemtype_target::getTypeName(1);
-                $tmp['##validation.validator_target##'] = $validation_target_name;
-                $tmp['##validation.validationdate##'] = Html::convDateTime($validation['validation_date']);
-                $tmp['##validation.validator##'] = getUserName($validation['users_id_validate']);
-                $tmp['##validation.commentvalidation##'] = $validation['comment_validation'];
+                $tmp['##validation.author##']
+                             = getUserName($validation['users_id']);
+
+                $tmp['##validation.status##']
+                             = TicketValidation::getStatus($validation['status']);
+                $tmp['##validation.storestatus##']
+                             = $validation['status'];
+                $tmp['##validation.submissiondate##']
+                             = Html::convDateTime($validation['submission_date']);
+                $tmp['##validation.commentsubmission##']
+                             = $validation['comment_submission'];
+                $tmp['##validation.validationdate##']
+                             = Html::convDateTime($validation['validation_date']);
+                $tmp['##validation.validator##']
+                             =  getUserName($validation['users_id_validate']);
+                $tmp['##validation.commentvalidation##']
+                             = $validation['comment_validation'];
 
                 $data['validations'][] = $tmp;
             }
 
-            // linked project tasks
-            $data['linkedprojecttasks'] = [];
-            $project_task_ticket = new ProjectTask_Ticket();
-            $linked_project_tasks = $project_task_ticket->find(['tickets_id' => $item->getField('id')]);
-            foreach ($linked_project_tasks as $linked_project_task) {
-                $project_task = new ProjectTask();
-                if ($project_task->getFromDB($linked_project_task['projecttasks_id'])) {
-                    $data['linkedprojecttasks'][] = [
-                        '##linkedprojecttask.id##'      => $linked_project_task['projecttasks_id'],
-                        '##linkedprojecttask.url##'     => $this->formatURL(
-                            $options['additionnaloption']['usertype'],
-                            'projecttask_' . $linked_project_task['projecttasks_id']
-                        ),
-                        '##linkedprojecttask.name##'   => $project_task->getField('name'),
-                        '##linkedprojecttask.content##' => $project_task->getField('content'),
-                        '##linkedprojecttask.planstartdate##' => Html::convDateTime($project_task->getField('plan_start_date')),
-                        '##linkedprojecttask.planenddate##' => Html::convDateTime($project_task->getField('plan_end_date')),
-                        '##linkedprojecttask.realstartdate##' => Html::convDateTime($project_task->getField('real_start_date')),
-                        '##linkedprojecttask.realenddate##' => Html::convDateTime($project_task->getField('real_end_date')),
-                    ];
+            // Ticket Satisfaction
+            $inquest                                = new TicketSatisfaction();
+            $data['##satisfaction.type##']         = '';
+            $data['##satisfaction.datebegin##']    = '';
+            $data['##satisfaction.dateanswered##'] = '';
+            $data['##satisfaction.satisfaction##'] = '';
+            $data['##satisfaction.description##']  = '';
+
+            if ($inquest->getFromDB($item->getField('id'))) {
+                // internal inquest
+                if ($inquest->fields['type'] == 1) {
+                    $data['##ticket.urlsatisfaction##']
+                           = $this->formatURL(
+                               $options['additionnaloption']['usertype'],
+                               "ticket_" . $item->getField("id") . '_Ticket$3'
+                           );
+                } elseif ($inquest->fields['type'] == 2) { // external inquest
+                    $data['##ticket.urlsatisfaction##'] = Entity::generateLinkSatisfaction($item);
                 }
+
+                $data['##satisfaction.type##']
+                                       = $inquest->getTypeInquestName($inquest->getfield('type'));
+                $data['##satisfaction.datebegin##']
+                                       = Html::convDateTime($inquest->fields['date_begin']);
+                $data['##satisfaction.dateanswered##']
+                                       = Html::convDateTime($inquest->fields['date_answered']);
+                $data['##satisfaction.satisfaction##']
+                                       = $inquest->fields['satisfaction'];
+                $data['##satisfaction.description##']
+                                       = $inquest->fields['comment'];
             }
-            $data['##ticket.numberoflinkedprojecttasks##'] = count($data['linkedprojecttasks']);
         }
-
-        $data['##ticket.externalid##'] = $item->fields['externalid'];
-
         return $data;
     }
 
-    #[Override]
+
     public function getTags()
     {
 
@@ -601,7 +639,6 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
                 __('OLA'),
                 __('Internal time to resolve')
             ),
-            'ticket.externalid'            => __('External ID'),
             'ticket.requesttype'           => RequestType::getTypeName(1),
             'ticket.itemtype'              => __('Item type'),
             'ticket.item.name'             => _n('Associated item', 'Associated items', 1),
@@ -673,10 +710,10 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
             'ticket.item.user'             => User::getTypeName(1),
             'ticket.item.group'            => Group::getTypeName(1),
             'ticket.isdeleted'             => __('Deleted'),
+            'ticket.numberoflinkedtickets' => _x('quantity', 'Number of linked tickets'),
             'ticket.numberofproblems'      => _x('quantity', 'Number of problems'),
             'ticket.numberofchanges'       => _x('quantity', 'Number of changes'),
             'ticket.numberofitems'         => _x('quantity', 'Number of items'),
-            'ticket.numberoflinkedprojecttasks' => _x('quantity', 'Number of linked project tasks'),
             'ticket.autoclose'             => __('Automatic closing of solved tickets after'),
             'ticket.location'              => Location::getTypeName(1),
             'ticket.location.comment'      => __('Location comments'),
@@ -714,20 +751,18 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
             'validation.commentsubmission' => sprintf(
                 __('%1$s: %2$s'),
                 __('Request'),
-                _n('Comment', 'Comments', Session::getPluralNumber())
+                __('Comments')
             ),
             'validation.validationdate'    => sprintf(
                 __('%1$s: %2$s'),
-                CommonITILValidation::getTypeName(1),
+                _n('Validation', 'Validations', 1),
                 _n('Date', 'Dates', 1)
             ),
-            'validation.validator_target_type'  => __('Approval target type (User or Group)'),
-            'validation.validator_target'       => __('Approval target'),
-            'validation.validator'              => __('Approver'),
-            'validation.commentvalidation'      => sprintf(
+            'validation.validator'         => __('Decision-maker'),
+            'validation.commentvalidation' => sprintf(
                 __('%1$s: %2$s'),
-                CommonITILValidation::getTypeName(1),
-                _n('Comment', 'Comments', Session::getPluralNumber())
+                _n('Validation', 'Validations', 1),
+                __('Comments')
             ),
         ];
 
@@ -740,9 +775,9 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         }
         //Tags without lang for validation
         $tags = ['validation.submission.title'
-                                          => __('An approval request has been submitted'),
+                                          => __('A validation request has been submitted'),
             'validation.answer.title'
-                                          => __('An answer to an approval request was produced'),
+                                          => __('An answer to a validation request was produced'),
         ];
 
         foreach ($tags as $tag => $label) {
@@ -754,14 +789,50 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
             ]);
         }
 
+        // Events for ticket satisfaction
+        $tags = ['satisfaction.datebegin'    => __('Creation date of the satisfaction survey'),
+            'satisfaction.dateanswered' => __('Response date to the satisfaction survey'),
+            'satisfaction.satisfaction' => __('Satisfaction'),
+            'satisfaction.description'  => __('Comments to the satisfaction survey'),
+        ];
+
+        foreach ($tags as $tag => $label) {
+            $this->addTagToList(['tag'    => $tag,
+                'label'  => $label,
+                'value'  => true,
+                'events' => ['satisfaction'],
+            ]);
+        }
+
+        $tags = ['satisfaction.type'  => __('Survey type'),];
+
+        foreach ($tags as $tag => $label) {
+            $this->addTagToList(['tag'    => $tag,
+                'label'  => $label,
+                'value'  => true,
+                'lang'   => false,
+                'events' => ['satisfaction'],
+            ]);
+        }
+
+        $tags = ['satisfaction.text' => __('Invitation to fill out the survey')];
+
+        foreach ($tags as $tag => $label) {
+            $this->addTagToList(['tag'    => $tag,
+                'label'  => $label,
+                'value'  => false,
+                'lang'   => true,
+                'events' => ['satisfaction'],
+            ]);
+        }
+
         //Foreach global tags
-        $tags = [
-            'validations'   => CommonITILValidation::getTypeName(Session::getPluralNumber()),
+        $tags = ['validations'   => _n('Validation', 'Validations', Session::getPluralNumber()),
+            'linkedtickets' => _n('Linked ticket', 'Linked tickets', Session::getPluralNumber()),
             'problems'      => Problem::getTypeName(Session::getPluralNumber()),
-            'changes'       => Change::getTypeName(Session::getPluralNumber()),
+            'changes'       => _n('Change', 'Changes', Session::getPluralNumber()),
             'items'         => _n('Associated item', 'Associated items', Session::getPluralNumber()),
             'documents'     => Document::getTypeName(Session::getPluralNumber()),
-            'linkedprojecttasks' => _n('Linked project task', 'Linked project tasks', Session::getPluralNumber()),
         ];
 
         foreach ($tags as $tag => $label) {
@@ -773,9 +844,9 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         }
 
         //Tags with just lang
-        $tags = [
+        $tags = ['ticket.linkedtickets'    => _n('Linked ticket', 'Linked tickets', Session::getPluralNumber()),
             'ticket.problems'         => Problem::getTypeName(Session::getPluralNumber()),
-            'ticket.changes'          => Change::getTypeName(Session::getPluralNumber()),
+            'ticket.changes'          => _n('Change', 'Changes', Session::getPluralNumber()),
             'ticket.autoclosewarning'
                      => sprintf(
                          _n(
@@ -785,7 +856,6 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
                          ),
                          '?'
                      ),
-            'ticket.linkedprojecttasks'  => _n('Linked project task', 'Linked project tasks', Session::getPluralNumber()),
         ];
 
         foreach ($tags as $tag => $label) {
@@ -807,9 +877,39 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         //Tags without lang
         $tags = ['ticket.urlvalidation'    => sprintf(
             __('%1$s: %2$s'),
-            __('Approval request'),
+            __('Validation request'),
             __('URL')
         ),
+            'ticket.urlsatisfaction'  => sprintf(
+                __('%1$s: %2$s'),
+                __('Satisfaction'),
+                __('URL')
+            ),
+            'linkedticket.id'         => sprintf(
+                __('%1$s: %2$s'),
+                _n('Linked ticket', 'Linked tickets', 1),
+                __('ID')
+            ),
+            'linkedticket.link'       => sprintf(
+                __('%1$s: %2$s'),
+                _n('Linked ticket', 'Linked tickets', 1),
+                Link::getTypeName(1)
+            ),
+            'linkedticket.url'        => sprintf(
+                __('%1$s: %2$s'),
+                _n('Linked ticket', 'Linked tickets', 1),
+                __('URL')
+            ),
+            'linkedticket.title'      => sprintf(
+                __('%1$s: %2$s'),
+                _n('Linked ticket', 'Linked tickets', 1),
+                __('Title')
+            ),
+            'linkedticket.content'    => sprintf(
+                __('%1$s: %2$s'),
+                _n('Linked ticket', 'Linked tickets', 1),
+                __('Description')
+            ),
             'problem.id'              => sprintf(__('%1$s: %2$s'), Problem::getTypeName(1), __('ID')),
             'problem.date'            => sprintf(__('%1$s: %2$s'), Problem::getTypeName(1), _n('Date', 'Dates', 1)),
             'problem.url'             => sprintf(__('%1$s: %2$s'), Problem::getTypeName(1), ('URL')),
@@ -835,46 +935,6 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
                 __('%1$s: %2$s'),
                 Change::getTypeName(1),
                 __('Description')
-            ),
-            'linkedprojecttask.id'        => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('ID')
-            ),
-            'linkedprojecttask.url'       => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('URL')
-            ),
-            'linkedprojecttask.name'     => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Name')
-            ),
-            'linkedprojecttask.content'   => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Description')
-            ),
-            'linkedprojecttask.planstartdate'   => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Planned start date')
-            ),
-            'linkedprojecttask.planenddate'   => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Planned end date')
-            ),
-            'linkedprojecttask.realstartdate'   => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Real start date')
-            ),
-            'linkedprojecttask.realenddate'   => sprintf(
-                __('%1$s: %2$s'),
-                _n('Linked project task', 'Linked project tasks', 1),
-                __('Real end date')
             ),
         ];
 

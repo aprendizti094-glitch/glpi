@@ -35,18 +35,15 @@
 
 /**
  * NotificationTargetInfocom Class
- *
- * @extends NotificationTarget<Infocom>
- */
+ **/
 class NotificationTargetInfocom extends NotificationTarget
 {
-    #[Override]
     public function getEvents()
     {
         return ['alert' => __('Alarms on financial and administrative information')];
     }
 
-    #[Override]
+
     public function addDataForTemplate($event, $options = [])
     {
 
@@ -69,8 +66,8 @@ class NotificationTargetInfocom extends NotificationTarget
                                      = $item['warrantyexpiration'];
                 $tmp['##infocom.url##']  = $this->formatURL(
                     $options['additionnaloption']['usertype'],
-                    $item['itemtype'] . "_"
-                    . $item['items_id'] . "_Infocom"
+                    $item['itemtype'] . "_" .
+                    $item['items_id'] . "_Infocom"
                 );
             }
             $this->data['infocoms'][] = $tmp;
@@ -84,7 +81,7 @@ class NotificationTargetInfocom extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
 

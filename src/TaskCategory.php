@@ -33,16 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
 /**
  * TaskCategory class
  **/
 class TaskCategory extends CommonTreeDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
-
     // From CommonDBTM
     public $dohistory          = true;
     public $can_be_translated  = true;
@@ -92,11 +87,6 @@ class TaskCategory extends CommonTreeDropdown
 
     public static function getIcon()
     {
-        return "ti ti-tags";
-    }
-
-    public function getCloneRelations(): array
-    {
-        return [];
+        return "fas fa-tags";
     }
 }

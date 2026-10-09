@@ -38,9 +38,9 @@
 class KnowbaseItem_Profile extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = KnowbaseItem::class;
+    public static $itemtype_1          = 'KnowbaseItem';
     public static $items_id_1          = 'knowbaseitems_id';
-    public static $itemtype_2 = Profile::class;
+    public static $itemtype_2          = 'Profile';
     public static $items_id_2          = 'profiles_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class KnowbaseItem_Profile extends CommonDBRelation
     /**
      * Get profiles for a knowbaseitem
      *
-     * @param int $knowbaseitems_id  ID of the knowbaseitem
+     * @param integer $knowbaseitems_id  ID of the knowbaseitem
      *
      * @return array of profiles linked to a knowbaseitem
      **/
     public static function getProfiles($knowbaseitems_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $prof  = [];

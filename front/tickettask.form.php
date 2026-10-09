@@ -33,7 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 $task = new TicketTask();
 include(GLPI_ROOT . "/front/commonitiltask.form.php");

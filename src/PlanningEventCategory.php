@@ -53,6 +53,6 @@ class PlanningEventCategory extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-tags";
+        return "fas fa-tag";
     }
 }

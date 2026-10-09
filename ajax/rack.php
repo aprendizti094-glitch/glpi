@@ -33,19 +33,19 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Exception\Http\AccessDeniedHttpException;
-use Glpi\Exception\Http\BadRequestHttpException;
-
-use function Safe\json_encode;
-
+$AJAX_INCLUDE = 1;
+include('../inc/includes.php');
 header("Content-Type: text/html; charset=UTF-8");
 Html::header_nocache();
 
+Session::checkLoginUser();
+
 if (!Session::haveRight('datacenter', UPDATE)) {
-    throw new AccessDeniedHttpException();
+    http_response_code(403);
+    die;
 }
 if (!isset($_REQUEST['action'])) {
-    throw new BadRequestHttpException();
+    exit();
 }
 
 $answer = [];
@@ -54,26 +54,10 @@ if (($_GET['action'] ?? null) === 'show_pdu_form') {
 
     $rack = new Rack();
     if (!$rack->can($rack_id, READ)) {
-        throw new AccessDeniedHttpException();
+        return;
     }
 
     PDU_Rack::showFirstForm($rack_id);
-} elseif (($_GET['action'] ?? null) === 'show_rack_form' && isset($_GET['racks_id'])) {
-    $rack = new Rack();
-    if (isset($_GET['room']) && Rack::isNewID((int) $_GET['racks_id']) && $rack->can(-1, CREATE)) {
-        $room = new DCRoom();
-        if ($room->can((int) $_GET['room'], READ)) {
-            $rack->showForm(-1, [
-                'dcrooms_id' => (int) $_GET['room'],
-                'locations_id' => $room->fields['locations_id'],
-                'position' => $_GET['position'],
-            ]);
-        }
-    } elseif ($rack->can((int) $_GET['racks_id'], READ)) {
-        $rack->showForm((int) $_GET['racks_id']);
-    } else {
-        throw new AccessDeniedHttpException();
-    }
 } elseif (isset($_POST['action'])) {
     header("Content-Type: application/json; charset=UTF-8", true);
     switch ($_POST['action']) {
@@ -82,7 +66,7 @@ if (($_GET['action'] ?? null) === 'show_pdu_form') {
 
             $item_rack = new Item_Rack();
             if (!$item_rack->getFromDB($id) || !$item_rack->can($id, UPDATE)) {
-                throw new AccessDeniedHttpException();
+                return;
             }
 
             $answer['status'] = $item_rack->update([
@@ -97,7 +81,7 @@ if (($_GET['action'] ?? null) === 'show_pdu_form') {
 
             $pdu_rack = new PDU_Rack();
             if (!$pdu_rack->getFromDB($id) || !$pdu_rack->can($id, UPDATE)) {
-                throw new AccessDeniedHttpException();
+                return;
             }
 
             $answer['status'] = $pdu_rack->update([
@@ -111,7 +95,7 @@ if (($_GET['action'] ?? null) === 'show_pdu_form') {
 
             $rack = new Rack();
             if (!$rack->getFromDB($id) || !$rack->can($id, UPDATE)) {
-                throw new AccessDeniedHttpException();
+                return;
             }
 
             $answer['status'] = $rack->update([

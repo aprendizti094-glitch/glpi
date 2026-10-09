@@ -32,10 +32,13 @@
  * ---------------------------------------------------------------------
  */
 
+use Glpi\Toolbox\Sanitizer;
+
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 /* BEGIN: Fixes default notification targets */
 $itil_types = ['Ticket', 'Change', 'Problem'];
 $iterator = $DB->request([
@@ -66,7 +69,7 @@ foreach ($iterator as $notification) {
             || $items_id === Notification::ITEM_TECH_IN_CHARGE
             || $items_id === Notification::ITEM_USER
         ) {
-            $DB->delete('glpi_notificationtargets', [
+            $DB->deleteOrDie('glpi_notificationtargets', [
                 'id' => $target_id,
             ]);
             if ($items_id === Notification::ITEM_TECH_GROUP_IN_CHARGE) {
@@ -78,7 +81,7 @@ foreach ($iterator as $notification) {
         }
     }
     if ($notification['event'] === 'assign_group' && $removed_item_group && !$found_assigned_group) {
-        $DB->insert('glpi_notificationtargets', [
+        $DB->insertOrDie('glpi_notificationtargets', [
             'notifications_id'  => $notification['id'],
             'type'              => Notification::USER_TYPE,
             'items_id'          => Notification::ASSIGN_GROUP,
@@ -93,11 +96,11 @@ $template_iterator = $DB->request([
     'FROM'   => 'glpi_notificationtemplatetranslations',
 ]);
 foreach ($template_iterator as $template_data) {
-    $content_html = $template_data['content_html'];
-
-    if ($content_html === null) {
+    if ($template_data['content_html'] === null) {
         continue;
     }
+
+    $content_html = Sanitizer::decodeHtmlSpecialChars($template_data['content_html']);
 
     if (str_contains($content_html, '&lt;p&gt;') && str_contains($content_html, '&lt;/p&gt;')) {
         // HTML still contains encoded HTML. It can be result of 2 different initial states
@@ -107,14 +110,15 @@ foreach ($template_iterator as $template_data) {
         // 2. A template partially encoded has been saved from UI, resulting in presence of `&#38;lt;p&#38;gt;` and `&#38;lt;/p&#38;gt;`.
         //    Sanitizer::decodeHtmlSpecialChars() will transform these to `&lt;p&gt;` and `&lt;/p&gt;`.
         //
-        // In both cases, remaining encoded HTML has to be decoded.
+        // In both cases, remaining encoded HTML has to be decoded, so it will be then possible to reencode the whole
+        // content without having some characters that are double-encoded.
         $content_html = str_replace(['&lt;', '&gt;'], ['<', '>'], $content_html);
 
         $migration->addPostQuery(
             $DB->buildUpdate(
                 'glpi_notificationtemplatetranslations',
                 [
-                    'content_html' => $content_html,
+                    'content_html' => Sanitizer::sanitize($content_html),
                 ],
                 [
                     'id' => $template_data['id'],

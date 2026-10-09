@@ -38,7 +38,7 @@
 class ProblemTemplateMandatoryField extends ITILTemplateMandatoryField
 {
     // From CommonDBChild
-    public static $itemtype = ProblemTemplate::class;
+    public static $itemtype  = 'ProblemTemplate';
     public static $items_id  = 'problemtemplates_id';
-    public static $itiltype = Problem::class;
+    public static $itiltype = 'Problem';
 }

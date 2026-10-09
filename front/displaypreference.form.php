@@ -33,7 +33,12 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+if (!defined('GLPI_ROOT')) {
+    include('../inc/includes.php');
+}
+
+
+Html::popHeader(__('Setup'), $_SERVER['PHP_SELF'], true);
 
 Session::checkRightsOr('search_config', [DisplayPreference::PERSONAL,
     DisplayPreference::GENERAL,
@@ -41,15 +46,29 @@ Session::checkRightsOr('search_config', [DisplayPreference::PERSONAL,
 
 $setupdisplay = new DisplayPreference();
 
-Html::popHeader(__('Setup'), in_modal: true);
+
+
+if (isset($_POST["activate"])) {
+    $setupdisplay->activatePerso($_POST);
+} elseif (isset($_POST["disable"])) {
+    if ($_POST['users_id'] == Session::getLoginUserID()) {
+        $setupdisplay->deleteByCriteria(['users_id' => $_POST['users_id'],
+            'itemtype' => $_POST['itemtype'],
+        ]);
+    }
+} elseif (isset($_POST["add"])) {
+    $setupdisplay->add($_POST);
+} elseif (isset($_POST["purge"]) || isset($_POST["purge_x"])) {
+    $setupdisplay->delete($_POST, 1);
+} elseif (isset($_POST["up"]) || isset($_POST["up_x"])) {
+    $setupdisplay->orderItem($_POST, 'up');
+} elseif (isset($_POST["down"]) || isset($_POST["down_x"])) {
+    $setupdisplay->orderItem($_POST, 'down');
+}
+
 // Datas may come from GET or POST : use REQUEST
 if (isset($_REQUEST["itemtype"])) {
-    $setupdisplay->display([
-        'displaytype' => $_REQUEST['itemtype'],
-        'no_switch'   => $_REQUEST['no_switch'] ?? false,
-        'forced_tab'  => $_REQUEST['forcetab'] ?? null,
-        'in_modal'    => true,
-    ]);
+    $setupdisplay->display(['displaytype' => $_REQUEST['itemtype']]);
 }
 
 Html::popFooter();

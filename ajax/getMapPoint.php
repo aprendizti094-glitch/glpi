@@ -33,23 +33,24 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
-
+include('../inc/includes.php');
 header("Content-Type: application/json; charset=UTF-8");
 Html::header_nocache();
+
+Session::checkLoginUser();
 
 $result = [];
 if (!isset($_POST['itemtype']) || !isset($_POST['items_id']) || (int) $_POST['items_id'] < 1) {
     $result = [
         'success'   => false,
-        'message'   => __s('Required argument missing!'),
+        'message'   => __('Required argument missing!'),
     ];
 } else {
     $itemtype = $_POST['itemtype'];
     $items_id = $_POST['items_id'];
 
     if ($itemtype != Location::getType()) {
-        $item = getItemForItemtype($itemtype);
+        $item = new $itemtype();
         $found = $item->getFromDB($items_id);
         if ($found && isset($item->fields['locations_id']) && (int) $item->fields['locations_id'] > 0) {
             $itemtype = Location::getType();
@@ -57,7 +58,7 @@ if (!isset($_POST['itemtype']) || !isset($_POST['items_id']) || (int) $_POST['it
         } else {
             $result = [
                 'success'   => false,
-                'message'   => __s('Element seems not geolocalized or cannot be found'),
+                'message'   => __('Element seems not geolocalized or cannot be found'),
             ];
         }
     }
@@ -68,22 +69,24 @@ if (!isset($_POST['itemtype']) || !isset($_POST['items_id']) || (int) $_POST['it
         if (!$item->can($items_id, READ)) {
             $result = [
                 'success'   => false,
-                'message'   => __s('Not allowed'),
+                'message'   => __('Not allowed'),
+            ];
+            echo json_encode($result);
+            return;
+        }
+        $item->getFromDB($items_id);
+        if (!empty($item->fields['latitude']) && !empty($item->fields['longitude'])) {
+            $result = [
+                'name'   => $item->getName(),
+                'lat'    => $item->fields['latitude'],
+                'lng'    => $item->fields['longitude'],
             ];
         } else {
-            $item->getFromDB($items_id);
-            if (!empty($item->fields['latitude']) && !empty($item->fields['longitude'])) {
-                $result = [
-                    'lat'    => (float) $item->fields['latitude'],
-                    'lng'    => (float) $item->fields['longitude'],
-                ];
-            } else {
-                $result = [
-                    'success'   => false,
-                    'message'   => "<h3>" . __("Location seems not geolocalized!") . "</h3>"
-                               . "<a href='" . htmlescape($item->getLinkURL()) . "'>" . __s("Consider filling latitude and longitude on this location.") . "</a>",
-                ];
-            }
+            $result = [
+                'success'   => false,
+                'message'   => "<h3>" . __("Location seems not geolocalized!") . "</h3>" .
+                           "<a href='" . $item->getLinkURL() . "'>" . __("Consider filling latitude and longitude on this location.") . "</a>",
+            ];
         }
     }
 }

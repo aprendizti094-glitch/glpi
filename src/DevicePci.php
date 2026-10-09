@@ -45,18 +45,27 @@ class DevicePci extends CommonDevice
         return _n('PCI device', 'PCI devices', $nb);
     }
 
+
+    /**
+     * @see CommonDevice::getAdditionalFields()
+     * @since 0.85
+     */
     public function getAdditionalFields()
     {
+
         return array_merge(
             parent::getAdditionalFields(),
-            [
-                [
-                    'name'  => 'none',
-                    'label' => RegisteredID::getTypeName(Session::getPluralNumber()),
-                    'type'  => 'registeredIDChooser',
-                ],
-                [
-                    'name'  => 'devicepcimodels_id',
+            [['name'  => 'none',
+                'label' => RegisteredID::getTypeName(Session::getPluralNumber()) .
+                                        RegisteredID::showAddChildButtonForItemForm(
+                                            $this,
+                                            '_registeredID',
+                                            null,
+                                            false
+                                        ),
+                'type'  => 'registeredIDChooser',
+            ],
+                ['name'  => 'devicepcimodels_id',
                     'label' => _n('Model', 'Models', 1),
                     'type'  => 'dropdownValue',
                 ],
@@ -66,6 +75,7 @@ class DevicePci extends CommonDevice
 
     public function rawSearchOptions()
     {
+
         $tab                 = parent::rawSearchOptions();
 
         $tab[] = [
@@ -79,18 +89,13 @@ class DevicePci extends CommonDevice
         return $tab;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param array $main_joinparams
-     * @return array
-     */
     public static function rawSearchOptionsToAdd($itemtype, $main_joinparams)
     {
         $tab = [];
 
         $tab[] = [
             'id'                 => '95',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_devicepcis',
             'field'              => 'designation',
             'name'               => __('Other component'),
             'forcegroupby'       => true,
@@ -103,30 +108,6 @@ class DevicePci extends CommonDevice
                     'joinparams'         => $main_joinparams,
                 ],
             ],
-        ];
-
-        $tab[] = [
-            'id'                 => '1332',
-            'table'              => 'glpi_items_devicepcis',
-            'field'              => 'serial',
-            'name'               => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Serial Number')),
-            'forcegroupby'       => true,
-            'usehaving'          => true,
-            'datatype'           => 'string',
-            'massiveaction'      => false,
-            'joinparams'         => $main_joinparams,
-        ];
-
-        $tab[] = [
-            'id'                 => '1333',
-            'table'              => 'glpi_items_devicepcis',
-            'field'              => 'otherserial',
-            'name'               => sprintf(__('%1$s: %2$s'), self::getTypeName(1), __('Inventory number')),
-            'forcegroupby'       => true,
-            'usehaving'          => true,
-            'datatype'           => 'string',
-            'massiveaction'      => false,
-            'joinparams'         => $main_joinparams,
         ];
 
         return $tab;

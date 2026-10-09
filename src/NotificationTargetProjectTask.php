@@ -38,15 +38,18 @@ use Glpi\Toolbox\URL;
 /**
  * NotificationTargetTicket Class
  *
- * @extends NotificationTarget<ProjectTask>
- *
  * @since 0.85
- */
+ **/
 class NotificationTargetProjectTask extends NotificationTarget
 {
-    #[Override]
+    /**
+     * Get events related to tickets
+     *
+     * @return array
+     **/
     public function getEvents()
     {
+
         $events = ['new'               => __('New project task'),
             'update'            => __('Update of a project task'),
             'delete'            => __('Deletion of a project task'),
@@ -55,7 +58,7 @@ class NotificationTargetProjectTask extends NotificationTarget
         return $events;
     }
 
-    #[Override]
+
     public function addAdditionalTargets($event = '')
     {
 
@@ -70,7 +73,7 @@ class NotificationTargetProjectTask extends NotificationTarget
         $this->addTarget(Notification::TEAM_SUPPLIER, __('Supplier of project team'));
     }
 
-    #[Override]
+
     public function addSpecificTargets($data, $options)
     {
         // Look for all targets whose type is Notification::ITEM_USER
@@ -110,6 +113,7 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
     }
 
+
     /**
      * Add team users to the notified user list
      *
@@ -117,13 +121,14 @@ class NotificationTargetProjectTask extends NotificationTarget
      **/
     public function addTeamUsers()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
             'SELECT' => 'items_id',
             'FROM'   => 'glpi_projecttaskteams',
             'WHERE'  => [
-                'itemtype'        => User::class,
+                'itemtype'        => 'User',
                 'projecttasks_id' => $this->obj->fields['id'],
             ],
         ]);
@@ -138,22 +143,24 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
     }
 
+
     /**
      * Add team groups to the notified user list
      *
-     * @param int $manager 0 all users, 1 only supervisors, 2 all users without supervisors
+     * @param integer $manager 0 all users, 1 only supervisors, 2 all users without supervisors
      *
      * @return void
      **/
     public function addTeamGroups($manager)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
             'SELECT' => 'items_id',
             'FROM'   => 'glpi_projecttaskteams',
             'WHERE'  => [
-                'itemtype'        => Group::class,
+                'itemtype'        => 'Group',
                 'projecttasks_id' => $this->obj->fields['id'],
             ],
         ]);
@@ -166,19 +173,20 @@ class NotificationTargetProjectTask extends NotificationTarget
     /**
      * Add project team groups to the notified user list
      *
-     * @param int $manager 0 all users, 1 only supervisors, 2 all users without supervisors
+     * @param integer $manager 0 all users, 1 only supervisors, 2 all users without supervisors
      *
      * @return void
      **/
     public function addProjectTeamGroups($manager)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
             'SELECT' => 'items_id',
             'FROM'   => 'glpi_projectteams',
             'WHERE'  => [
-                'itemtype'    => Group::class,
+                'itemtype'    => 'Group',
                 'projects_id' => $this->obj->fields['projects_id'],
             ],
         ]);
@@ -196,13 +204,17 @@ class NotificationTargetProjectTask extends NotificationTarget
      **/
     public function addTeamContacts()
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $iterator = $DB->request([
             'SELECT' => 'items_id',
             'FROM'   => 'glpi_projecttaskteams',
             'WHERE'  => [
-                'itemtype'        => Contact::class,
+                'itemtype'        => 'Contact',
                 'projecttasks_id' => $this->obj->fields['id'],
             ],
         ]);
@@ -219,6 +231,7 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
     }
 
+
     /**
      * Add team suppliers to the notified user list
      *
@@ -226,13 +239,17 @@ class NotificationTargetProjectTask extends NotificationTarget
      **/
     public function addTeamSuppliers()
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $iterator = $DB->request([
             'SELECT' => 'items_id',
             'FROM'   => 'glpi_projecttaskteams',
             'WHERE'  => [
-                'itemtype'        => Supplier::class,
+                'itemtype'        => 'Supplier',
                 'projecttasks_id' => $this->obj->fields['id'],
             ],
         ]);
@@ -249,9 +266,13 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function addDataForTemplate($event, $options = [])
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         //----------- Reservation infos -------------- //
@@ -367,7 +388,7 @@ class NotificationTargetProjectTask extends NotificationTarget
             }
         }
 
-        $this->data['##projecttask.numberofteammembers##'] = (string) count($this->data['teammembers']);
+        $this->data['##projecttask.numberofteammembers##'] = count($this->data['teammembers']);
 
         // Task infos
         $tasks                = getAllDataFromTable(
@@ -416,23 +437,22 @@ class NotificationTargetProjectTask extends NotificationTarget
             $this->data['tasks'][]                   = $tmp;
         }
 
-        $this->data["##projecttask.numberoftasks##"] = (string) count($this->data['tasks']);
+        $this->data["##projecttask.numberoftasks##"] = count($this->data['tasks']);
 
         // History infos
 
         $this->data['log'] = [];
         // Use list_limit_max or load the full history ?
-        $log_data = Log::getHistoryData($item, 0, $CFG_GLPI['list_limit_max']);
-        foreach ($log_data as $data) {
+        foreach (Log::getHistoryData($item, 0, $CFG_GLPI['list_limit_max']) as $data) {
             $tmp                                = [];
-            $tmp["##projecttask.log.date##"]    = Html::convDateTime($data['date_mod']);
+            $tmp["##projecttask.log.date##"]    = $data['date_mod'];
             $tmp["##projecttask.log.user##"]    = $data['user_name'];
             $tmp["##projecttask.log.field##"]   = $data['field'];
             $tmp["##projecttask.log.content##"] = $data['change'];
             $this->data['log'][]               = $tmp;
         }
 
-        $this->data["##projecttask.numberoflogs##"] = (string) count($this->data['log']);
+        $this->data["##projecttask.numberoflogs##"] = count($this->data['log']);
 
         // Tickets infos
         $tickets  = getAllDataFromTable('glpi_projecttasks_tickets', $restrict);
@@ -460,7 +480,7 @@ class NotificationTargetProjectTask extends NotificationTarget
             }
         }
 
-        $this->data['##projecttask.numberoftickets##'] = (string) count($this->data['tickets']);
+        $this->data['##projecttask.numberoftickets##'] = count($this->data['tickets']);
 
         // Document
         $iterator = $DB->request([
@@ -515,7 +535,8 @@ class NotificationTargetProjectTask extends NotificationTarget
                          "ProjectTask_" . $item->getField("id") . '_Document_Item$1'
                      );
 
-        $this->data["##projecttask.numberofdocuments##"] = (string) count($this->data['documents']);
+        $this->data["##projecttask.numberofdocuments##"]
+                     = count($this->data['documents']);
 
         $this->getTags();
         foreach ($this->tag_descriptions[NotificationTarget::TAG_LANGUAGE] as $tag => $values) {
@@ -525,7 +546,7 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
 
@@ -534,7 +555,7 @@ class NotificationTargetProjectTask extends NotificationTarget
             'projecttask.name'                => __('Name'),
             'projecttask.project'             => Project::getTypeName(1),
             'projecttask.description'         => __('Description'),
-            'projecttask.comments'            => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'projecttask.comments'            => __('Comments'),
             'projecttask.creationdate'        => __('Creation date'),
             'projecttask.lastupdatedate'      => __('Last update'),
             'projecttask.planstartdate'       => __('Planned start date'),
@@ -555,7 +576,7 @@ class NotificationTargetProjectTask extends NotificationTarget
             'task.date'                       => __('Opening date'),
             'task.name'                       => __('Name'),
             'task.description'                => __('Description'),
-            'task.comments'                   => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'task.comments'                   => __('Comments'),
             'task.creationdate'               => __('Creation date'),
             'task.lastupdatedate'             => __('Last update'),
             'task.type'                       => _n('Type', 'Types', 1),
@@ -686,12 +707,11 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
 
         //Tags with just lang
-        $tags = [
-            'projecttask.entity'   => Entity::getTypeName(1),
+        $tags = ['projecttask.entity'   => Entity::getTypeName(1),
             'projecttask.log'      => __('Historical'),
             'projecttask.tasks'    => _n('Task', 'Tasks', Session::getPluralNumber()),
             'projecttask.team'     => ProjectTeam::getTypeName(1),
-            'projecttask.tickets'  => Ticket::getTypeName(Session::getPluralNumber()),
+            'projecttask.tickets'  => _n('Ticket', 'Tickets', Session::getPluralNumber()),
         ];
 
         foreach ($tags as $tag => $label) {
@@ -703,10 +723,9 @@ class NotificationTargetProjectTask extends NotificationTarget
         }
 
         //Foreach global tags
-        $tags = [
-            'log'         => __('Historical'),
+        $tags = ['log'         => __('Historical'),
             'tasks'       => _n('Task', 'Tasks', Session::getPluralNumber()),
-            'tickets'     => Ticket::getTypeName(Session::getPluralNumber()),
+            'tickets'     => _n('Ticket', 'Tickets', Session::getPluralNumber()),
             'teammembers' => _n('Team member', 'Team members', Session::getPluralNumber()),
         ];
 

@@ -33,7 +33,7 @@
  */
 
 /**
- * @var Migration $migration
+ * @var \Migration $migration
  */
 
 // Add configuration option to control document attachment for anonymous users in notifications

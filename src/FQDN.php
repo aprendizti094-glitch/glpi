@@ -33,10 +33,8 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * Fully Qualified Domain Name
- * @since 0.84
- */
+/// Class FQDN : Fully Qualified Domain Name
+/// since version 0.84
 class FQDN extends CommonDropdown
 {
     public $dohistory = true;
@@ -73,7 +71,7 @@ class FQDN extends CommonDropdown
      *
      * @param array $input fields of the record to check
      *
-     * @return bool|array  false or fields checked and updated (lowercase for the fqdn field)
+     * @return boolean|array  false or fields checked and updated (lowercase for the fqdn field)
      **/
     public function prepareInput($input)
     {
@@ -84,7 +82,7 @@ class FQDN extends CommonDropdown
         ) {
             // Check that FQDN is not empty
             if (empty($input['fqdn'])) {
-                Session::addMessageAfterRedirect(__s('FQDN must not be empty'), false, ERROR);
+                Session::addMessageAfterRedirect(__('FQDN must not be empty'), false, ERROR);
                 return false;
             }
 
@@ -93,7 +91,7 @@ class FQDN extends CommonDropdown
 
             // Then check its validity
             if (!self::checkFQDN($input["fqdn"])) {
-                Session::addMessageAfterRedirect(__s('FQDN is not valid'), false, ERROR);
+                Session::addMessageAfterRedirect(__('FQDN is not valid'), false, ERROR);
                 return false;
             }
         }
@@ -117,9 +115,9 @@ class FQDN extends CommonDropdown
     {
 
         $ong = [];
-        $this->addStandardTab(NetworkName::class, $ong, $options);
-        $this->addStandardTab(NetworkAlias::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('NetworkName', $ong, $options);
+        $this->addStandardTab('NetworkAlias', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -142,14 +140,15 @@ class FQDN extends CommonDropdown
      * Search FQDN id from string FDQDN
      *
      * @param string  $fqdn             value of the fdqn (for instance : indeptnet.net)
-     * @param bool $wildcard_search  true if we search with wildcard (false by default)
+     * @param boolean $wildcard_search  true if we search with wildcard (false by default)
      *
-     * @return int|int[]
+     * @return integer|integer[]
      *    if $wildcard_search == false : the id of the fqdn, -1 if not found or several answers
      *    if $wildcard_search == true : an array of the id of the fqdn
      **/
     public static function getFQDNIDByFQDN($fqdn, $wildcard_search = false)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (empty($fqdn)) {
@@ -191,7 +190,7 @@ class FQDN extends CommonDropdown
 
 
     /**
-     * @param int $ID  id of the FQDN
+     * @param integer $ID  id of the FQDN
      *
      * @return string  the FQDN of the element, or "" if invalid FQDN
      **/
@@ -227,7 +226,7 @@ class FQDN extends CommonDropdown
      *
      * @param string $fqdn  the FQDN to check
      *
-     * @return bool  true if the FQDN is valid
+     * @return boolean  true if the FQDN is valid
      **/
     public static function checkFQDN($fqdn)
     {
@@ -244,6 +243,6 @@ class FQDN extends CommonDropdown
 
     public static function getIcon()
     {
-        return "ti ti-world";
+        return "fas fa-globe";
     }
 }

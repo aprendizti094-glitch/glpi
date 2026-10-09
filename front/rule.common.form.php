@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 /**
  * Following variables have to be defined before inclusion of this file:
  * @var RuleCollection $rulecollection
@@ -42,14 +40,24 @@ require_once(__DIR__ . '/_check_webserver_config.php');
 
 use Glpi\Event;
 
+if (!defined('GLPI_ROOT')) {
+    die("Sorry. You can't access this file directly");
+}
+
 $rule = $rulecollection->getRuleClass();
 $rulecollection->checkGlobal(READ);
 
 if (!isset($_GET["id"])) {
     $_GET["id"] = "";
 }
+$ruleaction   = new RuleAction(get_class($rule));
 
-if (isset($_POST["update"])) {
+if (isset($_POST["add_action"])) {
+    $rulecollection->checkGlobal(CREATE);
+    $ruleaction->add($_POST);
+
+    Html::back();
+} elseif (isset($_POST["update"])) {
     $rulecollection->checkGlobal(UPDATE);
     $rule->update($_POST);
 
@@ -65,24 +73,19 @@ if (isset($_POST["update"])) {
 } elseif (isset($_POST["add"])) {
     $rulecollection->checkGlobal(CREATE);
 
-    if (isset($_POST['profiles_id']) && isset($_POST['entities_id']) && isset($_POST['is_recursive'])) {
-        $entity = new Entity();
-        $entity->executeAddRule($_POST);
-    } else {
-        $newID = $rule->add($_POST);
-        Event::log(
-            $newID,
-            "rules",
-            4,
-            "setup",
-            sprintf(__('%1$s adds the item %2$s'), $_SESSION["glpiname"], $newID)
-        );
-        Html::redirect($rule->getFormURLWithID($newID));
-    }
+    $newID = $rule->add($_POST);
+    Event::log(
+        $newID,
+        "rules",
+        4,
+        "setup",
+        sprintf(__('%1$s adds the item %2$s'), $_SESSION["glpiname"], $newID)
+    );
+    Html::redirect($_SERVER['HTTP_REFERER'] . "?id=$newID");
 } elseif (isset($_POST["purge"])) {
     $rulecollection->checkGlobal(PURGE);
     $rulecollection->deleteRuleOrder($_POST["ranking"]);
-    $rule->delete($_POST, true);
+    $rule->delete($_POST, 1);
 
     Event::log(
         $_POST["id"],

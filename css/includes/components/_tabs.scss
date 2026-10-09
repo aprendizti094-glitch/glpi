@@ -37,22 +37,22 @@
 
 .card-tabs {
     #tabspanel {
-        border-right: 1px solid var(--glpi-tabs-border-color);
+        border-right: 1px solid $border-color;
     }
 
     #tabspanel.nav-tabs {
         .nav-link {
-            background: var(--glpi-tabs-bg);
-            color: var(--glpi-tabs-fg);
-            border-color: var(--glpi-tabs-border-color);
+            background: $tabs-bg;
+            color: $tabs-fg;
+            border-color: $tabs-border;
             border-right-width: 0;
 
             &.active {
                 border-right: 1px solid transparent !important;
                 margin-right : -1px; // Hack for border overlap
-                background: var(--glpi-tabs-active-bg);
-                color: var(--glpi-tabs-active-fg);
-                border-color: var(--glpi-tabs-active-border-color);
+                background: $tabs-active-bg;
+                color: $tabs-active-fg;
+                border-color: $tabs-active-border;
                 font-weight: bold;
 
                 .badge {
@@ -62,68 +62,31 @@
 
             .badge {
                 margin-left: 5px;
+                background-color: $badge-bg;
+                color: $badge-fg;
             }
         }
     }
 
     &.vertical {
-            #tabspanel.nav-tabs {
-                .nav-link {
-                    /* 1. VISIBILITY: Fix bottom border and remove overlap gap */
-                    border-bottom: 1px solid var(--glpi-tabs-border-color) !important;
-                    margin-bottom: 0 !important;
+        .nav-link {
+            border-bottom: $card-border-width solid $card-border-color;
+            border-top-right-radius: 0;
 
-                    /* 2. LAYOUT: Remove top border (prevents double lines) */
-                    border-top: 0 !important;
-
-                    /* 3. CORNER FIX: Flatten the right side to attach to the panel */
-                    border-top-right-radius: 0 !important;
-                    border-bottom-right-radius: 0 !important;
-
-                    /* 4. ACTIVE STATE: Restore the thick left border */
-                    &.active {
-                        /* We force the width and style to ensure it appears */
-                        border-left-width: 5px !important;
-                        border-left-style: solid !important;
-
-                        /* We explicitly inherit the color to ensure it stays Blue (or your theme color) */
-                        border-left-color: var(--glpi-tabs-active-border-color) !important;
-
-                        /* Ensure the right side remains open */
-                        border-right-color: transparent !important;
-                    }
-                }
-
-                /* 5. FIRST ITEM: Restore top border to close the list */
-                .nav-item:first-child .nav-link {
-                    border-top: 1px solid var(--glpi-tabs-border-color) !important;
-                    border-top-left-radius: 4px;
-                }
-
-                /* 6. LAST ITEM: Flatten bottom-right corner */
-                .nav-item:last-child .nav-link {
-                    border-bottom-right-radius: 0 !important;
-                }
+            &.active {
+                border-left-width: 5px;
+                border-right-color: transparent !important;
             }
+        }
     }
 
     &.horizontal {
-        #tabspanel.nav-tabs {
-            .nav-link {
-                border-bottom-width: 1px;
-                border-bottom-style: solid;
+        .nav-link {
+            border-bottom-width: 1px;
+            border-bottom-style: solid;
 
-                &:last-of-type {
-                    border-right-width: 1px;
-
-                    &.active {
-                        border-right-color: var(--glpi-tabs-border-color) !important;
-                    }
-                }
-
-                &.active {
-                    border-bottom-color: transparent !important;
-                }
+            &.active {
+                border-bottom-color: transparent !important;
             }
         }
     }

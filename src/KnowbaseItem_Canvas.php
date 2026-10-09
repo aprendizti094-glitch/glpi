@@ -36,13 +36,11 @@ class KnowbaseItem_Canvas extends CommonDBTM
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if ($item instanceof CommonDBTM) {
-            self::showCanvas($item);
-        }
+        self::showCanvas($item);
         return true;
     }
 
-    public static function showCanvas(CommonDBTM $item): bool
+    public static function showCanvas(CommonGLPI $item)
     {
         global $CFG_GLPI;
 
@@ -282,7 +280,5 @@ class KnowbaseItem_Canvas extends CommonDBTM
             })();
         </script>
         <?php
-        return true;
     }
 }
-

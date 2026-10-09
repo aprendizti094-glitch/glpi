@@ -33,16 +33,23 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Error\ErrorHandler;
+use Glpi\Application\ErrorHandler;
 use Glpi\Event;
-use Glpi\Http\RedirectResponse;
 use Glpi\Mail\SMTP\OauthConfig;
+use Glpi\Toolbox\Sanitizer;
+
+include('../inc/includes.php');
 
 Session::checkRight("config", UPDATE);
 
-if (isset($_POST["update"])) {
+if (isset($_POST["test_smtp_send"])) {
+    NotificationMailing::testNotification();
+    Html::back();
+} elseif (isset($_POST["update"])) {
+    if (array_key_exists('smtp_passwd', $_POST)) {
+        // Password must not be altered, it will be encrypted and never displayed, so sanitize is not necessary.
+        $_POST['smtp_passwd'] = Sanitizer::unsanitize($_POST['smtp_passwd']);
+    }
     $config = new Config();
     $config->update($_POST);
     Event::log(0, "system", 3, "setup", sprintf(
@@ -59,11 +66,11 @@ if (isset($_POST["update"])) {
             try {
                 $auth_url = $provider->getAuthorizationUrl();
                 $_SESSION['smtp_oauth2_state'] = $provider->getState();
-                return new RedirectResponse($auth_url);
-            } catch (Throwable $e) {
-                ErrorHandler::logCaughtException($e);
+                Html::redirect($auth_url);
+            } catch (\Throwable $e) {
+                ErrorHandler::getInstance()->handleException($e, true);
                 Session::addMessageAfterRedirect(
-                    htmlescape(sprintf(_x('oauth', 'Authorization failed with error: %s'), $e->getMessage())),
+                    sprintf(_x('oauth', 'Authorization failed with error: %s'), $e->getMessage()),
                     false,
                     ERROR
                 );
@@ -75,6 +82,6 @@ if (isset($_POST["update"])) {
     Html::back();
 }
 
-$menus = ["config", "notification", NotificationMailingSetting::class];
+$menus = ["config", "notification", "config"];
 $config_id = Config::getConfigIDForContext('core');
 NotificationMailingSetting::displayFullPageForItem($config_id, $menus);

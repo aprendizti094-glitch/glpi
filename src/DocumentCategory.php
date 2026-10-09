@@ -77,7 +77,7 @@ class DocumentCategory extends CommonTreeDropdown
     /**
      * Check if category is used as default for tickets documents.
      *
-     * @return bool
+     * @return boolean
      */
     private function isUsedAsDefaultCategoryForTickets()
     {
@@ -90,6 +90,6 @@ class DocumentCategory extends CommonTreeDropdown
 
     public static function getIcon()
     {
-        return "ti ti-tags";
+        return "fas fa-tags";
     }
 }

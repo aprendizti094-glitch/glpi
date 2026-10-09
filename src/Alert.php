@@ -61,14 +61,14 @@ class Alert extends CommonDBTM
      *
      * @param string  $itemtype   ID of the type to clear
      * @param string  $ID         ID of the item to clear
-     * @param int $alert_type ID of the alert type to clear
+     * @param integer $alert_type ID of the alert type to clear
      *
-     * @return bool
+     * @return boolean
      */
     public function clear($itemtype, $ID, $alert_type)
     {
 
-        return $this->deleteByCriteria(['itemtype' => $itemtype, 'items_id' => $ID, 'type' => $alert_type], true);
+        return $this->deleteByCriteria(['itemtype' => $itemtype, 'items_id' => $ID, 'type' => $alert_type], 1);
     }
 
 
@@ -78,14 +78,14 @@ class Alert extends CommonDBTM
      * @since 0.84
      *
      * @param string  $itemtype ID of the type to clear
-     * @param int $ID       ID of the item to clear
+     * @param integer $ID       ID of the item to clear
      *
-     * @return bool
+     * @return boolean
      */
     public function cleanDBonItemDelete($itemtype, $ID)
     {
 
-        return $this->deleteByCriteria(['itemtype' => $itemtype, 'items_id' => $ID], true);
+        return $this->deleteByCriteria(['itemtype' => $itemtype, 'items_id' => $ID], 1);
     }
 
     public static function dropdown($options = [])
@@ -96,8 +96,6 @@ class Alert extends CommonDBTM
             'value'          => 0,
             'display'        => true,
             'inherit_parent' => false,
-            'show_hours'     => false,
-            'show_days'      => false,
         ];
 
         if (count($options)) {
@@ -113,18 +111,7 @@ class Alert extends CommonDBTM
         }
 
         $times[Entity::CONFIG_NEVER]  = __('Never');
-        if ($p['show_hours']) {
-            $times[HOUR_TIMESTAMP] = __('Each hour');
-            for ($i = 2; $i <= 24; $i++) {
-                $times[$i * HOUR_TIMESTAMP] = sprintf(__('Every %1$s hours'), $i);
-            }
-        }
         $times[DAY_TIMESTAMP]         = __('Each day');
-        if ($p['show_days']) {
-            for ($i = 2; $i <= 6; $i++) {
-                $times[$i * DAY_TIMESTAMP] = sprintf(__('Every %1$s days'), $i);
-            }
-        }
         $times[WEEK_TIMESTAMP]        = __('Each week');
         $times[MONTH_TIMESTAMP]       = __('Each month');
 
@@ -216,19 +203,20 @@ class Alert extends CommonDBTM
      *
      * @since 9.5.0 Made all params required. Dropped invalid defaults.
      * @param string  $itemtype The item type
-     * @param int $items_id The item's ID
-     * @param int $type     The type of alert (see constants in {@link \Alert} class)
+     * @param integer $items_id The item's ID
+     * @param integer $type     The type of alert (see constants in {@link \Alert} class)
      *
-     * @return int|bool
+     * @return integer|boolean
      */
     public static function alertExists($itemtype, $items_id, $type)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if ($items_id <= 0 || $type <= 0) {
             return false;
         }
-        $iter = $DB->request(['FROM' => self::getTable(), 'WHERE' => ['itemtype' => $itemtype, 'items_id' => $items_id, 'type' => $type]]);
+        $iter = $DB->request(self::getTable(), ['itemtype' => $itemtype, 'items_id' => $items_id, 'type' => $type]);
         if ($row = $iter->current()) {
             return $row['id'];
         }
@@ -243,19 +231,20 @@ class Alert extends CommonDBTM
      * @since 9.5.0 Made all params required. Dropped invalid defaults.
      *
      * @param string  $itemtype The item type
-     * @param int $items_id The item's ID
-     * @param int $type     The type of alert (see constants in {@link \Alert} class)
+     * @param integer $items_id The item's ID
+     * @param integer $type     The type of alert (see constants in {@link \Alert} class)
      *
-     * @return mixed|bool
+     * @return mixed|boolean
      */
     public static function getAlertDate($itemtype, $items_id, $type)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if ($items_id <= 0 || $type <= 0) {
             return false;
         }
-        $iter = $DB->request(['FROM' => self::getTable(), 'WHERE' => ['itemtype' => $itemtype, 'items_id' => $items_id, 'type' => $type]]);
+        $iter = $DB->request(self::getTable(), ['itemtype' => $itemtype, 'items_id' => $items_id, 'type' => $type]);
         if ($row = $iter->current()) {
             return $row['date'];
         }
@@ -267,28 +256,25 @@ class Alert extends CommonDBTM
      * Display last alert
      *
      * @param string  $itemtype The item type
-     * @param int $items_id The item's ID
+     * @param integer $items_id The item's ID
      *
      * @return void
      */
     public static function displayLastAlert($itemtype, $items_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if ($items_id) {
-            $iter = $DB->request([
-                'FROM'   => self::getTable(),
-                'FIELDS' => 'date',
-                'WHERE'  => [
-                    'itemtype' => $itemtype,
-                    'items_id' => $items_id,
-                ],
-                'ORDER'  => 'date DESC',
-                'LIMIT'  => 1,
+            $iter = $DB->request(self::getTable(), ['FIELDS'   => 'date',
+                'ORDER'    => 'date DESC',
+                'LIMIT'    => 1,
+                'itemtype' => $itemtype,
+                'items_id' => $items_id,
             ]);
             if ($row = $iter->current()) {
                 //TRANS: %s is the date
-                echo htmlescape(sprintf(__('Alert sent on %s'), Html::convDateTime($row['date'])));
+                echo sprintf(__('Alert sent on %s'), Html::convDateTime($row['date']));
             }
         }
     }

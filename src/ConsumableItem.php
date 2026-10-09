@@ -34,12 +34,7 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
 use Glpi\Features\AssetImage;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
 
 //!  ConsumableItem Class
 /**
@@ -47,16 +42,11 @@ use Glpi\Features\Clonable;
  * @see Consumable
  * @author Julien Dombre
  */
-class ConsumableItem extends CommonDBTM implements AssignableItemInterface
+class ConsumableItem extends CommonDBTM
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
     use AssetImage;
-    use AssignableItem {
-        prepareInputForAdd as prepareInputForAddAssignableItem;
-        prepareInputForUpdate as prepareInputForUpdateAssignableItem;
-    }
 
     // From CommonDBTM
     protected static $forward_entity_to = ['Consumable', 'Infocom'];
@@ -67,10 +57,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
     public function getCloneRelations(): array
     {
-        return [
-            Infocom::class,
-            ManualLink::class,
-        ];
+        return [];
     }
 
     public static function getTypeName($nb = 0)
@@ -78,21 +65,26 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
         return _n('Consumable model', 'Consumable models', $nb);
     }
 
+
     public static function getMenuName()
     {
         return Consumable::getTypeName(Session::getPluralNumber());
     }
 
+
     public static function getAdditionalMenuLinks()
     {
+
         if (static::canView()) {
             return ['summary' => '/front/consumableitem.php?synthese=yes'];
         }
         return false;
     }
 
+
     public function getPostAdditionalInfosForName()
     {
+
         if (isset($this->fields["ref"]) && !empty($this->fields["ref"])) {
             return $this->fields["ref"];
         }
@@ -101,24 +93,19 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
     public function prepareInputForAdd($input)
     {
-        $input = $this->prepareInputForAddAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
+        $input = parent::prepareInputForAdd($input);
         return $this->managePictures($input);
     }
 
     public function prepareInputForUpdate($input)
     {
-        $input = $this->prepareInputForUpdateAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
+        $input = parent::prepareInputForUpdate($input);
         return $this->managePictures($input);
     }
 
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 Consumable::class,
@@ -127,11 +114,13 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
         // Alert does not extends CommonDBConnexity
         $alert = new Alert();
-        $alert->cleanDBonItemDelete(static::class, $this->fields['id']);
+        $alert->cleanDBonItemDelete($this->getType(), $this->fields['id']);
     }
+
 
     public function post_getEmpty()
     {
+
         if (isset($_SESSION['glpiactive_entity'])) {
             $this->fields["alarm_threshold"] = Entity::getUsedConfig(
                 "consumables_alert_repeat",
@@ -142,29 +131,30 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
         }
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(Consumable::class, $ong, $options);
-        $this->addStandardTab(Infocom::class, $ong, $options);
-        $this->addStandardTab(Document_Item::class, $ong, $options);
-        $this->addStandardTab(ManualLink::class, $ong, $options);
-        $this->addStandardTab(Notepad::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('Consumable', $ong, $options);
+        $this->addStandardTab('Infocom', $ong, $options);
+        $this->addStandardTab('Document_Item', $ong, $options);
+        $this->addStandardTab('ManualLink', $ong, $options);
+        $this->addStandardTab('Notepad', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
+
     public function rawSearchOptions()
     {
-        global $DB;
-
         $tab = parent::rawSearchOptions();
 
         $tab[] = [
             'id'                 => '2',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'id',
             'name'               => __('ID'),
             'datatype'           => 'number',
@@ -173,7 +163,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
         $tab[] = [
             'id'                 => '34',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'ref',
             'name'               => __('Reference'),
             'datatype'           => 'string',
@@ -181,7 +171,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
         $tab[] = [
             'id'                 => '6',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'otherserial',
             'name'               => __('Inventory number'),
             'datatype'           => 'string',
@@ -205,7 +195,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
         $tab[] = [
             'id'                 => '9',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => '_virtual',
             'linkfield'          => '_virtual',
             'name'               => _n('Consumable', 'Consumables', Session::getPluralNumber()),
@@ -219,37 +209,31 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
         $tab[] = [
             'id'                 => '17',
             'table'              => 'glpi_consumables',
-            'field'              => 'date_out',
+            'field'              => 'id',
             'name'               => __('Number of used consumables'),
-            'datatype'           => 'number',
+            'datatype'           => 'count',
             'forcegroupby'       => true,
             'usehaving'          => true,
             'massiveaction'      => false,
-            'nometa'             => true,
             'joinparams'         => [
                 'jointype'           => 'child',
+                'condition'          => ['NOT' => ['NEWTABLE.date_out' => null]],
             ],
-            'computation' => new QueryExpression(
-                expression: QueryFunction::sum(new QueryExpression("CASE WHEN " . $DB::quoteName('TABLE.date_out') . " IS NOT NULL THEN 1 ELSE 0 END"))
-            ),
         ];
 
         $tab[] = [
             'id'                 => '19',
             'table'              => 'glpi_consumables',
-            'field'              => 'date_out',
+            'field'              => 'id',
             'name'               => __('Number of new consumables'),
-            'datatype'           => 'number',
+            'datatype'           => 'count',
             'forcegroupby'       => true,
             'usehaving'          => true,
             'massiveaction'      => false,
-            'nometa'             => true,
             'joinparams'         => [
                 'jointype'           => 'child',
+                'condition'          => ['NEWTABLE.date_out' => null],
             ],
-            'computation' => new QueryExpression(
-                expression: QueryFunction::sum(new QueryExpression("CASE WHEN " . $DB::quoteName('TABLE.date_out') . " IS NULL THEN 1 ELSE 0 END"))
-            ),
         ];
 
         $tab = array_merge($tab, Location::rawSearchOptionsToAdd());
@@ -268,26 +252,15 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
             'id'                 => '49',
             'table'              => 'glpi_groups',
             'field'              => 'completename',
-            'linkfield'          => 'groups_id',
+            'linkfield'          => 'groups_id_tech',
             'name'               => __('Group in charge'),
             'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
             'id'                 => '8',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'alarm_threshold',
             'name'               => __('Alert threshold'),
             'datatype'           => 'number',
@@ -298,9 +271,9 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
         $tab[] = [
             'id'                 => '16',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
@@ -318,31 +291,33 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
         return $tab;
     }
 
-    /**
-     * @param string $name
-     *
-     * @return array
-     */
+
     public static function cronInfo($name)
     {
         return ['description' => __('Send alarms on consumables')];
     }
+
 
     /**
      * Cron action on consumables : alert if a stock is behind the threshold
      *
      * @param CronTask|null $task to log, if NULL display (default NULL)
      *
-     * @return int 0 : nothing to do 1 : done with success
-     * @used-by CronTask
+     * @return integer 0 : nothing to do 1 : done with success
      **/
     public static function cronConsumable(?CronTask $task = null)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $cron_status = 1;
 
         if ($CFG_GLPI["use_notifications"]) {
+            $message = [];
+            $items   = [];
             $alert   = new Alert();
 
             foreach (Entity::getEntitiesToNotify('consumables_alert_repeat') as $entity => $repeat) {
@@ -357,7 +332,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
                             'glpi_alerts.id AS alertID',
                             'glpi_alerts.date',
                         ],
-                        'FROM'      => self::getTable(),
+                        'FROM'      => ConsumableItem::getTable(),
                         'LEFT JOIN' => [
                             'glpi_alerts' => [
                                 'FKEY' => [
@@ -375,22 +350,14 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
                             'glpi_consumableitems.entities_id'     => $entity,
                             'OR'                                  => [
                                 ['glpi_alerts.date' => null],
-                                [
-                                    'glpi_alerts.date' => ['<',
-                                        QueryFunction::dateSub(
-                                            date: QueryFunction::now(),
-                                            interval: $repeat,
-                                            interval_unit: 'SECOND'
-                                        ),
-                                    ],
-                                ],
+                                ['glpi_alerts.date' => ['<', new QueryExpression('CURRENT_TIMESTAMP() - INTERVAL ' . $repeat . ' second')]],
                             ],
                         ],
                     ]
                 );
 
-                $messages = [];
-                $items    = [];
+                $message = "";
+                $items   = [];
 
                 foreach ($alerts_result as $consumable) {
                     if (
@@ -399,12 +366,13 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
                     ) {
                         // define message alert
                         //TRANS: %1$s is the consumable name, %2$s its reference, %3$d the remaining number
-                        $messages[] = sprintf(
+                        $message .= sprintf(
                             __('Threshold of alarm reached for the type of consumable: %1$s - Reference %2$s - Remaining %3$d'),
                             $consumable['name'],
                             $consumable['ref'],
                             $unused
                         );
+                        $message .= '<br>';
 
                         $items[$consumable["consID"]] = $consumable;
 
@@ -415,7 +383,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
                     }
                 }
 
-                if ($items !== []) {
+                if (!empty($items)) {
                     $options = [
                         'entities_id' => $entity,
                         'items'       => $items,
@@ -423,27 +391,26 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
 
                     if (NotificationEvent::raiseEvent('alert', new ConsumableItem(), $options)) {
                         if ($task) {
-                            $task->log(
-                                Dropdown::getDropdownName("glpi_entities", $entity)
-                                . " : "
-                                . implode("\n", $messages)
-                            );
+                            $task->log(Dropdown::getDropdownName(
+                                "glpi_entities",
+                                $entity
+                            ) . " :  $message\n");
                             $task->addVolume(1);
                         } else {
-                            Session::addMessageAfterRedirect(
-                                htmlescape(Dropdown::getDropdownName("glpi_entities", $entity))
-                                . " : "
-                                . implode('<br>', array_map('htmlescape', $messages))
-                            );
+                            Session::addMessageAfterRedirect(Dropdown::getDropdownName(
+                                "glpi_entities",
+                                $entity
+                            ) .
+                                                     " :  $message");
                         }
 
                         $input = [
                             'type'     => Alert::THRESHOLD,
-                            'itemtype' => ConsumableItem::class,
+                            'itemtype' => 'ConsumableItem',
                         ];
 
                         // add alerts
-                        foreach (array_keys($items) as $ID) {
+                        foreach ($items as $ID => $consumable) {
                             $input["items_id"] = $ID;
                             $alert->add($input);
                             unset($alert->fields['id']);
@@ -455,7 +422,7 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
                         if ($task) {
                             $task->log($msg);
                         } else {
-                            Session::addMessageAfterRedirect(htmlescape($msg), false, ERROR);
+                            Session::addMessageAfterRedirect($msg, false, ERROR);
                         }
                     }
                 }
@@ -464,12 +431,41 @@ class ConsumableItem extends CommonDBTM implements AssignableItemInterface
         return $cron_status;
     }
 
-    /**
-     * @return array
-     */
+
     public function getEvents()
     {
         return ['alert' => __('Send alarms on consumables')];
+    }
+
+
+    /**
+     * Display debug information for current object
+     **/
+    public function showDebug()
+    {
+
+        // see query_alert in cronConsumable()
+        $item = ['consID'    => $this->fields['id'],
+            'entity'    => $this->fields['entities_id'],
+            'ref'       => $this->fields['ref'],
+            'name'      => $this->fields['name'],
+            'threshold' => $this->fields['alarm_threshold'],
+        ];
+
+        $options = [];
+        $options['entities_id'] = $this->getEntityID();
+        $options['items']       = [$item];
+        NotificationEvent::debugEvent($this, $options);
+    }
+
+
+    public function canUpdateItem()
+    {
+
+        if (!$this->checkEntity(true)) { //check entities recursively
+            return false;
+        }
+        return true;
     }
 
     public function showForm($ID, array $options = [])

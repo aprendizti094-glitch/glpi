@@ -33,9 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
+include("../inc/includes.php");
 
-header('Content-Type: application/json; charset=UTF-8');
+Session::checkLoginUser();
+
+header('Content-Type: application/json; charset=utf-8');
 
 if (isset($_GET['delete'])) {
     NotificationAjax::raisedNotification($_GET['delete']);

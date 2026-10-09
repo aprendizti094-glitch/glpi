@@ -35,15 +35,130 @@
 
 class ProblemTask extends CommonITILTask
 {
+    public static $rightname = 'task';
+
+
     public static function getTypeName($nb = 0)
     {
         return _n('Problem task', 'Problem tasks', $nb);
     }
 
+
+    public static function canCreate()
+    {
+        return Session::haveRight('problem', UPDATE)
+          || Session::haveRight(self::$rightname, parent::ADDALLITEM);
+    }
+
+
+    public static function canView()
+    {
+        return Session::haveRightsOr('problem', [Problem::READALL, Problem::READMY]);
+    }
+
+
+    public static function canUpdate()
+    {
+        return Session::haveRight('problem', UPDATE)
+          || Session::haveRight(self::$rightname, parent::UPDATEALL);
+    }
+
+
+    public static function canPurge()
+    {
+        return Session::haveRight('problem', UPDATE);
+    }
+
+
+    public function canViewPrivates()
+    {
+        return true;
+    }
+
+
+    public function canEditAll()
+    {
+        return Session::haveRightsOr('problem', [CREATE, UPDATE, DELETE, PURGE]);
+    }
+
+
+    /**
+     * Does current user have right to show the current task?
+     *
+     * @return boolean
+     **/
+    public function canViewItem()
+    {
+        return $this->canReadITILItem();
+    }
+
+
+    /**
+     * Does current user have right to create the current task?
+     *
+     * @return boolean
+     **/
+    public function canCreateItem()
+    {
+        if (!$this->canReadITILItem()) {
+            return false;
+        }
+
+        $problem = new Problem();
+        if ($problem->getFromDB($this->fields['problems_id'])) {
+            return (Session::haveRight(self::$rightname, parent::ADDALLITEM)
+                 || Session::haveRight('problem', UPDATE)
+                 || (Session::haveRight('problem', Problem::READMY)
+                     && ($problem->isUser(CommonITILActor::ASSIGN, Session::getLoginUserID())
+                         || (isset($_SESSION["glpigroups"])
+                             && $problem->haveAGroup(
+                                 CommonITILActor::ASSIGN,
+                                 $_SESSION['glpigroups']
+                             )))));
+        }
+        return false;
+    }
+
+
+    /**
+     * Does current user have right to update the current task?
+     *
+     * @return boolean
+     **/
+    public function canUpdateItem()
+    {
+
+        if (!$this->canReadITILItem()) {
+            return false;
+        }
+
+        if (
+            ($this->fields["users_id"] != Session::getLoginUserID())
+            && !Session::haveRight('problem', UPDATE)
+            && !Session::haveRight(self::$rightname, parent::UPDATEALL)
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+
+    /**
+     * Does current user have right to purge the current task?
+     *
+     * @return boolean
+     **/
+    public function canPurgeItem()
+    {
+        return $this->canUpdateItem();
+    }
+
+
     /**
      * Populate the planning with planned problem tasks
      *
-     * @param array $options  array of possible options:
+     * @param $options  array of possible options:
      *    - who         ID of the user (0 = undefined)
      *    - whogroup    ID of the group of users (0 = undefined)
      *    - begin Date
@@ -53,7 +168,7 @@ class ProblemTask extends CommonITILTask
      **/
     public static function populatePlanning($options = []): array
     {
-        return parent::genericPopulatePlanning(self::class, $options);
+        return parent::genericPopulatePlanning(__CLASS__, $options);
     }
 
 
@@ -61,21 +176,21 @@ class ProblemTask extends CommonITILTask
      * Display a Planning Item
      *
      * @param array           $val       array of the item to display
-     * @param int         $who       ID of the user (0 if all)
+     * @param integer         $who       ID of the user (0 if all)
      * @param string          $type      position of the item in the time block (in, through, begin or end)
-     * @param int|bool $complete  complete display (more details)
+     * @param integer|boolean $complete  complete display (more details)
      *
      * @return string
      */
     public static function displayPlanningItem(array $val, $who, $type = "", $complete = 0)
     {
-        return parent::genericDisplayPlanningItem(self::class, $val, $who, $type, $complete);
+        return parent::genericDisplayPlanningItem(__CLASS__, $val, $who, $type, $complete);
     }
 
     /**
      * Populate the planning with not planned problem tasks
      *
-     * @param array $options  array of possible options:
+     * @param $options  array of possible options:
      *    - who         ID of the user (0 = undefined)
      *    - whogroup    ID of the group of users (0 = undefined)
      *    - begin Date
@@ -85,6 +200,6 @@ class ProblemTask extends CommonITILTask
      **/
     public static function populateNotPlanned($options = []): array
     {
-        return parent::genericPopulateNotPlanned(self::class, $options);
+        return parent::genericPopulateNotPlanned(__CLASS__, $options);
     }
 }

@@ -34,24 +34,12 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
-use Glpi\Features\DCBreadcrumbInterface;
-use Glpi\Features\StateInterface;
 use Glpi\Socket;
 use Glpi\SocketModel;
 
-/**
- * Class Cable
- */
-class Cable extends CommonDBTM implements AssignableItemInterface, StateInterface
+/// Class Cable
+class Cable extends CommonDBTM
 {
-    use AssignableItem;
-    /** @use Clonable<static> */
-    use Clonable;
-    use Glpi\Features\State;
-
     // From CommonDBTM
     public $dohistory         = true;
     public static $rightname         = 'cable_management';
@@ -59,16 +47,6 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
     public static function getTypeName($nb = 0)
     {
         return _n('Cable', 'Cables', $nb);
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['assets', self::class];
-    }
-
-    public static function getLogServiceName(): string
-    {
-        return 'management';
     }
 
     public static function getFieldLabel()
@@ -80,11 +58,11 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
     {
         $ong = [];
         $this->addDefaultFormTab($ong)
-         ->addStandardTab(Infocom::class, $ong, $options)
-         ->addStandardTab(Item_Ticket::class, $ong, $options)
-         ->addStandardTab(Item_Problem::class, $ong, $options)
-         ->addStandardTab(Change_Item::class, $ong, $options)
-         ->addStandardTab(Log::class, $ong, $options);
+         ->addStandardTab('Infocom', $ong, $options)
+         ->addStandardTab('Ticket', $ong, $options)
+         ->addStandardTab('Item_Problem', $ong, $options)
+         ->addStandardTab('Change_Item', $ong, $options)
+         ->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -96,22 +74,12 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
         $this->fields['itemtype_endpoint_b'] = 'Computer';
     }
 
-    public function getCloneRelations(): array
-    {
-        return [
-            Infocom::class,
-            Item_Ticket::class,
-            Item_Problem::class,
-            Change_Item::class,
-        ];
-    }
-
     public static function getAdditionalMenuLinks()
     {
         $links = [];
         if (static::canView()) {
-            $insts = "<i class=\"fas fa-ethernet pointer\" title=\"" . htmlescape(Socket::getTypeName(Session::getPluralNumber()))
-            . "\"></i><span class=\"sr-only\">" . htmlescape(Socket::getTypeName(Session::getPluralNumber())) . "</span>";
+            $insts = "<i class=\"fas fa-ethernet pointer\" title=\"" . Socket::getTypeName(Session::getPluralNumber()) .
+            "\"></i><span class=\"sr-only\">" . Socket::getTypeName(Session::getPluralNumber()) . "</span>";
             $links[$insts] = Socket::getSearchURL(false);
         }
         if (count($links)) {
@@ -124,7 +92,7 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
     {
         if (static::canView()) {
             return [
-                Socket::class => [
+                'socket' => [
                     'title' => Socket::getTypeName(Session::getPluralNumber()),
                     'page'  => Socket::getSearchURL(false),
                     'links' => [
@@ -286,37 +254,8 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
             'id'                 => '16',
             'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
-        ];
-
-        $tab[] = [
-            'id'                 => '70',
-            'table'              => 'glpi_users',
-            'field'              => 'name',
-            'name'               => User::getTypeName(1),
-            'datatype'           => 'dropdown',
-            'right'              => 'all',
-        ];
-
-        $tab[] = [
-            'id'                 => '71',
-            'table'              => 'glpi_groups',
-            'field'              => 'completename',
-            'name'               => Group::getTypeName(1),
-            'condition'          => ['is_itemgroup' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_NORMAL],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
-            'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
@@ -335,28 +274,6 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
             'linkfield'          => 'users_id_tech',
             'name'               => __('Technician in charge'),
             'datatype'           => 'dropdown',
-            'right'              => 'own_ticket',
-        ];
-
-        $tab[] = [
-            'id'                 => '49',
-            'table'              => 'glpi_groups',
-            'field'              => 'completename',
-            'linkfield'          => 'groups_id',
-            'name'               => __('Group in charge'),
-            'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
-            'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
@@ -370,11 +287,11 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
 
         $tab[] = [
             'id'                 => '31',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_cable' => 1],
         ];
 
         $tab[] = [
@@ -449,11 +366,11 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
             case 'items_id_endpoint_a':
             case 'items_id_endpoint_b':
                 $itemtype = $values[str_replace('items_id', 'itemtype', $field)] ?? null;
-                if ($itemtype !== null && class_exists($itemtype) && is_a($itemtype, CommonDBTM::class, true)) {
+                if ($itemtype !== null && class_exists($itemtype)) {
                     if ($values[$field] > 0) {
                         $item = new $itemtype();
                         $item->getFromDB($values[$field]);
-                        return "<a href='" . htmlescape($item->getLinkURL()) . "'>" . htmlescape($item->fields['name']) . "</a>";
+                        return "<a href='" . $item->getLinkURL() . "'>" . $item->fields['name'] . "</a>";
                     }
                 } else {
                     return ' ';
@@ -463,13 +380,24 @@ class Cable extends CommonDBTM implements AssignableItemInterface, StateInterfac
                 $itemtype = $values['itemtype_endpoint_b'] ?? $values['itemtype_endpoint_a'];
                 $items_id = $values['items_id_endpoint_b'] ?? $values['items_id_endpoint_a'];
 
-                if ($itemtype instanceof DCBreadcrumbInterface) {
-                    return $itemtype::renderDcBreadcrumb($items_id);
+                if (method_exists($itemtype, 'getDcBreadcrumbSpecificValueToDisplay')) {
+                    /** @var class-string $itemtype */
+                    return $itemtype::getDcBreadcrumbSpecificValueToDisplay($items_id);
                 }
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }
 
+    /**
+     * Print the main form
+     *
+     * @param integer $ID      Integer ID of the item
+     * @param array  $options  Array of possible options:
+     *     - target for the Form
+     *     - withtemplate : template or basic item
+     *
+     * @return void|boolean (display) Returns false if there is a rights error.
+     **/
     public function showForm($ID, array $options = [])
     {
         $this->initForm($ID, $options);

@@ -33,12 +33,14 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 
 if (Session::getCurrentInterface() == "helpdesk") {
     Html::helpHeader(SavedSearch::getTypeName(Session::getPluralNumber()));
 } else {
-    Html::header(SavedSearch::getTypeName(Session::getPluralNumber()), '', 'tools', 'savedsearch');
+    Html::header(SavedSearch::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], 'tools', 'savedsearch');
 }
 
 $savedsearch = new SavedSearch();

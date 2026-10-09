@@ -33,7 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
@@ -42,9 +42,20 @@ if (isset($_GET["itemtype"])) {
     $link     = $itemtype::getFormURL();
 
     // Get right sector
-    $sector = Html::getMenuSectorForItemtype($itemtype) ?? 'assets';
+    $sector   = 'assets';
 
-    Html::header(__('Manage templates...'), '', $sector, $itemtype);
+    //Get sectors from the menu
+    $menu     = Html::getMenuInfos();
+
+    //Try to find to which sector the itemtype belongs
+    foreach ($menu as $menusector => $infos) {
+        if (isset($infos['types']) && in_array($itemtype, $infos['types'])) {
+            $sector = $menusector;
+            break;
+        }
+    }
+
+    Html::header(__('Manage templates...'), $_SERVER['PHP_SELF'], $sector, $itemtype);
 
     CommonDBTM::listTemplates($itemtype, $link, $_GET["add"]);
 

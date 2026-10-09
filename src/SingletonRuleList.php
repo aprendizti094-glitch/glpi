@@ -35,12 +35,9 @@
 
 class SingletonRuleList
 {
-    /** @var Rule[] */
+    /// Items list
     public $list = [];
-    /**
-     * Items loaded?
-     * @var int
-     */
+    /// Items loaded ?
     public $load = 0;
 
 
@@ -48,7 +45,7 @@ class SingletonRuleList
      * get a unique instance of a SingletonRuleList for a type of RuleCollection
      *
      * @param string $type   type of the Rule listed
-     * @param int    $entity entity ID where the rule Rule is processed
+     * @param string $entity entity where the rule Rule is processed
      *
      * @return SingletonRuleList unique instance of an object
      **/

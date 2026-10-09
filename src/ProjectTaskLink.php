@@ -43,19 +43,15 @@
 class ProjectTaskLink extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = ProjectTask::class;
+    public static $itemtype_1 = 'ProjectTask';
     public static $items_id_1 = 'projecttasks_id_source';
 
-    public static $itemtype_2 = ProjectTask::class;
+    public static $itemtype_2 = 'ProjectTask';
     public static $items_id_2 = 'projecttasks_id_target';
 
-    /**
-     * @param string $projecttaskIds Comma-separated list of project task IDs
-     * @return DBmysqlIterator
-     * @used-by gantt plugin
-     */
     public function getFromDBForItemIDs($projecttaskIds)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -67,12 +63,9 @@ class ProjectTaskLink extends CommonDBRelation
         return $iterator;
     }
 
-    /**
-     * @param array{projecttasks_id_source: int, projecttasks_id_target: int, type: int} $taskLink
-     * @return bool
-     */
     public function checkIfExist($taskLink)
     {
+        /** @var \DBmysql $DB */
         global $DB;
         $iterator = $DB->request([
             'SELECT' => 'id',

@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Features\Clonable;
-
 /**
  * Problem template class
  *
@@ -42,23 +40,14 @@ use Glpi\Features\Clonable;
  **/
 class ProblemTemplate extends ITILTemplate
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
-    #[Override]
-    public static function getPredefinedFields(): ITILTemplatePredefinedField
-    {
-        return new ProblemTemplatePredefinedField();
-    }
+    public $second_level_menu         = "problem";
+    public $third_level_menu          = "ProblemTemplate";
 
     public static function getTypeName($nb = 0)
     {
         return _n('Problem template', 'Problem templates', $nb);
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['helpdesk', Problem::class, self::class];
     }
 
     public function getCloneRelations(): array
@@ -67,7 +56,6 @@ class ProblemTemplate extends ITILTemplate
             ProblemTemplateHiddenField::class,
             ProblemTemplateMandatoryField::class,
             ProblemTemplatePredefinedField::class,
-            ProblemTemplateReadonlyField::class,
         ];
     }
 

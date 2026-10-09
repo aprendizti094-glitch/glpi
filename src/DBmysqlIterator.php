@@ -33,28 +33,19 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryParam;
-use Glpi\DBAL\QuerySubQuery;
-
-use function Safe\preg_split;
-
 /**
  *  Database iterator class for Mysql
- * @implements SeekableIterator<int, mixed>
  **/
 class DBmysqlIterator implements SeekableIterator, Countable
 {
     /**
      * DBmysql object
-     * @var ?DBmysql
+     * @var DBmysql
      */
     private $conn;
     // Current SQL query
-    /** @var ?string */
     private $sql;
     // Current result
-    /** @var mysqli_result|bool  */
     private $res = false;
 
     /**
@@ -71,15 +62,12 @@ class DBmysqlIterator implements SeekableIterator, Countable
 
     /**
      * Current pointer position.
-     * @var ?int
+     * @var int
      */
-    private ?int $position = null;
+    private $position = null;
 
-    /**
-     * Known query operators
-     * @var string[]
-     */
-    private array $allowed_operators = [
+    //Known query operators
+    private $allowed_operators = [
         '=',
         '!=',
         '<',
@@ -95,14 +83,12 @@ class DBmysqlIterator implements SeekableIterator, Countable
         'NOT REGEX',
         '&',
         '|',
-        'IN',
-        'NOT IN',
     ];
 
     /**
      * Constructor
      *
-     * @param ?DBmysql $dbconnexion Database connection (must be a CommonDBTM object)
+     * @param ?DBmysql $dbconnexion Database Connection (must be a CommonDBTM object)
      *
      * @return void
      */
@@ -114,19 +100,17 @@ class DBmysqlIterator implements SeekableIterator, Countable
     /**
      * Executes the query
      *
-     * @param array<string, mixed> $criteria Query criteria
+     * @param string|array $table       Table name (optional when $crit have FROM entry)
+     * @param string|array $crit        Fields/values, ex array("id"=>1), if empty => all rows (default '')
+     * @param boolean      $debug       To log the request (default false)
      *
      * @return DBmysqlIterator
-     *
-     * @since 11.0.0 The `$debug` parameter has been removed.
      */
-    public function execute($criteria): self
+    public function execute($table, $crit = "", $debug = false)
     {
-        $criteria = $this->convertOldRequestArgsToCriteria(func_get_args(), __METHOD__);
-
-        $this->buildQuery($criteria);
-        $this->res = $this->conn ? $this->conn->doQuery($this->sql) : false;
-        $this->count = $this->res instanceof mysqli_result ? $this->conn->numrows($this->res) : 0;
+        $this->buildQuery($table, $crit, $debug);
+        $this->res = ($this->conn ? $this->conn->doQuery($this->sql) : false);
+        $this->count = $this->res instanceof \mysqli_result ? $this->conn->numrows($this->res) : 0;
         $this->setPosition(0);
         return $this;
     }
@@ -134,216 +118,241 @@ class DBmysqlIterator implements SeekableIterator, Countable
     /**
      * Builds the query
      *
-     * @param array<string, mixed> $criteria Query criteria
+     * @param string|array $table       Table name (optional when $crit have FROM entry)
+     * @param string|array $crit        Fields/values, ex array("id"=>1), if empty => all rows (default '')
+     * @param boolean      $log         To log the request (default false)
      *
      * @return void
-     *
-     * @since 11.0.0 The `$log` parameter has been removed.
      */
-    public function buildQuery($criteria): void
+    public function buildQuery($table, $crit = "", $log = false)
     {
-        $criteria = $this->convertOldRequestArgsToCriteria(func_get_args(), __METHOD__);
-
+        $this->sql = null;
         $this->res = false;
 
-        $table = $criteria['FROM'] ?? null;
-        unset($criteria['FROM']);
+        $is_legacy = false;
 
-        // Check field, orderby, limit, start in criteria
-        $field    = "";
-        $distinct = false;
-        $orderby  = null;
-        $limit    = 0;
-        $start    = 0;
-        $where    = [];
-        $count    = '';
-        $join     = [];
-        $groupby  = '';
-        $having   = [];
-        if (count($criteria)) {
-            foreach ($criteria as $key => $val) {
-                switch ((string) $key) {
-                    case 'SELECT':
-                    case 'FIELDS':
-                        $field = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'DISTINCT':
-                        if ($val) {
-                            $distinct = true;
-                        }
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'COUNT':
-                        $count = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'ORDER':
-                    case 'ORDERBY':
-                        $orderby = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'LIMIT':
-                        $limit = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'START':
-                    case 'OFFSET':
-                        $start = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'WHERE':
-                        $where = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'HAVING':
-                        $having = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'GROUP':
-                    case 'GROUPBY':
-                        $groupby = $val;
-                        unset($criteria[$key]);
-                        break;
-
-                    case 'JOIN':
-                    case 'LEFT JOIN':
-                    case 'RIGHT JOIN':
-                    case 'INNER JOIN':
-                        $join[$key] = $val;
-                        unset($criteria[$key]);
-                        break;
-                }
+        if (is_string($table) && strpos($table, " ") !== false) {
+            $names = preg_split('/\s+AS\s+/i', $table);
+            if (isset($names[1]) && strpos($names[1], ' ') || !isset($names[1]) || strpos($names[0], ' ')) {
+                $is_legacy = true;
             }
         }
 
-        $this->sql = 'SELECT ';
-        $first = true;
-
-        // SELECT field list
-        if ($count) {
-            $this->sql .= 'COUNT(';
-            if ($distinct) {
-                $this->sql .= 'DISTINCT ';
-            }
-            if (!empty($field) && !is_array($field)) {
-                $this->sql .= DBmysql::quoteName($field);
-            } else {
-                if ($distinct) {
-                    throw new LogicException("With COUNT and DISTINCT, you must specify exactly one field, or use 'COUNT DISTINCT'.");
-                }
-                $this->sql .= "*";
-            }
-            $this->sql .= ") AS $count";
-            $first = false;
-        }
-        if (!$count || is_array($field)) {
-            if ($distinct && !$count) {
-                $this->sql .= 'DISTINCT ';
-            }
-            if (empty($field)) {
-                $this->sql .= '*';
-            }
-            if (!empty($field)) {
-                if (!is_array($field)) {
-                    $field = [$field];
-                }
-                foreach ($field as $t => $f) {
-                    if ($first) {
-                        $first = false;
-                    } else {
-                        $this->sql .= ', ';
-                    }
-                    $this->sql .= $this->handleFields($t, $f);
-                }
-            }
-        }
-
-        // FROM table list
-        if (is_array($table)) {
-            if (count($table)) {
-                $table = array_map([DBmysql::class, 'quoteName'], $table);
-                $this->sql .= ' FROM ' . implode(", ", $table);
-            } else {
-                throw new LogicException("Missing table name.");
-            }
-        } elseif ($table) {
-            if ($table instanceof AbstractQuery) {
-                $query = $table;
-                $table = $query->getQuery();
-            } elseif ($table instanceof QueryExpression) {
-                $table = $table->getValue();
-            } else {
-                $table = DBmysql::quoteName($table);
-            }
-            $this->sql .= " FROM $table";
+        if ($is_legacy) {
+            Toolbox::deprecated(
+                'Direct query usage is strongly discouraged!',
+                false
+            );
+            $this->sql = $table;
         } else {
-            /*
-             * TODO filter with if ($where || !empty($criteria)) {
-             * but not useful for now, as we CANNOT write something like "SELECT NOW()"
-             */
-            throw new LogicException("Missing table name.");
-        }
-
-        // JOIN
-        if ($join !== []) {
-            $this->sql .= $this->analyseJoins($join);
-        }
-
-        // WHERE criteria list
-        if ($criteria !== []) {
-            $this->sql .= " WHERE " . $this->analyseCrit($criteria);
-            if ($where) {
-                trigger_error(
-                    'Criteria found both inside and outside "WHERE" key. Some of them will be ignored',
-                    E_USER_WARNING
-                );
+            // Modern way
+            if (is_array($table) && isset($table['FROM'])) {
+                // Shift the args
+                $debug = $crit;
+                $crit  = $table;
+                $table = $crit['FROM'];
+                unset($crit['FROM']);
             }
-        } elseif ($where) {
-            $this->sql .= " WHERE " . $this->analyseCrit($where);
-        }
 
-        // GROUP BY field list
-        if (is_array($groupby)) {
-            if (count($groupby)) {
-                $groupby = array_map([DBmysql::class, 'quoteName'], $groupby);
-                $this->sql .= ' GROUP BY ' . implode(", ", $groupby);
+            // Check field, orderby, limit, start in criterias
+            $field    = "";
+            $distinct = false;
+            $orderby  = null;
+            $limit    = 0;
+            $start    = 0;
+            $where    = '';
+            $count    = '';
+            $join     = [];
+            $groupby  = '';
+            $having   = '';
+            if (is_array($crit) && count($crit)) {
+                foreach ($crit as $key => $val) {
+                    switch ((string) $key) {
+                        case 'SELECT':
+                        case 'FIELDS':
+                            $field = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'DISTINCT':
+                            if ($val) {
+                                $distinct = true;
+                            }
+                            unset($crit[$key]);
+                            break;
+
+                        case 'COUNT':
+                            $count = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'ORDER':
+                        case 'ORDERBY':
+                            $orderby = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'LIMIT':
+                            $limit = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'START':
+                        case 'OFFSET':
+                            $start = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'WHERE':
+                            $where = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'HAVING':
+                            $having = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'GROUP':
+                        case 'GROUPBY':
+                            $groupby = $val;
+                            unset($crit[$key]);
+                            break;
+
+                        case 'JOIN':
+                        case 'LEFT JOIN':
+                        case 'RIGHT JOIN':
+                        case 'INNER JOIN':
+                            $join[$key] = $val;
+                            unset($crit[$key]);
+                            break;
+                    }
+                }
+            }
+
+            $this->sql = 'SELECT ';
+            $first = true;
+
+            // SELECT field list
+            if ($count) {
+                $this->sql .= 'COUNT(';
+                if ($distinct) {
+                    $this->sql .= 'DISTINCT ';
+                }
+                if (!empty($field) && !is_array($field)) {
+                    $this->sql .= "" . DBmysql::quoteName($field);
+                } else {
+                    if ($distinct) {
+                        throw new \LogicException("With COUNT and DISTINCT, you must specify exactly one field, or use 'COUNT DISTINCT'.");
+                    }
+                    $this->sql .= "*";
+                }
+                $this->sql .= ") AS $count";
+                $first = false;
+            }
+            if (!$count || $count && is_array($field)) {
+                if ($distinct && !$count) {
+                    $this->sql .= 'DISTINCT ';
+                }
+                if (empty($field)) {
+                    $this->sql .= '*';
+                }
+                if (!empty($field)) {
+                    if (!is_array($field)) {
+                        $field = [$field];
+                    }
+                    foreach ($field as $t => $f) {
+                        if ($first) {
+                            $first = false;
+                        } else {
+                            $this->sql .= ', ';
+                        }
+                        $this->sql .= $this->handleFields($t, $f);
+                    }
+                }
+            }
+
+            // FROM table list
+            if (is_array($table)) {
+                if (count($table)) {
+                    $table = array_map([DBmysql::class, 'quoteName'], $table);
+                    $this->sql .= ' FROM ' . implode(", ", $table);
+                } else {
+                    throw new \LogicException("Missing table name.");
+                }
+            } elseif ($table) {
+                if ($table instanceof \AbstractQuery) {
+                    $table = $table->getQuery();
+                } elseif ($table instanceof \QueryExpression) {
+                    $table = $table->getValue();
+                } else {
+                    $table = DBmysql::quoteName($table);
+                }
+                $this->sql .= " FROM $table";
             } else {
-                throw new LogicException("Missing group by field.");
+                /*
+                 * TODO filter with if ($where || !empty($crit)) {
+                 * but not usefull for now, as we CANNOT write something like "SELECT NOW()"
+                 */
+                throw new \LogicException("Missing table name.");
             }
-        } elseif ($groupby) {
-            $groupby = DBmysql::quoteName($groupby);
-            $this->sql .= " GROUP BY $groupby";
+
+            // JOIN
+            if (!empty($join)) {
+                $this->sql .= $this->analyseJoins($join);
+            }
+
+            // WHERE criteria list
+            if (!empty($crit)) {
+                $this->sql .= " WHERE " . $this->analyseCrit($crit);
+                if ($where) {
+                    trigger_error(
+                        'Criteria found both inside and outside "WHERE" key. Some of them will be ignored',
+                        E_USER_WARNING
+                    );
+                }
+            } elseif ($where) {
+                $this->sql .= " WHERE " . $this->analyseCrit($where);
+            }
+
+            // GROUP BY field list
+            if (is_array($groupby)) {
+                if (count($groupby)) {
+                    $groupby = array_map([DBmysql::class, 'quoteName'], $groupby);
+                    $this->sql .= ' GROUP BY ' . implode(", ", $groupby);
+                } else {
+                    throw new \LogicException("Missing group by field.");
+                }
+            } elseif ($groupby) {
+                $groupby = DBmysql::quoteName($groupby);
+                $this->sql .= " GROUP BY $groupby";
+            }
+
+            // HAVING criteria list
+            if ($having) {
+                $this->sql .= " HAVING " . $this->analyseCrit($having);
+            }
+
+            // ORDER BY
+            if ($orderby !== null) {
+                $this->sql .= $this->handleOrderClause($orderby);
+            }
+
+            //LIMIT & OFFSET
+            $this->sql .= $this->handleLimits($limit, $start);
         }
 
-        // HAVING criteria list
-        if ($having) {
-            $this->sql .= " HAVING " . $this->analyseCrit($having);
+        if ($log == true || defined('GLPI_SQL_DEBUG') && GLPI_SQL_DEBUG == true) {
+            Toolbox::logSqlDebug("Generated query:", $this->getSql());
         }
-
-        // ORDER BY
-        if ($orderby !== null) {
-            $this->sql .= $this->handleOrderClause($orderby);
-        }
-
-        //LIMIT & OFFSET
-        $this->sql .= $this->handleLimits($limit, $start);
     }
 
     /**
      * Handle "ORDER BY" SQL clause
      *
-     * @param string|QueryExpression|array<int, string|QueryExpression> $clause Clause parameters
+     * @param string|array $clause Clause parameters
      *
-     * @return string
+     * @reutn string
      */
     public function handleOrderClause($clause)
     {
@@ -368,7 +377,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
             } elseif ($o instanceof QueryExpression) {
                 $cleanorderby[] = $o->getValue();
             } else {
-                throw new LogicException("Invalid order clause.");
+                throw new \LogicException("Invalid order clause.");
             }
         }
 
@@ -379,8 +388,8 @@ class DBmysqlIterator implements SeekableIterator, Countable
     /**
      * Handle LIMIT and OFFSET
      *
-     * @param int  $limit  SQL LIMIT
-     * @param ?int $offset Start OFFSET (defaults to null)
+     * @param integer $limit  SQL LIMIT
+     * @param integer $offset Start OFFSET (defaults to null)
      *
      * @return string
      */
@@ -399,21 +408,17 @@ class DBmysqlIterator implements SeekableIterator, Countable
     /**
      * Handle fields
      *
-     * @param int|string                                    $t Table name or function
-     * @param string[]|string|QueryExpression|AbstractQuery $f Field(s) name(s)
+     * @param integer|string $t Table name or function
+     * @param array|string   $f Field(s) name(s)
      *
      * @return string
      */
-    private function handleFields(int|string $t, array|string|QueryExpression|AbstractQuery $f): string
+    private function handleFields($t, $f)
     {
         if (is_numeric($t)) {
-            if (is_array($f)) {
-                throw new RuntimeException("Invalid field, array not allowed.");
-            }
-
-            if ($f instanceof AbstractQuery) {
+            if ($f instanceof \AbstractQuery) {
                 return $f->getQuery();
-            } elseif ($f instanceof QueryExpression) {
+            } elseif ($f instanceof \QueryExpression) {
                 return $f->getValue();
             } else {
                 return DBmysql::quoteName($f);
@@ -431,7 +436,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
                     } else {
                         return $this->handleFieldsAlias("COUNT(DISTINCT", $f, ')');
                     }
-                    // no break
+                    break;
                 case 'COUNT':
                 case 'SUM':
                 case 'AVG':
@@ -446,7 +451,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
                     } else {
                         return $this->handleFieldsAlias($t, $f);
                     }
-                    // no break
+                    break;
                 default:
                     if (is_array($f)) {
                         $t = DBmysql::quoteName($t);
@@ -457,6 +462,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
                         $f = ($f == '*' ? $f : DBmysql::quoteName($f));
                         return "$t.$f";
                     }
+                    break;
             }
         }
     }
@@ -470,7 +476,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @return string
      */
-    private function handleFieldsAlias(string $t, string $f, string $suffix = ''): string
+    private function handleFieldsAlias($t, $f, $suffix = '')
     {
         $names = preg_split('/\s+AS\s+/i', $f);
         $expr  = "$t(" . $this->handleFields(0, $names[0]) . "$suffix)";
@@ -490,7 +496,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      */
     public function getSql()
     {
-        return $this->sql ?? '';
+        return preg_replace('/ +/', ' ', $this->sql);
     }
 
     /**
@@ -500,7 +506,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      */
     public function __destruct()
     {
-        if ($this->res instanceof mysqli_result) {
+        if ($this->res instanceof \mysqli_result) {
             $this->conn->freeResult($this->res);
         }
     }
@@ -508,41 +514,20 @@ class DBmysqlIterator implements SeekableIterator, Countable
     /**
      * Generate the SQL statement for a array of criteria
      *
-     * @param array<int|string,mixed>|string $crit Criteria
-     * @param string $bool Boolean operator (default AND)
+     * @param string[] $crit Criteria
+     * @param string   $bool Boolean operator (default AND)
      *
      * @return string
      */
     public function analyseCrit($crit, $bool = "AND")
     {
-        if (is_string($crit)) {
-            Toolbox::deprecated(
-                sprintf(
-                    'Passing SQL request criteria as strings is deprecated for security reasons. Criteria was `` %s ``.',
-                    $crit
-                ),
-                version: '11.1'
-            );
-
-            /**
-             * Delegate the safeness check to the caller.
-             * There is no such usage in GLPI, it is the plugin developer responsibility to switch to safer criteria specs.
-             * @psalm-taint-escape sql
-             */
-            $safe_crit = $crit;
-
-            return $safe_crit;
-        }
 
         if (!is_array($crit)) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Invalid criteria type. Expected `array`, `%s` received.',
-                    get_debug_type($crit)
-                )
-            );
+            //if ($_SESSION['glpi_use_mode'] == Session::DEBUG_MODE) {
+            //  trigger_error("Deprecated usage of SQL in DB/request (criteria)", E_USER_DEPRECATED);
+            //}
+            return $crit;
         }
-
         $ret = "";
         foreach ($crit as $name => $value) {
             if (!empty($ret)) {
@@ -554,15 +539,6 @@ class DBmysqlIterator implements SeekableIterator, Countable
                     $ret .= $value->getValue();
                 } elseif ($value instanceof QuerySubQuery) {
                     $ret .= $value->getQuery();
-                } elseif (in_array($value, [1, 0, '1', '0', true, false], true)) {
-                    Toolbox::deprecated(
-                        sprintf(
-                            'Passing SQL request criteria as booleans is deprecated. Please use `new \Glpi\DBAL\QueryExpression("%s");`.',
-                            $value ? 'true' : 'false'
-                        ),
-                        version: '11.1'
-                    );
-                    $ret .= $value ? 'true' : 'false';
                 } else {
                     // No Key case => recurse.
                     $ret .= "(" . $this->analyseCrit($value) . ")";
@@ -588,7 +564,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
     }
 
     /**
-     * Analyze a criterion
+     * analyse a criterion
      *
      * @since 9.3.1
      *
@@ -596,7 +572,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @return string
      */
-    private function analyseCriterion($value): string
+    private function analyseCriterion($value)
     {
         $criterion = null;
 
@@ -606,22 +582,17 @@ class DBmysqlIterator implements SeekableIterator, Countable
         } else {
             if (is_array($value)) {
                 if (count($value) == 2 && isset($value[0]) && $this->isOperator($value[0])) {
-                    /**
-                     * Is a safe operator.
-                     * @psalm-taint-escape sql
-                     */
                     $comparison = $value[0];
-
                     $criterion_value = $value[1];
                 } else {
                     if (!count($value)) {
-                        throw new RuntimeException('Empty IN are not allowed');
+                        throw new \RuntimeException('Empty IN are not allowed');
                     }
                     // Array of Values
-                    return "IN " . $this->analyseCriterionValue($value);
+                    return "IN (" . $this->analyseCriterionValue($value) . ")";
                 }
             } else {
-                $comparison = ($value instanceof AbstractQuery ? 'IN' : '=');
+                $comparison = ($value instanceof \AbstractQuery ? 'IN' : '=');
                 $criterion_value = $value;
             }
             $criterion = "$comparison " . $this->getCriterionValue($criterion_value);
@@ -644,30 +615,27 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @return string
      */
-    private function getCriterionValue($value): string
+    private function getCriterionValue($value)
     {
-        return match (true) {
-            $value instanceof AbstractQuery => $value->getQuery(),
-            $value instanceof QueryExpression => $value->getValue(),
-            $value instanceof QueryParam => $value->getValue(),
-            default => $this->analyseCriterionValue($value)
-        };
+        if ($value instanceof \AbstractQuery) {
+            return $value->getQuery();
+        } elseif ($value instanceof \QueryExpression) {
+            return $value->getValue();
+        } elseif ($value instanceof \QueryParam) {
+            return $value->getValue();
+        } else {
+            return $this->analyseCriterionValue($value);
+        }
     }
 
-    /**
-     * @param mixed $value
-     *
-     * @return mixed
-     */
     private function analyseCriterionValue($value)
     {
         $crit_value = null;
         if (is_array($value)) {
-            $values = [];
-            foreach ($value as $v) {
-                $values[] = DBmysql::quoteValue($v);
+            foreach ($value as $k => $v) {
+                $value[$k] = DBmysql::quoteValue($v);
             }
-            $crit_value = '(' . implode(', ', $values) . ')';
+            $crit_value = implode(', ', $value);
         } else {
             $crit_value = DBmysql::quoteValue($value);
         }
@@ -675,11 +643,11 @@ class DBmysqlIterator implements SeekableIterator, Countable
     }
 
     /**
-     * Analyze an array of joins criteria
+     * analyse an array of joins criteria
      *
      * @since 9.4.0
      *
-     * @param array<string,array<string,mixed>> $joinarray Array of joins to analyze
+     * @param array $joinarray Array of joins to analyse
      *       [jointype => [table => criteria]]
      *
      * @return string
@@ -689,7 +657,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
         $query = '';
         foreach ($joinarray as $jointype => $jointables) {
             if (!in_array($jointype, ['JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN'])) {
-                throw new LogicException(sprintf('Invalid JOIN type `%s`.', $jointype));
+                throw new \LogicException(sprintf('Invalid JOIN type `%s`.', $jointype));
             }
 
             if ($jointype == 'JOIN') {
@@ -697,7 +665,8 @@ class DBmysqlIterator implements SeekableIterator, Countable
             }
 
             if (!is_array($jointables)) {
-                throw new LogicException("BAD JOIN, value must be [ table => criteria ].");
+                throw new \LogicException("BAD JOIN, value must be [ table => criteria ].");
+                continue;
             }
 
             foreach ($jointables as $jointablekey => $jointablecrit) {
@@ -712,10 +681,10 @@ class DBmysqlIterator implements SeekableIterator, Countable
                     $jointablekey = $jointablecrit['TABLE'];
                     unset($jointablecrit['TABLE']);
                 } elseif (is_numeric($jointablekey) || $jointablekey == 'FKEY' || $jointablekey == 'ON') {
-                    throw new LogicException('BAD JOIN');
+                    throw new \LogicException('BAD JOIN');
                 }
 
-                if ($jointablekey instanceof QuerySubQuery) {
+                if ($jointablekey instanceof \QuerySubQuery) {
                     $jointablekey = $jointablekey->getQuery();
                 } else {
                     $jointablekey = DBmysql::quoteName($jointablekey);
@@ -728,56 +697,37 @@ class DBmysqlIterator implements SeekableIterator, Countable
     }
 
     /**
-     * Analyze foreign keys
+     * Analyse foreign keys
      *
      * @param mixed $values Values for Foreign keys
      *
      * @return string
      */
-    private function analyseFkey($values): string
+    private function analyseFkey($values)
     {
         if (is_array($values)) {
             $keys = array_keys($values);
             if (count($values) == 2) {
                 $t1 = $keys[0];
                 $f1 = $values[$t1];
-                $left_value = $f1 instanceof QuerySubQuery || $f1 instanceof QueryExpression
-                    ? (string) $f1
-                    : (is_numeric($t1) ? DBmysql::quoteName($f1) : DBmysql::quoteName($t1) . '.' . DBmysql::quoteName($f1));
-
                 $t2 = $keys[1];
                 $f2 = $values[$t2];
-                $right_value = $f2 instanceof QuerySubQuery || $f2 instanceof QueryExpression
-                    ? (string) $f2
-                    : (is_numeric($t2) ? DBmysql::quoteName($f2) : DBmysql::quoteName($t2) . '.' . DBmysql::quoteName($f2));
-
-                return $left_value . ' = ' . $right_value;
+                if ($f2 instanceof QuerySubQuery) {
+                    return (is_numeric($t1) ? DBmysql::quoteName($f1) : DBmysql::quoteName($t1) . '.' . DBmysql::quoteName($f1)) . ' = ' .
+                    $f2->getQuery();
+                } else {
+                    return (is_numeric($t1) ? DBmysql::quoteName($f1) : DBmysql::quoteName($t1) . '.' . DBmysql::quoteName($f1)) . ' = ' .
+                    (is_numeric($t2) ? DBmysql::quoteName($f2) : DBmysql::quoteName($t2) . '.' . DBmysql::quoteName($f2));
+                }
             } elseif (count($values) == 3) {
-                $real_values = [];
-                foreach ($values as $k => $v) {
-                    if (is_array($v)) {
-                        $condition = $v;
-                    } else {
-                        $real_values[$k] = $v;
-                    }
-                }
-
-                if (!isset($condition)) {
-                    //in theory, should never happen
-                    $condition = array_pop($real_values);
-                }
-
-                $fkey = $this->analyseFkey($real_values);
-                $condition_value = $this->analyseCrit(current($condition));
-                if (!empty(trim($condition_value))) {
-                    return $fkey . ' ' . key($condition) . ' ' . $condition_value;
-                }
-                return $fkey;
+                $condition = array_pop($values);
+                $fkey = $this->analyseFkey($values);
+                return $fkey . ' ' . key($condition) . ' ' . $this->analyseCrit(current($condition));
             }
         } elseif ($values instanceof QueryExpression) {
             return $values->getValue();
         }
-        throw new LogicException('BAD FOREIGN KEY, should be [ table1 => key1, table2 => key2 ] or [ table1 => key1, table2 => key2, [criteria]].');
+        throw new \LogicException('BAD FOREIGN KEY, should be [ table1 => key1, table2 => key2 ] or [ table1 => key1, table2 => key2, [criteria]].');
     }
 
     /**
@@ -795,7 +745,8 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @return mixed
      */
-    public function current(): mixed
+    #[ReturnTypeWillChange]
+    public function current()
     {
         return $this->row;
     }
@@ -805,7 +756,8 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @return mixed
      */
-    public function key(): mixed
+    #[ReturnTypeWillChange]
+    public function key()
     {
         return $this->row !== null ? ($this->row["id"] ?? $this->position) : null;
     }
@@ -827,22 +779,13 @@ class DBmysqlIterator implements SeekableIterator, Countable
      */
     public function valid(): bool
     {
-        return !$this->isFailed() && $this->position < $this->count;
-    }
-
-    /**
-     * Check if the current result is not a {@link \mysqli_result}, indicating a failure.
-     * @return bool
-     */
-    public function isFailed(): bool
-    {
-        return !($this->res instanceof mysqli_result);
+        return $this->res instanceof \mysqli_result && $this->position < $this->count;
     }
 
     /**
      * Number of rows on a result
      *
-     * @return int
+     * @return integer
      */
     public function numrows()
     {
@@ -864,7 +807,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
     public function seek($position): void
     {
         if ($position < 0 || $position + 1 > $this->count) {
-            throw new OutOfBoundsException();
+            throw new \OutOfBoundsException();
         }
         $this->setPosition($position);
     }
@@ -878,7 +821,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      */
     private function setPosition(int $position): void
     {
-        if (!($this->res instanceof mysqli_result)) {
+        if (!($this->res instanceof \mysqli_result)) {
             // Result is not valid, nothing to do.
             return;
         }
@@ -896,10 +839,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
         }
 
         $this->position = $position;
-
-        $data = $this->conn->fetchAssoc($this->res);
-
-        $this->row = $data;
+        $this->row = $this->conn->fetchAssoc($this->res);
     }
 
     /**
@@ -907,7 +847,7 @@ class DBmysqlIterator implements SeekableIterator, Countable
      *
      * @param string $value Value to check
      *
-     * @return bool
+     * @return boolean
      */
     public function isOperator($value)
     {
@@ -917,44 +857,5 @@ class DBmysqlIterator implements SeekableIterator, Countable
     public function fetchFields(): array
     {
         return $this->res->fetch_fields();
-    }
-
-    /**
-     * Convert arguments used for `DBmysql::request()`, `DBmysqlIterator::buildQuery()` and `DBmysqlIterator::execute()` methods
-     * from old signature to new signature.
-     * For security reasons, an exception is thrown whenever the arguments contains a direct raw query.
-     *
-     * @param array<int, mixed> $args
-     * @return array<string, mixed>
-     */
-    private function convertOldRequestArgsToCriteria(array $args, string $method): array
-    {
-        if (is_string($args[0]) && str_contains($args[0], " ")) {
-            $names = preg_split('/\s+AS\s+/i', $args[0]);
-            if (isset($names[1]) && strpos($names[1], ' ') || !isset($names[1]) || strpos($names[0], ' ')) {
-                throw new InvalidArgumentException(
-                    sprintf('Building and executing raw queries with the `%s()` method is prohibited.', $method)
-                );
-            }
-        }
-
-        if (is_array($args[0])) {
-            // The new signature ($criteria, $debug = false) is already used
-            $criteria = $args[0];
-        } else {
-            // The old signature ($tableorsql, $crit = "", $debug = false) is still used
-            Toolbox::deprecated(
-                sprintf('The `%s()` method signature changed. Its previous signature is deprecated.', $method)
-            );
-            $criteria = $args[1] ?? [];
-            if (is_string($criteria)) {
-                $criteria = $criteria !== ''
-                    ? ['WHERE' => [new QueryExpression($criteria)]]
-                    : [];
-            }
-            $criteria['FROM'] = $args[0];
-        }
-
-        return $criteria;
     }
 }

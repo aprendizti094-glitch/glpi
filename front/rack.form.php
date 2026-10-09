@@ -33,9 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
+
+include('../inc/includes.php');
 
 Session::checkRight("datacenter", READ);
 
@@ -93,7 +93,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $rack->check($_POST["id"], PURGE);
 
-    $rack->delete($_POST, true);
+    $rack->delete($_POST, 1);
     Event::log(
         $_POST["id"],
         "racks",

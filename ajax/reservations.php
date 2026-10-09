@@ -33,18 +33,18 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
+include('../inc/includes.php');
 
 Session::checkRightsOr('reservation', [READ, ReservationItem::RESERVEANITEM]);
 
 if (!isset($_REQUEST["action"])) {
-    return;
+    exit;
 }
 
 if ($_REQUEST["action"] == "get_events") {
     header("Content-Type: application/json; charset=UTF-8");
     echo json_encode(Reservation::getEvents($_REQUEST));
-    return;
+    exit;
 }
 
 Session::checkRight('reservation', ReservationItem::RESERVEANITEM);
@@ -52,19 +52,25 @@ Session::checkRight('reservation', ReservationItem::RESERVEANITEM);
 if ($_REQUEST["action"] == "get_resources") {
     header("Content-Type: application/json; charset=UTF-8");
     echo json_encode(Reservation::getResources());
-    return;
+    exit;
 }
 
 if (($_POST['action'] ?? null) === "update_event") {
     $result = Reservation::updateEvent($_REQUEST);
     echo json_encode(['result' => $result]);
-    return;
+    exit;
 }
 
 Html::header_nocache();
 header("Content-Type: text/html; charset=UTF-8");
 
-if ($_REQUEST["action"] == "add_edit_reservation_fromselect") {
+if ($_REQUEST["action"] == "add_reservation_fromselect") {
     $reservation = new Reservation();
-    $reservation->showForm($_REQUEST['id'], $_REQUEST);
+    $reservation->showForm(0, [
+        'item'  => [(int) $_REQUEST['id']],
+        'begin' => $_REQUEST['start'],
+        'end'   => $_REQUEST['end'],
+    ]);
 }
+
+Html::ajaxFooter();

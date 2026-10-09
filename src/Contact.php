@@ -35,9 +35,8 @@
 
 use Glpi\Application\View\TemplateRenderer;
 use Glpi\Features\AssetImage;
-use Glpi\Features\Clonable;
 use Glpi\Plugin\Hooks;
-use Sabre\VObject\Component\VCard;
+use Sabre\VObject;
 
 /**
  * Contact class
@@ -45,8 +44,7 @@ use Sabre\VObject\Component\VCard;
 class Contact extends CommonDBTM
 {
     use AssetImage;
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
     // From CommonDBTM
     public $dohistory           = true;
@@ -59,16 +57,6 @@ class Contact extends CommonDBTM
     public static function getTypeName($nb = 0)
     {
         return _n('Contact', 'Contacts', $nb);
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['management', self::class];
-    }
-
-    public static function getLogDefaultServiceName(): string
-    {
-        return 'financial';
     }
 
     public function prepareInputForAdd($input)
@@ -97,9 +85,7 @@ class Contact extends CommonDBTM
 
     public function getCloneRelations(): array
     {
-        return [
-            ManualLink::class,
-        ];
+        return [];
     }
 
 
@@ -108,11 +94,11 @@ class Contact extends CommonDBTM
 
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(Contact_Supplier::class, $ong, $options);
-        $this->addStandardTab(Document_Item::class, $ong, $options);
-        $this->addStandardTab(ManualLink::class, $ong, $options);
-        $this->addStandardTab(Notepad::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('Contact_Supplier', $ong, $options);
+        $this->addStandardTab('Document_Item', $ong, $options);
+        $this->addStandardTab('ManualLink', $ong, $options);
+        $this->addStandardTab('Notepad', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
@@ -125,6 +111,7 @@ class Contact extends CommonDBTM
      */
     public function getAddress()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -162,6 +149,7 @@ class Contact extends CommonDBTM
      **/
     public function getWebsite()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -207,7 +195,7 @@ class Contact extends CommonDBTM
 
         if ($ID > 0) {
             $vcard_lbl = __s('Vcard');
-            $vcard_url = htmlescape(self::getFormURLWithID($ID) . "&getvcard=1");
+            $vcard_url = htmlspecialchars(self::getFormURLWithID($ID) . "&getvcard=1");
             $vcard_btn = <<<HTML
             <a href="{$vcard_url}" target="_blank"
                      class="btn btn-icon btn-sm btn-ghost-secondary"
@@ -224,12 +212,13 @@ HTML;
 
     public function getSpecificMassiveActions($checkitem = null)
     {
+
         $isadmin = static::canUpdate();
         $actions = parent::getSpecificMassiveActions($checkitem);
 
         if ($isadmin) {
             $actions['Contact_Supplier' . MassiveAction::CLASS_ACTION_SEPARATOR . 'add']
-               = "<i class='" . htmlescape(Supplier::getIcon()) . "'></i>" . _sx('button', 'Add a supplier');
+               = _x('button', 'Add a supplier');
         }
 
         return $actions;
@@ -241,7 +230,7 @@ HTML;
 
         if (isset($this->fields["id"]) && ($this->fields["id"] > 0)) {
             return formatUserName(
-                0,
+                '',
                 '',
                 ($this->fields["name"] ?? ''),
                 ($this->fields["firstname"] ?? '')
@@ -402,7 +391,7 @@ HTML;
             'id'                 => '16',
             'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
@@ -477,7 +466,7 @@ HTML;
             $title->getFromDB($this->fields['usertitles_id']);
         }
         // build the Vcard
-        $vcard = new VCard([
+        $vcard = new VObject\Component\VCard([
             'N'     => [$this->fields["name"], $this->fields["firstname"]],
             'EMAIL' => $this->fields["email"],
             'NOTE'  => $this->fields["comment"],
@@ -518,6 +507,6 @@ HTML;
 
     public static function getIcon()
     {
-        return "ti ti-address-book";
+        return "fas fa-user-tie";
     }
 }

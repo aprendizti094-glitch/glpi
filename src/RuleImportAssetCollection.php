@@ -33,12 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
-use Glpi\Inventory\Request;
-
-use function Safe\file_get_contents;
-
 /// Import rules collection class
 class RuleImportAssetCollection extends RuleCollection
 {
@@ -51,48 +45,45 @@ class RuleImportAssetCollection extends RuleCollection
     {
         $ong = parent::defineTabs();
 
-        $this->addStandardTab(self::class, $ong, $options);
+        $this->addStandardTab(__CLASS__, $ong, $options);
 
         return $ong;
     }
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (!$withtemplate) {
-            switch ($item::class) {
-                case self::class:
+            switch ($item->getType()) {
+                case __CLASS__:
                     $ong    = [];
-                    $types = $CFG_GLPI['ruleimportasset_types'];
+                    $types = $CFG_GLPI['state_types'];
                     foreach ($types as $type) {
                         if (class_exists($type)) {
-                            $ong[$type] = $type::getTypeName(Session::getPluralNumber());
+                            $ong[$type] = $type::getTypeName();
                         }
                     }
-                    $ong['_global'] = self::createTabEntry(__('Global'));
+                    $ong['_global'] = __('Global');
                     return $ong;
             }
         }
         return '';
     }
 
+
     public function getTitle()
     {
         return __('Rules for import and link equipments');
     }
 
-    /**
-     * @param array $criteria
-     * @param array $options
-     *
-     * @return array
-     */
+
     public function collectionFilter($criteria, $options = [])
     {
-        // current tab
+        //current tab
         $active_tab = $options['_glpi_tab'] ?? Session::getActiveTab($this->getType());
-        $current_tab = str_replace(self::class . '$', '', $active_tab);
+        $current_tab = str_replace(__CLASS__ . '$', '', $active_tab);
         $tabs = $this->getTabNameForItem($this);
 
         if (!isset($tabs[$current_tab])) {
@@ -117,18 +108,7 @@ class RuleImportAssetCollection extends RuleCollection
             if (!is_array($criteria['SELECT'])) {
                 $criteria['SELECT'] = [$criteria['SELECT']];
             }
-            $criteria['SELECT'][] = QueryFunction::count(
-                expression: QueryFunction::if(
-                    condition: ['crit.criteria' => 'itemtype'],
-                    true_expression: QueryFunction::if(
-                        condition: ['crit.pattern' => array_keys($tabs)],
-                        true_expression: new QueryExpression('1'),
-                        false_expression: new QueryExpression('null')
-                    ),
-                    false_expression: new QueryExpression('null')
-                ),
-                alias: 'is_itemtype'
-            );
+            $criteria['SELECT'][] = new QueryExpression("COUNT(IF(crit.criteria = 'itemtype', IF(crit.pattern IN ('" . implode("', '", array_keys($tabs)) . "'), 1, NULL), NULL)) AS is_itemtype");
             $where = [];
             $criteria['HAVING'] = ['is_itemtype' => 0];
         }
@@ -149,16 +129,17 @@ class RuleImportAssetCollection extends RuleCollection
 
         $refused = new RefusedEquipment();
         if ($refused->getFromDB($refused_id) && ($inventory_file = $refused->getInventoryFileName()) !== null) {
-            $inventory_request = new Request();
+            $inventory_request = new \Glpi\Inventory\Request();
             $contents = file_get_contents($inventory_file);
             $inventory_request
                 ->testRules()
                 ->handleRequest($contents);
 
             $inventory = $inventory_request->getInventory();
+            $item = $inventory->getItem();
             $invitem = $inventory->getMainAsset();
 
-            // sanitize input
+            //sanitize input
             if ($input['itemtype'] == 0) {
                 unset($input['itemtype']);
             }
@@ -171,7 +152,7 @@ class RuleImportAssetCollection extends RuleCollection
             $data = $invitem->getData();
             $rules_input = $invitem->prepareAllRulesInput($data[0]);
 
-            // keep user values if any
+            //keep user values if any
             $input += $rules_input;
         } else {
             trigger_error(

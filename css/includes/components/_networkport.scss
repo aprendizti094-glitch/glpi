@@ -31,30 +31,6 @@
  * ---------------------------------------------------------------------
  */
 
-html:not([data-glpi-theme-dark="1"]) {
-    .netport {
-        --glpi-cotrunk-bg: silver;
-        --glpi-hub-bg: lightsalmon;
-        --glpi-trunk-bg: mediumaquamarine;
-        --glpi-aggregated-bg: darkturquoise;
-        --glpi-network-color: var(--tblr-dark);
-    }
-}
-
-html[data-glpi-theme-dark="1"] {
-    .netport {
-        --glpi-cotrunk-bg: dimgray;
-        --glpi-hub-bg: indianred;
-        --glpi-trunk-bg: seagreen;
-        --glpi-aggregated-bg: teal;
-        --glpi-network-color: white;
-
-        a {
-            color: white;
-        }
-    }
-}
-
 .netport {
     &:target {
         animation: shakeX; // from animate css dependencies
@@ -80,25 +56,53 @@ html[data-glpi-theme-dark="1"] {
     }
 
     &.trunk {
-        background-color: var(--glpi-trunk-bg);
-        color: var(--glpi-network-color);
+        @if $is-dark {
+            background-color: rgb(56, 110, 92);
+            color: white;
+
+            a {
+                color: white;
+            }
+        } @else {
+            background-color: mediumaquamarine;
+        }
     }
 
     &.hub {
-        background-color: var(--glpi-hub-bg);
-        color: var(--glpi-network-color);
+        @if $is-dark {
+            background-color: rgb(185, 112, 88);
+            color: white;
+
+            a {
+                color: white;
+            }
+        } @else {
+            background-color: lightsalmon;
+        }
     }
 
     &.cotrunk {
-        background-color: var(--glpi-cotrunk-bg);
-        color: var(--glpi-network-color);
+        @if $is-dark {
+            background-color: rgb(77, 77, 77);
+            color: white;
+
+            a {
+                color: white;
+            }
+        } @else {
+            background-color: silver;
+        }
     }
 
     &.aggregated,
     .aggregated {
-        background-color: var(--glpi-aggregated-bg);
-        color: var(--glpi-network-color);
+        background-color: teal;
+        color: white;
         padding-left: 2em;
+
+        a {
+            color: white;
+        }
     }
 
     .hub {
@@ -118,14 +122,13 @@ html[data-glpi-theme-dark="1"] {
 
 .netport-legend {
     width: 100%;
-    color: var(--tblr-dark);
 
     td.netport {
         text-align: center;
         width: 25%;
     }
 
-    @if var($is-dark) {
+    @if $is-dark {
         color: white;
     }
 }

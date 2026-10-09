@@ -40,14 +40,10 @@ use Glpi\Application\View\TemplateRenderer;
  */
 class NotificationSettingConfig extends CommonDBTM
 {
-    /**
-     * @var string
-     */
     public $table           = 'glpi_configs';
     protected $displaylist  = false;
     public static $rightname       = 'config';
 
-    #[Override]
     public function update(array $input, $history = true, $options = [])
     {
         $success = true;
@@ -73,7 +69,7 @@ class NotificationSettingConfig extends CommonDBTM
 
         $config = new Config();
         foreach ($input as $k => $v) {
-            if (str_starts_with($k, 'notifications_')) {
+            if (substr($k, 0, strlen('notifications_')) === 'notifications_') {
                 $tmp = [
                     'id' => $config_id,
                     $k    => $v,
@@ -90,11 +86,11 @@ class NotificationSettingConfig extends CommonDBTM
     /**
      * Show configuration form
      *
-     * @param array{display?: bool} $options
      * @return string|void
      */
     public function showConfigForm($options = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (!isset($options['display'])) {
@@ -104,7 +100,7 @@ class NotificationSettingConfig extends CommonDBTM
         $modes = Notification_NotificationTemplate::getModes();
         foreach ($modes as $mode_key => &$mode) {
             $settings_class = Notification_NotificationTemplate::getModeClass($mode_key, 'setting');
-            $settings = getItemForItemtype($settings_class);
+            $settings = new $settings_class();
             $mode['label']          = $settings->getEnableLabel();
             $mode['label_settings'] = $settings->getTypeName();
             $mode['is_active']      = (bool) $CFG_GLPI["notifications_$mode_key"];

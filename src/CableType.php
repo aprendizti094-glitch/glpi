@@ -33,9 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * Class CableType
- */
+/// Class Cabletype
 class CableType extends CommonDropdown
 {
     public static function getTypeName($nb = 0)

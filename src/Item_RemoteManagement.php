@@ -8,6 +8,7 @@
  * http://glpi-project.org
  *
  * @copyright 2015-2026 Teclib' and contributors.
+ * @copyright 2003-2014 by the INDEPNET Development Team.
  * @licence   https://www.gnu.org/licenses/gpl-3.0.html
  *
  * ---------------------------------------------------------------------
@@ -31,8 +32,6 @@
  *
  * ---------------------------------------------------------------------
  */
-
-use Glpi\Application\View\TemplateRenderer;
 
 class Item_RemoteManagement extends CommonDBChild
 {
@@ -69,15 +68,12 @@ class Item_RemoteManagement extends CommonDBChild
                 ]
             );
         }
-        return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+        return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
     }
 
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if (!$item instanceof CommonDBTM) {
-            return false;
-        }
         self::showForItem($item, $withtemplate);
         return true;
     }
@@ -94,6 +90,7 @@ class Item_RemoteManagement extends CommonDBChild
      */
     public static function getFromItem(CommonDBTM $item, $sort = null, $order = null): DBmysqlIterator
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -111,7 +108,7 @@ class Item_RemoteManagement extends CommonDBChild
      * Print the remote management
      *
      * @param CommonDBTM $item          Item object
-     * @param int    $withtemplate  Template or basic item (default 0)
+     * @param integer    $withtemplate  Template or basic item (default 0)
      *
      * @return void
      **/
@@ -124,33 +121,83 @@ class Item_RemoteManagement extends CommonDBChild
             !$item->getFromDB($ID)
             || !$item->can($ID, READ)
         ) {
-            return;
+            return false;
         }
         $canedit = $item->canEdit($ID);
 
-        $entries = [];
-        foreach (self::getFromItem($item) as $data) {
-            $mgmt = new self();
-            $mgmt->getFromResultSet($data);
-            $entries[] = [
-                'id'        => $mgmt->getID(),
-                'items_id'  => $mgmt->fields['items_id'],
-                'itemtype'  => self::getType(),
-                'remoteid'  => $mgmt->getRemoteLink(),
-                'type'      => $mgmt->fields['type'],
-                'comment'   => Dropdown::getYesNo($data['is_dynamic']),
-            ];
+        if (
+            $canedit
+            && !(!empty($withtemplate) && ($withtemplate == 2))
+        ) {
+            echo "<div class='center firstbloc'>" .
+               "<a class='btn btn-primary' href='" . self::getFormURL() . "?itemtype=$itemtype&items_id=$ID&amp;withtemplate=" .
+                  $withtemplate . "'>";
+            echo __('Add a remote management');
+            echo "</a></div>\n";
         }
 
-        TemplateRenderer::getInstance()->display('components/form/item_remotemanagement_list.html.twig', [
-            'canedit'  => $canedit && !(!empty($withtemplate) && $withtemplate == 2),
-            'form_url' => self::getFormURL() . "?itemtype=$itemtype&items_id=$ID&withtemplate=$withtemplate",
-            'entries'  => $entries,
-            'massiveactionparams' => [
-                'num_displayed' => min($_SESSION['glpilist_limit'], count($entries)),
-                'container'     => 'mass' . static::class . mt_rand(),
-            ],
-        ]);
+        echo "<div class='center'>";
+        $iterator = self::getFromItem($item);
+
+        $rand = mt_rand();
+        if ($canedit && count($iterator)) {
+            Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+            $massiveactionparams
+            = ['num_displayed'
+                        => min($_SESSION['glpilist_limit'], count($iterator)),
+                'container'
+                        => 'mass' . __CLASS__ . $rand,
+            ];
+            Html::showMassiveActions($massiveactionparams);
+        }
+
+        echo "<table class='tab_cadre_fixehov'>";
+        $colspan = 9;
+        echo "<tr class='noHover'><th colspan='$colspan'>" . self::getTypeName(count($iterator)) .
+            "</th></tr>";
+
+        if (count($iterator)) {
+            $header = '<tr>';
+            $header .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header .= "</th>";
+            $header .= "<th>" . __('Remote ID') . "</th>";
+            $header .= "<th>" . _n('Type', 'Types', 1) . "</th>";
+            $header .= "<th>" . __('Automatic inventory') . "</th>";
+            $header .= "</tr>";
+            echo $header;
+
+            Session::initNavigateListItems(
+                __CLASS__,
+                //TRANS : %1$s is the itemtype name,
+                //        %2$s is the name of the item (used for headings of a list)
+                sprintf(
+                    __('%1$s = %2$s'),
+                    $item::getTypeName(1),
+                    $item->getName()
+                )
+            );
+
+            $mgmt = new self();
+            foreach ($iterator as $data) {
+                $mgmt->getFromResultSet($data);
+                echo "<tr class='tab_bg_2'>";
+
+                echo "<td width='10'>";
+                Html::showMassiveActionCheckBox(__CLASS__, $data["id"]);
+                echo "</td>";
+                echo "<td>" . $mgmt->getRemoteLink() . "</td>";
+                echo "<td>" . $mgmt->fields['type'] . "</td>";
+                echo "<td>" . Dropdown::getYesNo($data['is_dynamic']) . "</td>";
+                echo "</tr>";
+                Session::addToNavigateListItems(__CLASS__, $data['id']);
+            }
+            echo $header;
+        } else {
+            echo "<tr class='tab_bg_2'><th colspan='$colspan'>" . __('No item found') . "</th></tr>";
+        }
+
+        echo "</table>";
+        echo "</div>";
     }
 
 
@@ -162,7 +209,7 @@ class Item_RemoteManagement extends CommonDBChild
     public function getRemoteLink(): string
     {
         $link = '<a href="%s" target="_blank">%s</a>';
-        $id = htmlescape($this->fields['remoteid']);
+        $id = Html::entities_deep($this->fields['remoteid']);
         $href = null;
         switch ($this->fields['type']) {
             case self::TEAMVIEWER:
@@ -221,10 +268,6 @@ class Item_RemoteManagement extends CommonDBChild
         return $tab;
     }
 
-    /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @return array
-     */
     public static function rawSearchOptionsToAdd($itemtype)
     {
         $tab = [];
@@ -236,7 +279,7 @@ class Item_RemoteManagement extends CommonDBChild
         ];
 
         $tab[] = [
-            'id'                 => '1220',
+            'id'                 => '180',
             'table'              => self::getTable(),
             'field'              => 'remoteid',
             'name'               => __('ID'),
@@ -249,7 +292,7 @@ class Item_RemoteManagement extends CommonDBChild
         ];
 
         $tab[] = [
-            'id'                 => '1221',
+            'id'                 => '181',
             'table'              => self::getTable(),
             'field'              => 'type',
             'name'               => _n('Type', 'Types', 1),
@@ -274,16 +317,7 @@ class Item_RemoteManagement extends CommonDBChild
         } elseif (isset($this->fields['itemtype']) && !empty($this->fields['itemtype'])) {
             $itemtype = $this->fields['itemtype'];
         } else {
-            throw new RuntimeException('Unable to retrieve itemtype');
-        }
-
-        if (!is_a($itemtype, CommonDBTM::class, true)) {
-            throw new RuntimeException(
-                sprintf(
-                    'Item type %s is not a valid item type',
-                    $itemtype
-                )
-            );
+            throw new \RuntimeException('Unable to retrieve itemtype');
         }
 
         if (!Session::haveRight($itemtype::$rightname, READ)) {
@@ -299,6 +333,31 @@ class Item_RemoteManagement extends CommonDBChild
             $item->getFromDB($options['items_id']);
         }
 
+        $this->showFormHeader($options);
+
+        if ($this->isNewID($ID)) {
+            echo "<input type='hidden' name='items_id' value='" . $options['items_id'] . "'>";
+            echo "<input type='hidden' name='itemtype' value='" . $options['itemtype'] . "'>";
+        }
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . _n('Item', 'Items', 1) . "</td>";
+        echo "<td>" . $item->getLink() . "</td>";
+        echo "<td>" . __('Automatic inventory') . "</td>";
+        echo "<td>";
+        if ($ID && $this->fields['is_dynamic']) {
+            echo __('Yes');
+        } else {
+            echo __('No');
+        }
+        echo "</td>";
+        echo "</tr>\n";
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td>" . __('Remote ID') . "</td>";
+        echo "<td>";
+        echo Html::input('remoteid', ['value' => $this->fields['remoteid']]);
+        echo "</td><td>" . _n('Type', 'Types', 1) . "</td>";
         $types = [
             self::TEAMVIEWER => 'TeamViewer',
             self::LITEMANAGER => 'LiteManager',
@@ -307,14 +366,21 @@ class Item_RemoteManagement extends CommonDBChild
             self::SUPREMO => 'SupRemo',
             self::RUSTDESK => 'RustDesk',
         ];
+        echo "<td>";
+        echo Dropdown::showFromArray(
+            'type',
+            $types,
+            [
+                'value'   => $this->fields['type'],
+                'display' => false,
+            ]
+        );
+        echo "</td></tr>";
 
+        $itemtype = $this->fields['itemtype'];
         $options['canedit'] = Session::haveRight($itemtype::$rightname, UPDATE);
+        $this->showFormButtons($options);
 
-        TemplateRenderer::getInstance()->display('components/form/item_remotemanagement_form.html.twig', [
-            'parent_item'   => $item,
-            'item'          => $this,
-            'types'         => $types,
-        ]);
         return true;
     }
 
@@ -329,6 +395,6 @@ class Item_RemoteManagement extends CommonDBChild
 
     public static function getIcon()
     {
-        return "ti ti-screen-share";
+        return "fas fa-laptop-house";
     }
 }

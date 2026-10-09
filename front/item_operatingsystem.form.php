@@ -33,13 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Exception\Http\BadRequestHttpException;
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
-$ios = new Item_OperatingSystem();
+$ios = new \Item_OperatingSystem();
 
 if (isset($_POST['update'])) {
     $ios->check($_POST['id'], UPDATE);
@@ -58,7 +56,7 @@ if (isset($_POST['update'])) {
     Html::redirect($url);
 } elseif (isset($_POST['purge'])) {
     $ios->check($_POST['id'], PURGE);
-    $ios->delete($_POST, true);
+    $ios->delete($_POST, 1);
 
     $item = getItemForItemtype($_POST['itemtype']);
     $url = $item->getFormURLWithID($_POST['items_id']);
@@ -66,7 +64,7 @@ if (isset($_POST['update'])) {
 }
 
 if (!isset($_GET['itemtype']) && !isset($_GET['items_id']) && !isset($_GET['id'])) {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie('Lost');
 }
 
 $params = [];

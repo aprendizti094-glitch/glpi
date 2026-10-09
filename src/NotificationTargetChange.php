@@ -36,33 +36,25 @@
 /**
  * NotificationTargetChange Class
  *
- * @extends NotificationTargetCommonITILObject<Change>
- */
+ * @since 0.85
+ **/
 class NotificationTargetChange extends NotificationTargetCommonITILObject
 {
-    #[Override]
-    public function validateSendTo($event, array $infos, $notify_me = false, $emitter = null)
-    {
-        if ($event == 'satisfaction') {
-            return true;
-        }
+    public $private_profiles = [];
 
-        return parent::validateSendTo($event, $infos, $notify_me, $emitter);
-    }
-
-    #[Override]
+    /**
+     * Get events related to tickets
+     **/
     public function getEvents()
     {
 
         $events = ['new'               => __('New change'),
             'update'            => __('Update of a change'),
             'solved'            => __('Change solved'),
-            'validation'        => __('Approval request'),
-            'validation_answer' => __('Approval request answer'),
+            'validation'        => __('Validation request'),
+            'validation_answer' => __('Validation request answer'),
             'closed'            => __('Closure of a change'),
             'delete'            => __('Deleting a change'),
-            'satisfaction'      => __('Satisfaction survey'),
-            'replysatisfaction' => __('Satisfaction survey answer'),
         ];
 
         $events = array_merge($events, parent::getEvents());
@@ -70,23 +62,17 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
         return $events;
     }
 
-    #[Override]
+
     public function getDataForObject(CommonDBTM $item, array $options, $simple = false)
     {
         // Common ITIL data
         $data = parent::getDataForObject($item, $options, $simple);
 
         // Specific data
-        $anchor = null;
-        if (isset($options['validation_id']) && $options['validation_id']) {
-            $anchor = "ChangeValidation_" . $options['validation_id'];
-        }
-
         $data['##change.urlvalidation##']
                      = $this->formatURL(
                          $options['additionnaloption']['usertype'],
-                         "change_" . $item->getField("id") . '_Change$main',
-                         $anchor
+                         "change_" . $item->getField("id") . '_Change$main'
                      );
         $data['##change.globalvalidation##']
                      = ChangeValidation::getStatus($item->getField('global_validation'));
@@ -232,31 +218,43 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
             $data['validations'] = [];
             foreach ($validations as $validation) {
                 $tmp = [];
-                $tmp['##validation.submission.title##'] = sprintf(
-                    __('An approval request has been submitted by %s'),
-                    getUserName($validation['users_id'])
-                );
-                $tmp['##validation.answer.title##'] = sprintf(
-                    __('An answer to an approval request was produced by %s'),
-                    getUserName($validation['users_id_validate'])
-                );
-                $tmp['##validation.author##'] = getUserName($validation['users_id']);
-                $tmp['##validation.status##'] = ChangeValidation::getStatus($validation['status']);
-                $tmp['##validation.storestatus##'] = $validation['status'];
-                $tmp['##validation.submissiondate##'] = Html::convDateTime($validation['submission_date']);
-                $tmp['##validation.commentsubmission##'] = $validation['comment_submission'];
+                $tmp['##validation.submission.title##']
+                                 //TRANS: %s is the user name
+                     = sprintf(
+                         __('An approval request has been submitted by %s'),
+                         getUserName($validation['users_id'])
+                     );
 
-                $itemtype_target = $validation['itemtype_target'];
-                $items_id_target = $validation['items_id_target'];
-                /** @var CommonDBTM $validation_target */
-                $validation_target = getItemForItemtype($itemtype_target);
-                $validation_target->getFromDB($items_id_target);
-                $validation_target_name = ($itemtype_target === 'User') ? getUserName($items_id_target) : $validation_target->getName();
-                $tmp['##validation.validator_target_type##'] = $itemtype_target::getTypeName(1);
-                $tmp['##validation.validator_target##'] = $validation_target_name;
-                $tmp['##validation.validationdate##'] = Html::convDateTime($validation['validation_date']);
-                $tmp['##validation.validator##'] = getUserName($validation['users_id_validate']);
-                $tmp['##validation.commentvalidation##'] = $validation['comment_validation'];
+                $tmp['##validation.answer.title##']
+                                //TRANS: %s is the user name
+                        = sprintf(
+                            __('An answer to an approval request was produced by %s'),
+                            getUserName($validation['users_id_validate'])
+                        );
+
+                $tmp['##validation.author##']
+                        = getUserName($validation['users_id']);
+
+                $tmp['##validation.status##']
+                        = ChangeValidation::getStatus($validation['status']);
+
+                $tmp['##validation.storestatus##']
+                        = $validation['status'];
+
+                $tmp['##validation.submissiondate##']
+                        = Html::convDateTime($validation['submission_date']);
+
+                $tmp['##validation.commentsubmission##']
+                        = $validation['comment_submission'];
+
+                $tmp['##validation.validationdate##']
+                        = Html::convDateTime($validation['validation_date']);
+
+                $tmp['##validation.validator##']
+                        =  getUserName($validation['users_id_validate']);
+
+                $tmp['##validation.commentvalidation##']
+                        = $validation['comment_validation'];
 
                 $data['validations'][] = $tmp;
             }
@@ -264,7 +262,7 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
         return $data;
     }
 
-    #[Override]
+
     public function getTags()
     {
 
@@ -312,20 +310,18 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
             'validation.commentsubmission' => sprintf(
                 __('%1$s: %2$s'),
                 __('Request'),
-                _n('Comment', 'Comments', Session::getPluralNumber())
+                __('Comments')
             ),
             'validation.validationdate'    => sprintf(
                 __('%1$s: %2$s'),
-                CommonITILValidation::getTypeName(1),
+                _n('Validation', 'Validations', 1),
                 _n('Date', 'Dates', 1)
             ),
-            'validation.validator_target_type'  => __('Approval target type (User or Group)'),
-            'validation.validator_target'       => __('Approval target'),
-            'validation.validator'              => __('Approver'),
-            'validation.commentvalidation'      => sprintf(
+            'validation.validator'         => __('Decision-maker'),
+            'validation.commentvalidation' => sprintf(
                 __('%1$s: %2$s'),
-                CommonITILValidation::getTypeName(1),
-                _n('Comment', 'Comments', Session::getPluralNumber())
+                _n('Validation', 'Validations', 1),
+                __('Comments')
             ),
         ];
 
@@ -339,13 +335,13 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
 
         //Tags without lang for validation
         $tags = ['validation.submission.title'
-                                    => __('An approval request has been submitted'),
+                                    => __('A validation request has been submitted'),
             'validation.answer.title'
-                                    => __('An answer to an approval request was produced'),
+                                    => __('An answer to a validation request was produced'),
             'change.urlvalidation'
                                     => sprintf(
                                         __('%1$s: %2$s'),
-                                        __('Approval request'),
+                                        __('Validation request'),
                                         __('URL')
                                     ),
         ];
@@ -360,11 +356,10 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
         }
 
         //Foreach global tags
-        $tags = [
-            'tickets'     => Ticket::getTypeName(Session::getPluralNumber()),
+        $tags = ['tickets'     => _n('Ticket', 'Tickets', Session::getPluralNumber()),
             'problems'    => Problem::getTypeName(Session::getPluralNumber()),
             'items'       => _n('Item', 'Items', Session::getPluralNumber()),
-            'validations' => CommonITILValidation::getTypeName(Session::getPluralNumber()),
+            'validations' => _n('Validation', 'Validations', Session::getPluralNumber()),
             'documents'   => Document::getTypeName(Session::getPluralNumber()),
         ];
 
@@ -377,8 +372,7 @@ class NotificationTargetChange extends NotificationTargetCommonITILObject
         }
 
         //Tags with just lang
-        $tags = [
-            'change.tickets'   => Ticket::getTypeName(Session::getPluralNumber()),
+        $tags = ['change.tickets'   => _n('Ticket', 'Tickets', Session::getPluralNumber()),
             'change.problems'  => Problem::getTypeName(Session::getPluralNumber()),
             'items'            => _n('Item', 'Items', Session::getPluralNumber()),
         ];

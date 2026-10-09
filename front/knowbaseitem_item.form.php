@@ -33,25 +33,22 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\ItemLinkException;
+
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 
 $item = new KnowbaseItem_Item();
 
 if (isset($_POST["add"])) {
     if (!isset($_POST['knowbaseitems_id']) || !isset($_POST['items_id']) || !isset($_POST['itemtype'])) {
-        Session::addMessageAfterRedirect(__s('Mandatory fields are not filled!'), false, ERROR);
+        $message = __('Mandatory fields are not filled!');
+        Session::addMessageAfterRedirect($message, false, ERROR);
         Html::back();
     }
 
-    try {
-        $item->check(-1, CREATE, $_POST);
-    } catch (ItemLinkException $e) {
-        Html::back();
-    }
+    $item->check(-1, CREATE, $_POST);
 
     if ($item->add($_POST)) {
         Event::log(
@@ -65,4 +62,4 @@ if (isset($_POST["add"])) {
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

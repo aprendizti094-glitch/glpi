@@ -33,8 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
+/** @var array $CFG_GLPI */
 global $CFG_GLPI;
 
 Session::checkRight("config", UPDATE);
@@ -43,12 +44,12 @@ $config = new Config();
 
 //Update CAS configuration
 if (isset($_POST["update"])) {
-    $_POST['id'] = Config::getConfigIDForContext('core');
+    $_POST['id'] = 1;
     $config->update($_POST);
     Html::redirect($CFG_GLPI["root_doc"] . "/front/auth.others.php");
 }
 
-Html::header(__('External authentication sources'), '', "config", "auth", "others");
+Html::header(__('External authentication sources'), $_SERVER['PHP_SELF'], "config", "auth", "others");
 
 Auth::showOtherAuthList();
 

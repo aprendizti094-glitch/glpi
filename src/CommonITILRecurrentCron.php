@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryFunction;
-
 /**
  * Cron task creating recurrent tickets and changes
  *
@@ -63,14 +61,12 @@ class CommonITILRecurrentCron extends CommonDBTM
      */
     public static function cronRecurrentItems(CronTask $task)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $total = 0;
 
-        /**
-         * Concrete classes for which recurrent items can be created
-         * @var array<class-string<CommonITILRecurrent>>
-         */
+        // Concrete classes for which recurrent items can be created
         $targets = [
             TicketRecurrent::class,
             RecurrentChange::class,
@@ -80,49 +76,30 @@ class CommonITILRecurrentCron extends CommonDBTM
             $iterator = $DB->request([
                 'FROM'   => $itemtype::getTable(),
                 'WHERE'  => [
-                    'next_creation_date' => ['<', QueryFunction::now()],
+                    'next_creation_date' => ['<', new \QueryExpression('NOW()')],
                     'is_active'          => 1,
                     'OR'                 => [
                         ['end_date' => null],
-                        ['end_date' => ['>', QueryFunction::now()]],
+                        ['end_date' => ['>', new \QueryExpression('NOW()')]],
                     ],
                 ],
             ]);
 
             foreach ($iterator as $data) {
-                $item = getItemForItemtype($itemtype);
+                /** @var CommonITILRecurrent */
+                $item = new $itemtype();
                 $item->fields = $data;
-                // get items
-                $related_items = $item->getRelatedElements();
 
-                if ($item->fields['ticket_per_item'] ?? false) {
-                    foreach ($related_items as $related_itemtype => $related_items_ids) {
-                        foreach ($related_items_ids as $related_item_id) {
-                            if ($item->createItem([$related_itemtype => [$related_item_id]])) {
-                                $total++;
-                            } else {
-                                //TRANS: %s is a name
-                                $task->log(
-                                    sprintf(
-                                        __('Failed to create recurrent item %s'),
-                                        $data['name']
-                                    )
-                                );
-                            }
-                        }
-                    }
+                if ($item->createItem()) {
+                    $total++;
                 } else {
-                    if ($item->createItem($related_items)) {
-                        $total++;
-                    } else {
-                        //TRANS: %s is a name
-                        $task->log(
-                            sprintf(
-                                __('Failed to create recurrent item %s'),
-                                $data['name']
-                            )
-                        );
-                    }
+                    //TRANS: %s is a name
+                    $task->log(
+                        sprintf(
+                            __('Failed to create recurrent item %s'),
+                            $data['name']
+                        )
+                    );
                 }
             }
         }

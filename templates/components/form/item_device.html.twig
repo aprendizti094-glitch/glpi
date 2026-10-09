@@ -52,15 +52,15 @@
                <div class="row flex-row">
                   <script>
                      function showField(item) {
-                        // BC - Remove in 11.0
+                        // BC - Remove in 10.1
                         showDisclosablePasswordField(item);
                      }
                      function hideField(item) {
-                        // BC - Remove in 11.0
+                        // BC - Remove in 10.1
                         hideDisclosablePasswordField(item);
                      }
                      function copyToClipboard(item) {
-                        // BC - Remove in 11.0
+                        // BC - Remove in 10.1
                         copyDisclosablePasswordFieldToClipboard(item);
                      }
                   </script>
@@ -81,7 +81,7 @@
                   {% else %}
                      {{ fields.htmlField(
                         '',
-                        __('No associated item')|e,
+                        __('No associated item'),
                         __('Itemtype'),
                         field_options
                      ) }}
@@ -181,7 +181,8 @@
                      ) }}
                   {% endif %}
 
-                  {% if item.isField('states_id') and get_class(item) in config('state_types') %}
+                  {% if item.isField('states_id') %}
+                     {% set condition = item.getType() in config('state_types') ? {('is_visible_' ~ item.getType()|lower): 1} : {} %}
                      {{ fields.dropdownField(
                         'State',
                         'states_id',
@@ -189,7 +190,7 @@
                         __('Status'),
                         field_options|merge({
                            'entity': item.fields['entities_id'],
-                           'condition': item.getStateVisibilityCriteria()
+                           'condition': condition
                         })
                      ) }}
                   {% endif %}
@@ -207,7 +208,7 @@
                      ) }}
                   {% endif %}
 
-                  {% if item.isField('groups_id') or item is usingtrait('Glpi\\Features\\AssignableItem') %}
+                  {% if item.isField('groups_id') %}
                      {{ fields.dropdownField(
                         'Group',
                         'groups_id',
@@ -216,7 +217,6 @@
                         field_options|merge({
                            'entity': item.fields['entities_id'],
                            'condition': {'is_itemgroup': 1},
-                           'multiple': item is usingtrait('Glpi\\Features\\AssignableItem') ? true : false
                         })
                      ) }}
                   {% endif %}

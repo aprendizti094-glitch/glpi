@@ -33,10 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
+/** @var \DBmysql $DB */
 global $DB;
 
-header("Content-Type: text/html; charset=UTF-8");
-Html::header_nocache();
+if (strpos($_SERVER['PHP_SELF'], "dropdownSoftwareLicense.php")) {
+    $AJAX_INCLUDE = 1;
+    include('../inc/includes.php');
+    header("Content-Type: text/html; charset=UTF-8");
+    Html::header_nocache();
+}
 
 Session::checkRight("software", UPDATE);
 

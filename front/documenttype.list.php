@@ -33,12 +33,15 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
-Html::popHeader(__('Setup'));
+Session::checkLoginUser();
+
+Html::popHeader(__('Setup'), $_SERVER['PHP_SELF']);
 
 $params = Search::manageParams('DocumentType', $_GET);
 
+$params['target'] = $_SERVER['PHP_SELF'];
 Search::showList('DocumentType', $params);
 
 Html::popFooter();

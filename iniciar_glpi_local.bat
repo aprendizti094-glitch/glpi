@@ -8,17 +8,8 @@ echo            INICIANDO GLPI LOCALMENTE
 echo ===================================================
 echo.
 
-:: 1. Verificar integridade de diretorios e iniciar Apache do XAMPP
-echo [1/3] Verificando integridade e servico Apache...
-if not exist "C:\xampp\htdocs" (
-    echo   - Criando pasta ausente C:\xampp\htdocs...
-    mkdir "C:\xampp\htdocs" 2>nul
-)
-if not exist "C:\xampp\htdocs\glpi" (
-    echo   - Vinculando repositorio em C:\xampp\htdocs\glpi...
-    mklink /J "C:\xampp\htdocs\glpi" "%~dp0" >nul 2>nul
-)
-
+:: 1. Verificar e iniciar Apache do XAMPP
+echo [1/3] Verificando Apache...
 tasklist /FI "IMAGENAME eq httpd.exe" 2>NUL | find /I /N "httpd.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo   - Apache ja esta em execucao.

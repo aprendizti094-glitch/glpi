@@ -32,19 +32,16 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\preg_match;
-use function Safe\scandir;
-
 /**
  * Update from 9.5.x to 10.0.0
  *
- * @return bool
+ * @return bool for success (will die for most error)
  **/
 function update95xto1000()
 {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
     global $DB, $migration;
 
@@ -53,6 +50,8 @@ function update95xto1000()
     $DELFROMDISPLAYPREF = [];
     $update_dir = __DIR__ . '/update_9.5.x_to_10.0.0/';
 
+    //TRANS: %s is the number of new version
+    $migration->displayTitle(sprintf(__('Update to %s'), '10.0.0'));
     $migration->setVersion('10.0.0');
 
     $update_scripts = scandir($update_dir);
@@ -64,11 +63,39 @@ function update95xto1000()
     }
 
     // ************ Keep it at the end **************
-    $migration->updateDisplayPrefs($ADDTODISPLAYPREF, $DELFROMDISPLAYPREF);
+    foreach ($ADDTODISPLAYPREF as $type => $tab) {
+        $rank = 1;
+        foreach ($tab as $newval) {
+            $DB->updateOrInsert(
+                "glpi_displaypreferences",
+                [
+                    'rank'      => $rank++,
+                ],
+                Toolbox::addslashes_deep(
+                    [
+                        'users_id'  => "0",
+                        'itemtype'  => $type,
+                        'num'       => $newval,
+                    ]
+                )
+            );
+        }
+    }
+    foreach ($DELFROMDISPLAYPREF as $type => $tab) {
+        $DB->deleteOrDie(
+            'glpi_displaypreferences',
+            Toolbox::addslashes_deep(
+                [
+                    'itemtype'  => $type,
+                    'num'       => $tab,
+                ]
+            )
+        );
+    }
 
     $migration->executeMigration();
 
-    $migration->addWarningMessage(
+    $migration->displayWarning(
         '"utf8mb4" support requires additional migration which can be performed via the "php bin/console migration:utf8mb4" command.'
     );
 

@@ -33,15 +33,17 @@
  */
 
 /**
- * @var DBmysql $DB
+ * @var \DBmysql $DB
  */
+
 // Replace old rule criteria itilcategories_id_cn
-$DB->update(
+$DB->updateOrDie(
     'glpi_rulecriterias',
     [
         'criteria' => 'itilcategories_id',
     ],
     [
         'criteria' => 'itilcategories_id_cn',
-    ]
+    ],
+    '10.0.7 replace old rule criteria itilcategories_id_cn'
 );

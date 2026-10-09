@@ -33,40 +33,31 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-
 /**
  * CronTaskLog class
  **/
-class CronTaskLog extends CommonDBChild
+class CronTaskLog extends CommonDBTM
 {
-    public static $itemtype = CronTask::class;
-    public static $items_id  = 'crontasks_id';
-
-    // Prevent CronTaskLog entries from flooding the CronTask historical tab
-    public static $logs_for_parent = false;
-
     // Class constant
     public const STATE_START = 0;
     public const STATE_RUN   = 1;
     public const STATE_STOP  = 2;
     public const STATE_ERROR = 3;
 
-    public static function getIcon()
-    {
-        return "ti ti-news";
-    }
+    public static $rightname        = 'config';
+
 
     /**
      * Clean old event for a task
      *
-     * @param int $id   ID of the CronTask
-     * @param int $days number of day to keep
+     * @param $id     integer  ID of the CronTask
+     * @param $days   integer  number of day to keep
      *
-     * @return int number of events deleted
+     * @return integer number of events deleted
      **/
     public static function cleanOld($id, $days)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $secs      = $days * DAY_TIMESTAMP;
@@ -75,7 +66,7 @@ class CronTaskLog extends CommonDBChild
             'glpi_crontasklogs',
             [
                 'crontasks_id' => $id,
-                new QueryExpression("UNIX_TIMESTAMP(" . $DB->quoteName("date") . ") < UNIX_TIMESTAMP()-$secs"),
+                new \QueryExpression("UNIX_TIMESTAMP(" . $DB->quoteName("date") . ") < UNIX_TIMESTAMP()-$secs"),
             ]
         );
 
@@ -89,17 +80,17 @@ class CronTaskLog extends CommonDBChild
         if (!$withtemplate) {
             $nb = 0;
             if ($item instanceof CronTask) {
-                $ong    = [];
-                $ong[1] = self::createTabEntry(__('Statistics'), 0, $item::getType(), 'ti ti-report-analytics');
+                $ong = [];
+                $ong[1] = __('Statistics');
                 if ($_SESSION['glpishow_count_on_tabs']) {
-                    $nb =  countElementsInTable(
+                    $nb = countElementsInTable(
                         $this->getTable(),
                         ['crontasks_id' => $item->getID(),
-                            'state'        => self::STATE_STOP,
+                            'state' => self::STATE_STOP,
                         ]
                     );
                 }
-                $ong[2] = self::createTabEntry(_n('Log', 'Logs', Session::getPluralNumber()), $nb, $item::getType());
+                $ong[2] = self::createTabEntry(_n('Log', 'Logs', Session::getPluralNumber()), $nb);
                 return $ong;
             }
         }

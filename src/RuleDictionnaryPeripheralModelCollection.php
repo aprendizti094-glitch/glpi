@@ -38,6 +38,9 @@ class RuleDictionnaryPeripheralModelCollection extends RuleDictionnaryDropdownCo
     public $item_table  = "glpi_peripheralmodels";
     public $menu_option = "model.peripheral";
 
+    /**
+     * @see RuleCollection::getTitle()
+     **/
     public function getTitle()
     {
         return __('Dictionary of device models');

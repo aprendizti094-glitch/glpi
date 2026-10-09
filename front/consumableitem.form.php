@@ -33,11 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 
-Session::checkRightsOr(Consumable::$rightname, [READ, READ_ASSIGNED]);
+include('../inc/includes.php');
+
+Session::checkRight("consumable", READ);
 
 if (!isset($_GET["id"])) {
     $_GET["id"] = "";
@@ -92,7 +92,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $constype->check($_POST["id"], PURGE);
 
-    if ($constype->delete($_POST, true)) {
+    if ($constype->delete($_POST, 1)) {
         Event::log(
             $_POST["id"],
             "consumableitems",

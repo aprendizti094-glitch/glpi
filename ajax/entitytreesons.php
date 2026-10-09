@@ -33,12 +33,20 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\json_encode;
-
+/**
+ * @var array $CFG_GLPI
+ * @var \Psr\SimpleCache\CacheInterface $GLPI_CACHE
+ */
 global $CFG_GLPI, $GLPI_CACHE;
+
+$AJAX_INCLUDE = 1;
+
+include("../inc/includes.php");
 
 header("Content-Type: application/json; charset=UTF-8");
 Html::header_nocache();
 
-echo json_encode(Entity::getEntitySelectorTree((int) ($_GET['rand'] ?? 0)));
+Session::checkLoginUser();
+
+echo json_encode(Entity::getEntitySelectorTree());
 return;

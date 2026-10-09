@@ -35,17 +35,11 @@
 
 use Glpi\Features\CacheableListInterface;
 use Glpi\Inventory\FilesToJSON;
-use Psr\SimpleCache\InvalidArgumentException;
 
-use function Safe\file_get_contents;
-use function Safe\json_decode;
-
-/**
- * PCIVendor class
- */
+/// Class PCIVendor
 class PCIVendor extends CommonDropdown implements CacheableListInterface
 {
-    public string $cache_key = 'glpi_pcivendors';
+    public $cache_key = 'glpi_pcivendors';
 
     public static function getTypeName($nb = 0)
     {
@@ -73,7 +67,7 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
 
         $tab[] = [
             'id'                 => '10',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'vendorid',
             'name'               => __('Vendor ID'),
             'datatype'           => 'string',
@@ -81,7 +75,7 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'deviceid',
             'name'               => __('Device ID'),
             'datatype'           => 'string',
@@ -97,6 +91,7 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
      */
     public static function getList(): array
     {
+        /** @var \Psr\SimpleCache\CacheInterface $GLPI_CACHE */
         global $GLPI_CACHE;
 
         $vendors = new PCIVendor();
@@ -105,7 +100,7 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
         }
 
         $jsonfile = new FilesToJSON();
-        $file_pciids = json_decode(file_get_contents($jsonfile->getJsonFilePath('pciid')), true) ?? [];
+        $file_pciids = json_decode(file_get_contents($jsonfile->getJsonFilePath('pciid')), true);
         $db_pciids = $vendors->getDbList();
         $pciids = $db_pciids + $file_pciids;
         $GLPI_CACHE->set($vendors->cache_key, $pciids);
@@ -120,10 +115,11 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
      */
     private function getDbList(): array
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $list = [];
-        $iterator = $DB->request(['FROM' => static::getTable()]);
+        $iterator = $DB->request(['FROM' => $this->getTable()]);
         foreach ($iterator as $row) {
             $row_key = $row['vendorid'];
             if (!empty($row['deviceid'])) {
@@ -144,10 +140,10 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
      * Clean cache
      *
      * @return void
-     * @throws InvalidArgumentException
      */
     public function invalidateListCache(): void
     {
+        /** @var \Psr\SimpleCache\CacheInterface $GLPI_CACHE */
         global $GLPI_CACHE;
 
         $GLPI_CACHE->delete($this->cache_key);
@@ -160,11 +156,15 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
      *
      * @return string|false
      */
-    public function getManufacturer($vendorid): false|string
+    public function getManufacturer($vendorid)
     {
-        $pciids = self::getList();
+        $pciids = $this->getList();
 
-        return $pciids[$vendorid] ?? false;
+        if (isset($pciids[$vendorid])) {
+            return $pciids[$vendorid];
+        }
+
+        return false;
     }
 
     /**
@@ -175,11 +175,15 @@ class PCIVendor extends CommonDropdown implements CacheableListInterface
      *
      * @return string|false
      */
-    public function getProductName($vendorid, $deviceid): false|string
+    public function getProductName($vendorid, $deviceid)
     {
-        $pciids = self::getList();
+        $pciids = $this->getList();
 
-        return $pciids[$vendorid . '::' . $deviceid] ?? false;
+        if (isset($pciids[$vendorid . '::' . $deviceid])) {
+            return $pciids[$vendorid . '::' . $deviceid];
+        }
+
+        return false;
     }
 
     public static function getIcon()

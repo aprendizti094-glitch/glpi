@@ -46,13 +46,13 @@ class InterfaceType extends CommonDropdown
 
 
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param HTMLTableBase $base
-     * @param ?HTMLTableSuperHeader $super
-     * @param ?HTMLTableHeader $father
-     * @param array $options
+     * @since 0.84
      *
-     * @return void
+     * @param $itemtype
+     * @param $base               HTMLTableBase object
+     * @param $super              HTMLTableSuperHeader object (default NULL)
+     * @param $father             HTMLTableHeader object (default NULL)
+     * @param $options   array
      **/
     public static function getHTMLTableHeader(
         $itemtype,
@@ -62,23 +62,23 @@ class InterfaceType extends CommonDropdown
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        $base->addHeader($column_name, __s('Interface'), $super, $father);
+        $base->addHeader($column_name, __('Interface'), $super, $father);
     }
 
 
     /**
-     * @param ?HTMLTableRow $row
-     * @param ?CommonDBTM $item
-     * @param ?HTMLTableCell $father
-     * @param array $options
+     * @since 0.84
      *
-     * @return void
+     * @param $row                HTMLTableRow object (default NULL)
+     * @param $item               CommonDBTM object (default NULL)
+     * @param $father             HTMLTableCell object (default NULL)
+     * @param $options   array
      **/
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
@@ -86,7 +86,7 @@ class InterfaceType extends CommonDropdown
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
@@ -95,7 +95,10 @@ class InterfaceType extends CommonDropdown
         if ($item->fields["interfacetypes_id"]) {
             $row->addCell(
                 $row->getHeaderByName($column_name),
-                htmlescape(Dropdown::getDropdownName("glpi_interfacetypes", $item->fields["interfacetypes_id"]))
+                Dropdown::getDropdownName(
+                    "glpi_interfacetypes",
+                    $item->fields["interfacetypes_id"]
+                )
             );
         }
     }

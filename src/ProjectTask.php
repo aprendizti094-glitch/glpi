@@ -36,67 +36,44 @@
 use Glpi\Application\View\TemplateRenderer;
 use Glpi\CalDAV\Contracts\CalDAVCompatibleItemInterface;
 use Glpi\CalDAV\Traits\VobjectConverterTrait;
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
-use Glpi\DBAL\QuerySubQuery;
-use Glpi\Features\CloneMapper;
-use Glpi\Features\PlanningEvent;
-use Glpi\Features\Teamwork;
-use Glpi\Features\TeamworkInterface;
 use Glpi\RichText\RichText;
-use Ramsey\Uuid\Uuid;
+use Glpi\Toolbox\Sanitizer;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Property\FlatText;
 use Sabre\VObject\Property\IntegerValue;
-use Safe\DateTime;
-
-use function Safe\strtotime;
 
 /**
  * ProjectTask Class
  *
  * @since 0.85
  **/
-class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface, TeamworkInterface
+class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 {
-    use PlanningEvent;
+    use Glpi\Features\PlanningEvent;
     use VobjectConverterTrait;
-    use Teamwork;
+    use Glpi\Features\Teamwork;
 
     // From CommonDBTM
     public $dohistory = true;
 
     // From CommonDBChild
-    public static $itemtype = Project::class;
+    public static $itemtype     = 'Project';
     public static $items_id     = 'projects_id';
 
-    /** @var array<class-string<CommonDBTM>, array<array{id: int, projecttasks_id: int, itemtype: class-string<CommonDBTM>, items_id: int, display_name?: string}>> */
     protected $team             = [];
-    public static $rightname    = 'projecttask';
+    public static $rightname           = 'projecttask';
     protected $usenotepad       = true;
 
-    /** @var bool */
     public $can_be_translated   = true;
 
     public const READMY      = 1;
     public const UPDATEMY    = 1024;
 
 
-    public function getCloneRelations(): array
-    {
-        return [
-            ProjectTaskTeam::class,
-        ];
-    }
 
     public static function getTypeName($nb = 0)
     {
         return _n('Project task', 'Project tasks', $nb);
-    }
-
-    public static function getSectorizedDetails(): array
-    {
-        return ['tools', Project::class, self::class];
     }
 
     public static function getIcon()
@@ -104,18 +81,27 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return 'ti ti-list-check';
     }
 
-    public static function canView(): bool
+
+    public static function canPurge()
     {
-        return (Session::haveRightsOr('project', [Project::READALL, Project::READMY])
-              || Session::haveRight(self::$rightname, self::READMY));
+        return static::canChild('canUpdate');
     }
+
+
+    public static function canView()
+    {
+
+        return (Session::haveRightsOr('project', [Project::READALL, Project::READMY])
+              || Session::haveRight(self::$rightname, ProjectTask::READMY));
+    }
+
 
     /**
      * Is the current user have right to show the current task ?
      *
-     * @return bool
+     * @return boolean
      **/
-    public function canViewItem(): bool
+    public function canViewItem()
     {
         if (!Session::haveAccessToEntity($this->getEntityID(), $this->isRecursive())) {
             return false;
@@ -134,24 +120,29 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return false;
     }
 
-    public static function canCreate(): bool
+
+    public static function canCreate()
     {
         return (Session::haveRight('project', UPDATE));
     }
 
-    public static function canUpdate(): bool
+
+    public static function canUpdate()
     {
+
         return (parent::canUpdate()
               || Session::haveRight(self::$rightname, self::UPDATEMY));
     }
 
+
     /**
      * Is the current user have right to edit the current task ?
      *
-     * @return bool
+     * @return boolean
      **/
-    public function canUpdateItem(): bool
+    public function canUpdateItem()
     {
+
         if (!Session::haveAccessToEntity($this->getEntityID())) {
             return false;
         }
@@ -165,31 +156,11 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return false;
     }
 
-    /**
-     * @param bool $full
-     * @return string
-     */
-    public static function getMyTasksURL(bool $full)
-    {
-        return self::getSearchURL($full) . '?' . Toolbox::append_params([
-            'criteria' => [
-                [
-                    'field' => 87,
-                    'searchtype' => 'equals',
-                    'value' => 'myself',
-                ],
-                [
-                    'link' => 'OR',
-                    'field' => 88,
-                    'searchtype' => 'equals',
-                    'value' => 'mygroups',
-                ],
-            ],
-        ]);
-    }
+
 
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 ProjectTask_Ticket::class,
@@ -201,10 +172,15 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         parent::cleanDBonPurge();
     }
 
+
+    /**
+     * @see commonDBTM::getRights()
+     **/
     public function getRights($interface = 'central')
     {
+
         $values = parent::getRights();
-        unset($values[READ], $values[CREATE], $values[UPDATE]);
+        unset($values[READ], $values[CREATE], $values[UPDATE], $values[DELETE], $values[PURGE]);
 
         $values[self::READMY]   = __('See (actor)');
         $values[self::UPDATEMY] = __('Update (actor)');
@@ -212,24 +188,27 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return $values;
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(self::class, $ong, $options);
-        $this->addStandardTab(ProjectTaskTeam::class, $ong, $options);
-        $this->addStandardTab(Document_Item::class, $ong, $options);
-        $this->addStandardTab(ProjectTask_Ticket::class, $ong, $options);
-        $this->addStandardTab(Notepad::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab(__CLASS__, $ong, $options);
+        $this->addStandardTab('ProjectTaskTeam', $ong, $options);
+        $this->addStandardTab('Document_Item', $ong, $options);
+        $this->addStandardTab('ProjectTask_Ticket', $ong, $options);
+        $this->addStandardTab('Notepad', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
+
     public function post_getFromDB()
     {
         // Team
-        $this->team = ProjectTaskTeam::getTeamFor($this->fields['id']);
+        $this->team    = ProjectTaskTeam::getTeamFor($this->fields['id']);
     }
 
     public function post_getEmpty()
@@ -237,8 +216,13 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         $this->fields['percent_done'] = 0;
     }
 
+
     public function post_updateItem($history = true)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         // Handle rich-text images
@@ -251,8 +235,8 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             ]
         );
 
-        if (in_array('plan_start_date', $this->updates, true) || in_array('plan_end_date', $this->updates, true)) {
-            // dates have changed, check for planning conflicts on attached team
+        if (in_array('plan_start_date', $this->updates) || in_array('plan_end_date', $this->updates)) {
+            //dates has changed, check for planning conflicts on attached team
             $team = ProjectTaskTeam::getTeamFor($this->fields['id']);
             $users = [];
             foreach ($team as $type => $actors) {
@@ -280,7 +264,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
                         break;
                     default:
                         if (count($actors)) {
-                            throw new RuntimeException($type . " is not (yet?) handled.");
+                            throw new \RuntimeException($type . " is not (yet?) handled.");
                         }
                 }
             }
@@ -289,12 +273,12 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
                 Planning::checkAlreadyPlanned(
                     $user,
                     $this->fields['plan_start_date'],
-                    $this->fields['plan_end_date'],
-                    [self::class => [$this->fields['id']]],
+                    $this->fields['plan_end_date']
                 );
             }
         }
-        if (in_array('auto_percent_done', $this->updates, true) && (int) $this->input['auto_percent_done'] === 1) {
+
+        if (in_array('auto_percent_done', $this->updates) && $this->input['auto_percent_done'] == 1) {
             // Auto-calculate was toggled. Force recalculation of this and parents
             self::recalculatePercentDone($this->getID());
         } else {
@@ -321,38 +305,13 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             $this->getFromDB($this->fields['id']);
             NotificationEvent::raiseEvent("update", $this);
         }
-
-        // If task has changed of project, update all sub-tasks
-        if (in_array('projects_id', $this->updates, true)) {
-            foreach (self::getAllForProjectTask($this->getID()) as $task) {
-                $task['projects_id'] = $this->fields['projects_id'];
-                self::getById($task['id'])->update($task);
-            }
-        }
     }
+
 
     public function post_addItem()
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
-
-        // Add team members
-        if (!empty($this->input['teammember_list'])) {
-            $taskteam = new ProjectTaskTeam();
-            $members_types = self::getTeamMembersItemtypes();
-            foreach ($members_types as $type) {
-                $ids = ProjectTaskTeamDropdown::getPostedIds(
-                    $this->input['teammember_list'],
-                    $type
-                );
-                foreach ($ids as $id) {
-                    $taskteam->add([
-                        'projecttasks_id' => $this->fields['id'],
-                        'itemtype'        => $type,
-                        'items_id'        => $id,
-                    ]);
-                }
-            }
-        }
 
         // Handle rich-text images
         $this->input = $this->addFiles(
@@ -365,7 +324,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         );
 
         // ADD Documents
-        $document_items = Document_Item::getItemsAssociatedTo(static::class, $this->fields['id']);
+        $document_items = Document_Item::getItemsAssociatedTo($this->getType(), $this->fields['id']);
         $override_input['items_id'] = $this->getID();
         foreach ($document_items as $document_item) {
             $document_item->clone($override_input);
@@ -387,52 +346,30 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
     }
 
-    public function post_deleteItem()
-    {
-        // Delete all sub-tasks
-        foreach (self::getAllForProjectTask($this->getID()) as $task) {
-            self::getById($task['id'])->delete($task);
-        }
-    }
-
-    public function post_restoreItem()
-    {
-        // If task has a parent, restore it
-        if ($this->fields['projecttasks_id'] > 0) {
-            $parent = self::getById($this->fields['projecttasks_id']);
-            if ($parent->isDeleted()) {
-                $parent->restore($parent->fields);
-            }
-        }
-
-        // Restore all sub-tasks
-        foreach (self::getAllForProjectTask($this->getID()) as $task) {
-            self::getById($task['id'])->restore($task);
-        }
-    }
 
     /**
      * Is the current user in the team?
      *
-     * @return bool
+     * @return boolean
      **/
     public function isInTheTeam()
     {
+
         if (isset($this->team['User']) && count($this->team['User'])) {
             foreach ($this->team['User'] as $data) {
-                if ((int) $data['items_id'] === Session::getLoginUserID()) {
+                if ($data['items_id'] == Session::getLoginUserID()) {
                     return true;
                 }
             }
         }
 
         if (
-            isset($_SESSION['glpigroups'], $this->team['Group'])
-            && count($_SESSION['glpigroups']) && count($this->team['Group'])
+            isset($_SESSION['glpigroups']) && count($_SESSION['glpigroups'])
+            && isset($this->team['Group']) && count($this->team['Group'])
         ) {
             foreach ($_SESSION['glpigroups'] as $groups_id) {
                 foreach ($this->team['Group'] as $data) {
-                    if ((int) $data['items_id'] === (int) $groups_id) {
+                    if ($data['items_id'] == $groups_id) {
                         return true;
                     }
                 }
@@ -441,24 +378,28 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return false;
     }
 
+
     /**
      * Get team member count
      *
-     * @return int
+     * @return number
      */
     public function getTeamCount()
     {
+
         $nb = 0;
         if (is_array($this->team) && count($this->team)) {
             foreach ($this->team as $val) {
-                $nb += count($val);
+                $nb +=  count($val);
             }
         }
         return $nb;
     }
 
+
     public function pre_deleteItem()
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (!isset($this->input['_disablenotif']) && $CFG_GLPI['use_notifications']) {
@@ -480,16 +421,13 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
     }
 
+
     public function prepareInputForUpdate($input)
     {
+
         if (isset($input['auto_percent_done']) && $input['auto_percent_done']) {
             unset($input['percent_done']);
         }
-        $projectstate_id = $this->recalculateStatus($input);
-        if ($projectstate_id !== false) {
-            $input['projectstates_id'] = $projectstate_id;
-        }
-
         if (isset($input["plan"])) {
             $input["plan_start_date"] = $input['plan']["begin"];
             $input["plan_end_date"]   = $input['plan']["end"];
@@ -505,19 +443,10 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             }
         }
 
-        if (isset($input['projects_id']) && $input['projects_id'] <= 0) {
-            Session::addMessageAfterRedirect(
-                __s('A linked project is mandatory'),
-                false,
-                ERROR
-            );
-            unset($input['projects_id']);
-        }
-
         if (isset($input['projecttasks_id']) && $input['projecttasks_id'] > 0) {
             if (self::checkCircularRelation($input['id'], $input['projecttasks_id'])) {
                 Session::addMessageAfterRedirect(
-                    __s('Circular relation found. Parent not updated.'),
+                    __('Circular relation found. Parent not updated.'),
                     false,
                     ERROR
                 );
@@ -526,26 +455,27 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
         if (
             $this->fields['projects_id'] > 0 && isset($input['projects_id'])
-            && ((int) $input['projects_id'] !== (int) $this->fields['projects_id'])
+            && ($input['projects_id'] != $this->fields['projects_id'])
         ) {
             $input['_old_projects_id'] = $this->fields['projects_id'];
         }
         if (
             $this->fields['projecttasks_id'] > 0 && isset($input['projecttasks_id'])
-            && ((int) $input['projecttasks_id'] !== (int) $this->fields['projecttasks_id'])
+            && ($input['projecttasks_id'] != $this->fields['projecttasks_id'])
         ) {
             $input['_old_projecttasks_id'] = $this->fields['projecttasks_id'];
         }
-        $input = $this->autoSetDate($input);
 
         return Project::checkPlanAndRealDates($input);
     }
 
+
     public function prepareInputForAdd($input)
     {
+
         if (!isset($input['projects_id']) || (int) $input['projects_id'] === 0) {
             Session::addMessageAfterRedirect(
-                __s('A linked project is mandatory'),
+                __('A linked project is mandatory'),
                 false,
                 ERROR
             );
@@ -553,7 +483,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
 
         if (!isset($input['uuid'])) {
-            $input['uuid'] = Uuid::uuid4();
+            $input['uuid'] = \Ramsey\Uuid\Uuid::uuid4();
         }
         if (!isset($input['users_id'])) {
             $input['users_id'] = Session::getLoginUserID();
@@ -574,143 +504,20 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             }
         }
 
-        if ((!isset($input['percent_done']))) {
-            $input['percent_done'] = 0;
-        }
-        $input = $this->autoSetDate($input);
-
-        $projectstate_id = $this->recalculateStatus($input);
-        if ($projectstate_id !== false) {
-            $input['projectstates_id'] = $projectstate_id;
-        }
-
         return Project::checkPlanAndRealDates($input);
     }
 
-    public function post_clone($source, $history)
-    {
-        if (CloneMapper::getInstance()->hasItemId(Project::class, $source->fields['projects_id'])) {
-            // The whole project is being cloned (e.g. a project is created from a template).
-            // All its tasks, including the sub-tasks of the current one, are already cloned by
-            // `Clonable::cloneRelations()`.
-            return;
-        }
-
-        // Clone all sub-tasks of the source and link them to the cloned task
-        foreach (self::getAllForProjectTask($source->getID()) as $task) {
-            if ($task = self::getById($task['id'])) {
-                if (method_exists($task, 'clone')) {
-                    $task->clone(
-                        [
-                            'projects_id'     => $this->fields['projects_id'],
-                            'projecttasks_id' => $this->getID(),
-                        ],
-                        $history,
-                        clean_mapper: false
-                    );
-                }
-            }
-        }
-    }
-
-    /**
-     * Set automatically the real start and end dates if not set
-     * @param array $input the input of the form
-     *
-     * @return array the input with the real start and end dates set if needed
-     */
-    public function autoSetDate(array $input): array
-    {
-        if (isset($input['real_start_date']) && $input['real_start_date'] === '') {
-            $input['real_start_date'] = null;
-        }
-        if (isset($input['real_end_date']) && $input['real_end_date'] === '') {
-            $input['real_end_date'] = null;
-        }
-
-        $percent_done = (int) ($input['percent_done'] ?? $this->fields['percent_done'] ?? 0);
-        $real_start_date = $input['real_start_date'] ?? $this->fields['real_start_date'] ?? null;
-        $real_end_date = $input['real_end_date'] ?? $this->fields['real_end_date'] ?? null;
-
-        if ($percent_done < 100 && $real_end_date && !array_key_exists('real_end_date', $input)) {
-            $input['real_end_date'] = null;
-        } elseif (
-            isset($this->fields['percent_done'])
-            && (int) $this->fields['percent_done'] === 100 && $percent_done < 100
-            && !array_key_exists('real_end_date', $input)
-        ) {
-            $input['real_end_date'] = null;
-        }
-
-        if ($percent_done === 0) {
-            if (empty($input['real_start_date']) && empty($input['real_end_date'])) {
-                return $input;
-            }
-        }
-
-        // Set automatically the real start date if not set
-        if (empty($real_start_date) && $percent_done > 0) {
-            $input['real_start_date'] = Session::getCurrentTime();
-        }
-        // Set automatically the real end date if not set
-        if (empty($real_end_date) && $percent_done === 100) {
-            $input['real_end_date'] = Session::getCurrentTime();
-        }
-
-        // Calculate effective duration when both dates are present
-        $final_start_date = $input['real_start_date'] ?? $this->fields['real_start_date'] ?? null;
-        $final_end_date = $input['real_end_date'] ?? $this->fields['real_end_date'] ?? null;
-        if (!empty($final_start_date) && !empty($final_end_date)) {
-            $input['effective_duration'] = $this->autoSetEffectiveDuration(
-                $final_start_date,
-                $final_end_date
-            );
-        }
-
-        return $input;
-    }
-
-    /**
-     * Set automatically the effective duration if not set
-     * @param string $startdate the start date
-     * @param string $enddate the end date
-     *
-     * @return int the effective duration
-     * @throws Exception if the start or end date is not valid dates
-     */
-    public function autoSetEffectiveDuration($startdate, $enddate): int
-    {
-        if (empty($startdate) || empty($enddate)) {
-            return 0;
-        }
-        $start = new DateTime($startdate);
-        $end   = new DateTime($enddate);
-        return $end->getTimestamp() - $start->getTimestamp();
-    }
-
-    /**
-     * List of all possible team members itemtypes.
-     * @return class-string<CommonDBTM>[]
-     */
-    public static function getTeamMembersItemtypes(): array
-    {
-        return [
-            User::class,
-            Group::class,
-            Contact::class,
-            Supplier::class,
-        ];
-    }
 
     /**
      * Get all tasks for a project
      *
-     * @param int $ID ID of the project
+     * @param $ID        integer  Id of the project
      *
-     * @return array of tasks ordered by dates or by hierarchical order if no start dates are set
+     * @return array of tasks ordered by dates
      **/
     public static function getAllForProject($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $tasks = [];
@@ -719,32 +526,26 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             'WHERE'  => [
                 'projects_id'  => $ID,
             ],
-            'ORDERBY'   => ['plan_start_date', 'real_start_date', 'id'],
+            'ORDERBY'   => ['plan_start_date', 'real_start_date'],
         ]);
 
         foreach ($iterator as $data) {
             $tasks[] = $data;
         }
-
-        if (
-            !array_filter($tasks, static fn($task) => !empty($task['plan_start_date']) || !empty($task['real_start_date']))
-        ) {
-            // If no task has plan dates, sort by hierarchy
-            $tasks = self::sortProjectTasksByHierarchy($tasks);
-        }
-
         return $tasks;
     }
+
 
     /**
      * Get all sub-tasks for a project task
      * @since 9.5.0
-     * @param int $ID ID of the project task
+     * @param $ID        integer  Id of the project task
      *
-     * @return array of tasks ordered by dates or by hierarchical order if no start dates are set
+     * @return array of tasks ordered by dates
      **/
     public static function getAllForProjectTask($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $tasks = [];
@@ -753,32 +554,26 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             'WHERE'  => [
                 'projecttasks_id'  => $ID,
             ],
-            'ORDERBY'   => ['plan_start_date', 'real_start_date', 'id'],
+            'ORDERBY'   => ['plan_start_date', 'real_start_date'],
         ]);
 
         foreach ($iterator as $data) {
             $tasks[] = $data;
         }
-
-        if (
-            !array_filter($tasks, static fn($task) => !empty($task['plan_start_date']) || !empty($task['real_start_date']))
-        ) {
-            // If no task has plan dates, sort by hierarchy
-            $tasks = self::sortProjectTasksByHierarchy($tasks);
-        }
-
         return $tasks;
     }
+
 
     /**
      * Get all linked tickets for a project
      *
-     * @param int $ID ID of the project
+     * @param $ID        integer  Id of the project
      *
      * @return array of tickets
      **/
     public static function getAllTicketsForProject($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -804,6 +599,17 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return $tasks;
     }
 
+
+    /**
+     * Print the Project task form
+     *
+     * @param $ID        integer  Id of the project task
+     * @param $options   array    of possible options:
+     *     - target form target
+     *     - projects_id ID of the software for add process
+     *
+     * @return boolean true if displayed  false if item not found or not right to display
+     **/
     public function showForm($ID, array $options = [])
     {
         if ($ID > 0) {
@@ -837,7 +643,6 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
 
         $this->initForm($ID, $options);
-
         TemplateRenderer::getInstance()->display('pages/tools/project_task.html.twig', [
             'id'                       => $ID,
             'item'                     => $this,
@@ -853,15 +658,17 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return true;
     }
 
+
     /**
      * Get total effective duration of a project task (sum of effective duration + sum of action time of tickets)
      *
-     * @param int $projecttasks_id $projecttasks_id ID of the project task
+     * @param $projecttasks_id    integer    $projecttasks_id ID of the project task
      *
-     * @return int total effective duration
+     * @return integer total effective duration
      **/
     public static function getTotalEffectiveDuration($projecttasks_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $item = new static();
@@ -872,12 +679,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         }
 
         $iterator = $DB->request([
-            'SELECT'    => [
-                QueryFunction::sum(
-                    expression: 'glpi_tickets.actiontime',
-                    alias: 'duration'
-                ),
-            ],
+            'SELECT'    => new QueryExpression('SUM(glpi_tickets.actiontime) AS duration'),
             'FROM'      => self::getTable(),
             'LEFT JOIN' => [
                 'glpi_projecttasks_tickets'   => [
@@ -902,15 +704,17 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return $time;
     }
 
+
     /**
      * Get total effective duration of a project (sum of effective duration + sum of action time of tickets)
      *
-     * @param int $projects_id $project_id ID of the project
+     * @param $projects_id    integer    $project_id ID of the project
      *
-     * @return int total effective duration
+     * @return integer total effective duration
      **/
     public static function getTotalEffectiveDurationForProject($projects_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -925,30 +729,31 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return $time;
     }
 
+
     /**
      * Get total planned duration of a project
      *
-     * @param int $projects_id $project_id ID of the project
+     * @param $projects_id    integer    $project_id ID of the project
      *
-     * @return int total effective duration
+     * @return integer total effective duration
      **/
     public static function getTotalPlannedDurationForProject($projects_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
-            'SELECT'    => [
-                QueryFunction::sum(
-                    expression: 'planned_duration',
-                    alias: 'duration'
-                ),
-            ],
+            'SELECT' => new QueryExpression('SUM(planned_duration) AS duration'),
             'FROM'   => self::getTable(),
             'WHERE'  => ['projects_id' => $projects_id],
         ]);
 
-        return count($iterator) ? $iterator->current()['duration'] : 0;
+        foreach ($iterator as $data) {
+            return $data['duration'];
+        }
+        return 0;
     }
+
 
     public function rawSearchOptions()
     {
@@ -961,10 +766,11 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '1',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'name',
             'name'               => __('Name'),
             'datatype'           => 'itemlink',
+            'massiveaction'      => false,
         ];
 
         $tab[] = [
@@ -972,27 +778,29 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             'table'              => 'glpi_projects',
             'field'              => 'name',
             'name'               => Project::getTypeName(1),
+            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
             'id'                 => '13',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'name',
             'name'               => __('Father'),
             'datatype'           => 'dropdown',
-            'massiveaction'      => true,
+            'massiveaction'      => false,
             // Add virtual condition to relink table
             'joinparams'         => [
-                'condition'          => [new QueryExpression('true')],
+                'condition'          => 'AND 1=1',
             ],
         ];
 
         $tab[] = [
             'id'                 => '21',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'content',
             'name'               => __('Description'),
+            'massiveaction'      => false,
             'datatype'           => 'text',
             'htmltext'           => true,
         ];
@@ -1015,7 +823,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '121',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_creation',
             'name'               => __('Creation date'),
             'datatype'           => 'datetime',
@@ -1024,7 +832,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '19',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'date_mod',
             'name'               => __('Last update'),
             'datatype'           => 'datetime',
@@ -1033,7 +841,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '5',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'percent_done',
             'name'               => __('Percent done'),
             'datatype'           => 'number',
@@ -1054,7 +862,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '7',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'plan_start_date',
             'name'               => __('Planned start date'),
             'datatype'           => 'datetime',
@@ -1062,7 +870,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '8',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'plan_end_date',
             'name'               => __('Planned end date'),
             'datatype'           => 'datetime',
@@ -1070,7 +878,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '9',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'real_start_date',
             'name'               => __('Real start date'),
             'datatype'           => 'datetime',
@@ -1078,7 +886,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '10',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'real_end_date',
             'name'               => __('Real end date'),
             'datatype'           => 'datetime',
@@ -1086,7 +894,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'planned_duration',
             'name'               => __('Planned duration'),
             'datatype'           => 'timestamp',
@@ -1099,7 +907,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '17',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'effective_duration',
             'name'               => __('Effective duration'),
             'datatype'           => 'timestamp',
@@ -1112,15 +920,15 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '16',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
         $tab[] = [
             'id'                 => '18',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_milestone',
             'name'               => __('Milestone'),
             'datatype'           => 'bool',
@@ -1128,7 +936,7 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '50',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'template_name',
             'name'               => __('Template name'),
             'datatype'           => 'text',
@@ -1147,91 +955,10 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
 
         $tab[] = [
             'id'                 => '86',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_recursive',
             'name'               => __('Child entities'),
             'datatype'           => 'bool',
-        ];
-
-        $tab[] = [
-            'id'                 => 'projecttask_team',
-            'name'               => ProjectTaskTeam::getTypeName(),
-        ];
-
-        $tab[] = [
-            'id'                 => '87',
-            'table'              => User::getTable(),
-            'field'              => 'name',
-            'name'               => User::getTypeName(2),
-            'forcegroupby'       => true,
-            'datatype'           => 'dropdown',
-            'joinparams'         => [
-                'jointype'          => 'itemtype_item_revert',
-                'specific_itemtype' => 'User',
-                'beforejoin'        => [
-                    'table'      => ProjectTaskTeam::getTable(),
-                    'joinparams' => [
-                        'jointype' => 'child',
-                    ],
-                ],
-            ],
-        ];
-
-        $tab[] = [
-            'id'                 => '88',
-            'table'              => Group::getTable(),
-            'field'              => 'completename',
-            'name'               => Group::getTypeName(2),
-            'forcegroupby'       => true,
-            'datatype'           => 'dropdown',
-            'joinparams'         => [
-                'jointype'          => 'itemtype_item_revert',
-                'specific_itemtype' => 'Group',
-                'beforejoin'        => [
-                    'table'      => ProjectTaskTeam::getTable(),
-                    'joinparams' => [
-                        'jointype' => 'child',
-                    ],
-                ],
-            ],
-        ];
-
-        $tab[] = [
-            'id'                 => '89',
-            'table'              => Supplier::getTable(),
-            'field'              => 'name',
-            'name'               => Supplier::getTypeName(2),
-            'forcegroupby'       => true,
-            'datatype'           => 'dropdown',
-            'joinparams'         => [
-                'jointype'          => 'itemtype_item_revert',
-                'specific_itemtype' => 'Supplier',
-                'beforejoin'        => [
-                    'table'      => ProjectTaskTeam::getTable(),
-                    'joinparams' => [
-                        'jointype' => 'child',
-                    ],
-                ],
-            ],
-        ];
-
-        $tab[] = [
-            'id'                 => '90',
-            'table'              => Contact::getTable(),
-            'field'              => 'name',
-            'name'               => Contact::getTypeName(2),
-            'forcegroupby'       => true,
-            'datatype'           => 'dropdown',
-            'joinparams'         => [
-                'jointype'          => 'itemtype_item_revert',
-                'specific_itemtype' => 'Contact',
-                'beforejoin'        => [
-                    'table'      => ProjectTaskTeam::getTable(),
-                    'joinparams' => [
-                        'jointype' => 'child',
-                    ],
-                ],
-            ],
         ];
 
         $tab = array_merge($tab, Notepad::rawSearchOptionsToAdd());
@@ -1239,18 +966,20 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
         return $tab;
     }
 
+
     /**
-     * Show tasks of a project or a task
+     * Show tasks of a project
      *
-     * @param Project|ProjectTask $item
+     * @param $item Project or ProjectTask object
      *
-     * @return void|false
+     * @return void
      **/
     public static function showFor($item)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        $ID = $item->getID();
+        $ID = $item->getField('id');
 
         if (!$item->canViewItem()) {
             return false;
@@ -1264,9 +993,8 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
             'plan_start_date'  => __('Planned start date'),
             'plan_end_date'    => __('Planned end date'),
             'planned_duration' => __('Planned duration'),
-            'effect_duration' => ['label' => __('Effective duration'), 'nosort' => true],
+            '_effect_duration' => __('Effective duration'),
             'fname'            => __('Father'),
-            'task_team'       => ['label' => ProjectTaskTeam::getTypeName(), 'nosort' => true],
         ];
 
         $criteria = [
@@ -1300,51 +1028,69 @@ class ProjectTask extends CommonDBChild implements CalDAVCompatibleItemInterface
                 ],
             ],
             'WHERE'  => [], //$where
+            'ORDERBY'   => [], // $sort $order";
         ];
 
-        $order = strtoupper($_GET["order"] ?? "");
-        $order = $order === 'DESC' ? $order : 'ASC';
-
-        if (empty($_GET["sort"]) || !isset($columns[$_GET["sort"]])) {
-            $_GET['sort'] = 'plan_start_date';
+        if (isset($_GET["order"]) && ($_GET["order"] == "DESC")) {
+            $order = "DESC";
+        } else {
+            $order = "ASC";
         }
-        $criteria['ORDERBY'] = [$_GET["sort"] . " $order", 'id ASC'];
 
-        $canedit = $item::class === Project::class && $item->canEdit($ID);
+        if (!isset($_GET["sort"]) || empty($_GET["sort"])) {
+            $_GET["sort"] = "plan_start_date";
+        }
 
-        switch ($item::class) {
-            case Project::class:
+        if (isset($columns[$_GET["sort"]])) {
+            $sort = [$_GET["sort"] . " $order"];
+            $ui_sort = $_GET['sort'];
+        } else {
+            $sort = ["plan_start_date $order", "name"];
+            $ui_sort = 'plan_start_date';
+        }
+        $criteria['ORDERBY'] = $sort;
+
+        $canedit = false;
+        if ($item->getType() == 'Project') {
+            $canedit = $item->canEdit($ID);
+        }
+
+        switch ($item->getType()) {
+            case 'Project':
                 $criteria['WHERE']['glpi_projecttasks.projects_id'] = $ID;
                 break;
-            case ProjectTask::class:
+
+            case 'ProjectTask':
                 $criteria['WHERE']['glpi_projecttasks.projecttasks_id'] = $ID;
                 break;
+
             default: // Not available type
                 return;
         }
 
+        echo "<div class='spaced'>";
+
         if ($canedit) {
-            TemplateRenderer::getInstance()->display(
-                'components/tab/addlink_block.html.twig',
-                [
-                    'add_link' => ProjectTask::getFormURL() . '?projects_id=' . $ID,
-                    'button_label' => _x('button', 'Add a task'),
-                ]
-            );
+            echo "<div class='center firstbloc'>";
+            echo "<a class='btn btn-primary' href='" . ProjectTask::getFormURL() . "?projects_id=$ID'>" .
+                _x('button', 'Add a task') . "</a>";
+            echo "</div>";
         }
 
-        if ($item::class === self::class && $item->can($ID, UPDATE)) {
-            $twig_params = [
-                'projects_id' => $item->fields['projects_id'],
-                'projecttasks_id' => $ID,
-                'btn_label' => __('Create a sub task from this task of project'),
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                <div class="mb-3">
-                    <a class="btn btn-primary" href="{{ 'ProjectTask'|itemtype_form_path }}?projecttasks_id={{ projecttasks_id }}&amp;projects_id={{ projects_id }}"><i class="ti ti-link"></i><span>{{ btn_label }}</span></a>
-                </div>
-TWIG, $twig_params);
+        if (
+            ($item->getType() == 'ProjectTask')
+            && $item->can($ID, UPDATE)
+        ) {
+            $rand = mt_rand();
+            echo "<div class='firstbloc'>";
+            echo "<form name='projecttask_form$rand' id='projecttask_form$rand' method='post'
+                action='" . Toolbox::getItemTypeFormURL('ProjectTask') . "'>";
+            $projet = $item->fields['projects_id'];
+            echo "<a href='" . Toolbox::getItemTypeFormURL('ProjectTask') . "?projecttasks_id=$ID&amp;projects_id=$projet'>";
+            echo __('Create a sub task from this task of project');
+            echo "</a>";
+            Html::closeForm();
+            echo "</div>";
         }
 
         if (Session::haveTranslations('ProjectTaskType', 'name')) {
@@ -1379,520 +1125,246 @@ TWIG, $twig_params);
             ];
         }
 
+        Session::initNavigateListItems(
+            'ProjectTask',
+            //TRANS : %1$s is the itemtype name,
+            //       %2$s is the name of the item (used for headings of a list)
+            sprintf(
+                __('%1$s = %2$s'),
+                $item::getTypeName(1),
+                $item->getName()
+            )
+        );
+
         $iterator = $DB->request($criteria);
-        $entries = [];
-        $task = new self();
-        foreach ($iterator as $data) {
-            $task->getFromDB($data['id']);
-            $entry = [
-                'itemtype' => static::class,
-                'id' => $data['id'],
-                // Used to reorder entries hierarchically when there is no plan_start_date to sort on
-                'projecttasks_id' => $data['projecttasks_id'],
-                'row_class' => $data['is_deleted'] ? 'table-danger' : '',
-                'name' => $task->getLink(['comments' => true]),
-                'tname' => $data['transname2'] ?? $data['tname'],
-                'sname' => [
-                    'content' => $data['transname3'] ?? $data['sname'],
-                    'color' => $data['color'],
-                ],
-                'percent_done' => Dropdown::getValueWithUnit($data["percent_done"], "%"),
-                'plan_start_date' => $data['plan_start_date'],
-                'plan_end_date' => $data['plan_end_date'],
-                'planned_duration' => Html::timestampToString($data['planned_duration'], false),
-                'effect_duration' => Html::timestampToString(self::getTotalEffectiveDuration($data['id']), false),
-            ];
+        if (count($criteria)) {
+            echo "<table class='tab_cadre_fixehov'>";
 
-            if ($data['projecttasks_id'] > 0) {
-                $parent = new self();
-                $parent->getFromDB($data['projecttasks_id']);
-                $entry['fname'] = $parent->getLink();
-            } else {
-                // Entry must exist even if empty to make sure the <td> is rendered
-                $entry['fname'] = "";
-            }
-            $projecttask = new ProjectTask();
-            $projecttask->getFromDB($data['id']);
-            $task_team = '';
-            foreach ($projecttask->getTeam() as $projecttaskteam) {
-                $item = getItemForItemtype($projecttaskteam['itemtype']);
-                $task_team .= "<a href='" . htmlescape($item->getFormURLWithID($projecttaskteam['items_id'])) . "'>"
-                    . htmlescape($projecttaskteam['display_name']) . '</a><br>';
-            }
-            $entry['task_team'] = $task_team;
-            $entries[] = $entry;
-        }
-
-        // If sorting on the planned start date but none of the displayed tasks have one set,
-        // sort using hierarchical order (father followed by its children, recursively)
-        if (
-            $_GET['sort'] === 'plan_start_date'
-            && !array_filter($entries, static fn($entry) => !empty($entry['plan_start_date']))
-        ) {
-            $entries = self::sortProjectTasksByHierarchy($entries);
-            $order = 'none'; // No order to apply, as the order is already set by the hierarchy
-        }
-
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'sort' => $_GET['sort'],
-            'order' => $order,
-            'columns' => $columns,
-            'formatters' => [
-                'name' => 'raw_html',
-                'sname' => 'badge',
-                'plan_start_date' => 'datetime',
-                'plan_end_date' => 'datetime',
-                'fname' => 'raw_html',
-                'task_team' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => count($entries),
-                'container'     => 'mass' . static::class . mt_rand(),
-                'specific_actions' => [
-                    'update' => _x('button', 'Update'),
-                    'clone' => _x('button', 'Clone'),
-                    'delete' => _x('button', 'Put in trashbin'),
-                    'restore' => _x('button', 'Restore'),
-                    'purge' => _x('button', 'Delete permanently'),
-                    ProjectTaskTeam::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'affect_to_team' => _x('button', 'Affect to team'),
-                    ProjectTaskTeam::class . MassiveAction::CLASS_ACTION_SEPARATOR . 'unaffect_to_team' => _x('button', 'Unaffect to team'),
-                ],
-            ],
-        ]);
-    }
-
-    /**
-     * sort an array task entries (as built by self::showFor())
-     * using hierarchical order (father followed by its children, recursively)
-     *
-     * Entries whose father (see 'projecttasks_id') is not part of the given list are considered roots;
-     * siblings keep their relative order from the input list.
-     *
-     *
-     * @param list<array<string, mixed>> $entries Flat list of entries, each holding at least 'id' and 'projecttasks_id'
-     *
-     * @return list<array<string, mixed>> sorted entries
-     **/
-    public static function sortProjectTasksByHierarchy(array $entries): array
-    {
-        $by_id      = [];
-        $children   = [];
-        foreach ($entries as $entry) {
-            $by_id[$entry['id']] = $entry;
-            $children[$entry['projecttasks_id']][] = $entry['id'];
-        }
-
-        $ordered = [];
-        $visited = [];
-        $visit = static function ($parent_id) use (&$visit, &$children, &$by_id, &$ordered, &$visited) {
-            foreach ($children[$parent_id] ?? [] as $id) {
-                if (isset($visited[$id])) {
-                    continue;
+            $header = '<tr>';
+            foreach ($columns as $key => $val) {
+                // Non order column
+                if ($key[0] == '_') {
+                    $header .= "<th>$val</th>";
+                } else {
+                    $header .= "<th" . ($ui_sort == $key ? " class='order_$order'" : '') . ">" .
+                     "<a href='javascript:reloadTab(\"sort=$key&amp;order=" .
+                        (($order == "ASC") ? "DESC" : "ASC") . "&amp;start=0\");'>$val</a></th>";
                 }
-                $visited[$id] = true;
-                $ordered[] = $by_id[$id];
-                $visit($id);
             }
-        };
+            $header .= "</tr>\n";
+            echo $header;
 
-        // Roots are the tasks whose father is not part of the current list
-        // (either they have no father, or their father is out of the displayed scope).
-        foreach (array_keys($children) as $parent_id) {
-            if (!isset($by_id[$parent_id])) {
-                $visit($parent_id);
+            foreach ($iterator as $data) {
+                Session::addToNavigateListItems('ProjectTask', $data['id']);
+                $rand = mt_rand();
+                echo "<tr class='tab_bg_2'>";
+                echo "<td>";
+                $link = "<a id='ProjectTask" . $data["id"] . $rand . "' href='" .
+                        ProjectTask::getFormURLWithID($data['id']) . "'>" . $data['name'] .
+                        (empty($data['name']) ? "(" . $data['id'] . ")" : "") . "</a>";
+                echo sprintf(
+                    __('%1$s %2$s'),
+                    $link,
+                    Html::showToolTip(
+                        RichText::getEnhancedHtml($data['content']),
+                        ['display' => false,
+                            'applyto' => "ProjectTask" . $data["id"] . $rand,
+                        ]
+                    )
+                );
+                echo "</td>";
+                $name = !empty($data['transname2']) ? $data['transname2'] : $data['tname'];
+                echo "<td>" . $name . "</td>";
+                echo "<td";
+                $statename = !empty($data['transname3']) ? $data['transname3'] : $data['sname'];
+                echo " style=\"background-color:" . $data['color'] . "\"";
+                echo ">" . $statename . "</td>";
+                echo "<td>";
+                echo Dropdown::getValueWithUnit($data["percent_done"], "%");
+                echo "</td>";
+                echo "<td>" . Html::convDateTime($data['plan_start_date']) . "</td>";
+                echo "<td>" . Html::convDateTime($data['plan_end_date']) . "</td>";
+                echo "<td>" . Html::timestampToString($data['planned_duration'], false) . "</td>";
+                echo "<td>" . Html::timestampToString(
+                    self::getTotalEffectiveDuration($data['id']),
+                    false
+                ) . "</td>";
+                echo "<td>";
+                if ($data['projecttasks_id'] > 0) {
+                    $father = Dropdown::getDropdownName('glpi_projecttasks', $data['projecttasks_id']);
+                    echo "<a id='ProjectTask" . $data["projecttasks_id"] . $rand . "' href='" .
+                      ProjectTask::getFormURLWithID($data['projecttasks_id']) . "'>" . $father .
+                      (empty($father) ? "(" . $data['projecttasks_id'] . ")" : "") . "</a>";
+                }
+                echo "</td></tr>";
             }
+            echo $header;
+            echo "</table>\n";
+        } else {
+            echo "<table class='tab_cadre_fixe'>";
+            echo "<tr><th>" . __('No item found') . "</th></tr>";
+            echo "</table>\n";
         }
 
-        // Check for tasks that are still unvisited because they are not reachable from any root
-        foreach ($by_id as $id => $entry) {
-            if (!isset($visited[$id])) {
-                $visited[$id] = true;
-                $ordered[] = $entry;
-                $visit($id);
-            }
-        }
-
-        return $ordered;
+        echo "</div>";
     }
 
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         $nb = 0;
-        switch ($item::class) {
+        switch (get_class($item)) {
             case Project::class:
                 if ($_SESSION['glpishow_count_on_tabs']) {
                     $nb = countElementsInTable(
-                        static::getTable(),
+                        $this->getTable(),
                         ['projects_id' => $item->getID()]
                     );
                 }
-                return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+                return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
 
-            case self::class:
+            case __CLASS__:
                 if ($_SESSION['glpishow_count_on_tabs']) {
                     $nb = countElementsInTable(
-                        static::getTable(),
+                        $this->getTable(),
                         ['projecttasks_id' => $item->getID()]
                     );
                 }
-                return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+                return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
         }
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        switch ($item::class) {
-            case Project::class:
-            case self::class:
+
+        switch ($item->getType()) {
+            case 'Project':
+                self::showFor($item);
+                break;
+
+            case __CLASS__:
                 self::showFor($item);
                 break;
         }
         return true;
     }
 
+
     /**
      * Show team for a project task
      *
-     * @param ProjectTask $task object
+     * @param $task   ProjectTask object
      *
-     * @return bool
+     * @return boolean
      **/
     public function showTeam(ProjectTask $task)
     {
-        // TODO : permit to simple add member of project team ?
+        /// TODO : permit to simple add member of project team ?
 
         $ID      = $task->fields['id'];
         $canedit = $task->canEdit($ID);
 
-        if ($canedit) {
-            $twig_params = [
-                'id' => $ID,
-                'label' => __('Add a team member'),
-                'btn_label' => _x('button', 'Add'),
-                'dropdown_params' => [
-                    'itemtypes'       => ProjectTeam::$available_types,
-                    'entity_restrict' => ($task->fields['is_recursive']
-                        ? getSonsOf(
-                            'glpi_entities',
-                            $task->fields['entities_id']
-                        )
-                        : $task->fields['entities_id']),
-                    'checkright'      => true,
-                ],
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                {% import 'components/form/fields_macros.html.twig' as fields %}
-                <div class="mb-3">
-                    <form method="post" action="{{ 'ProjectTaskTeam'|itemtype_form_path }}">
-                        <div class="d-flex">
-                            <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="projecttasks_id" value="{{ id }}">
-                            {{ fields.dropdownItemsFromItemtypes('items_id', label, dropdown_params) }}
-                        </div>
-                        <div class="d-flex flex-row-reverse">
-                            <button type="submit" name="add" class="btn btn-primary">{{ btn_label }}</button>
-                        </div>
-                    </form>
-                </div>
-TWIG, $twig_params);
-        }
+        $rand = mt_rand();
+        $nb   = 0;
+        $nb   = $task->getTeamCount();
 
-        $entries = [];
+        if ($canedit) {
+            echo "<div class='firstbloc'>";
+            echo "<form name='projecttaskteam_form$rand' id='projecttaskteam_form$rand' ";
+            echo " method='post' action='" . Toolbox::getItemTypeFormURL('ProjectTaskTeam') . "'>";
+            echo "<input type='hidden' name='projecttasks_id' value='$ID'>";
+            echo "<table class='tab_cadre_fixe'>";
+            echo "<tr class='tab_bg_1'><th colspan='2'>" . __('Add a team member') . "</tr>";
+            echo "<tr class='tab_bg_2'><td>";
+
+            $params = ['itemtypes'       => ProjectTeam::$available_types,
+                'entity_restrict' => ($task->fields['is_recursive']
+                                               ? getSonsOf(
+                                                   'glpi_entities',
+                                                   $task->fields['entities_id']
+                                               )
+                                               : $task->fields['entities_id']),
+                'checkright'      => true,
+            ];
+            $addrand = Dropdown::showSelectItemFromItemtypes($params);
+
+            echo "</td>";
+            echo "<td width='20%'>";
+            echo "<input type='submit' name='add' value=\"" . _sx('button', 'Add') . "\" class='btn btn-primary'>";
+            echo "</td>";
+            echo "</tr>";
+            echo "</table>";
+            Html::closeForm();
+            echo "</div>";
+        }
+        echo "<div class='spaced'>";
+        if ($canedit && $nb) {
+            Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+            $massiveactionparams = ['num_displayed' => min($_SESSION['glpilist_limit'], $nb),
+                'container'     => 'mass' . __CLASS__ . $rand,
+            ];
+            Html::showMassiveActions($massiveactionparams);
+        }
+        echo "<table class='tab_cadre_fixehov'>";
+        $header_begin  = "<tr>";
+        $header_top    = '';
+        $header_bottom = '';
+        $header_end    = '';
+        if ($canedit && $nb) {
+            $header_top    .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_top    .= "</th>";
+            $header_bottom .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_bottom .= "</th>";
+        }
+        $header_end .= "<th>" . _n('Type', 'Types', 1) . "</th>";
+        $header_end .= "<th>" . _n('Member', 'Members', Session::getPluralNumber()) . "</th>";
+        $header_end .= "</tr>";
+        echo $header_begin . $header_top . $header_end;
+
         foreach (ProjectTaskTeam::$available_types as $type) {
             if (isset($task->team[$type]) && count($task->team[$type])) {
                 if ($item = getItemForItemtype($type)) {
                     foreach ($task->team[$type] as $data) {
                         $item->getFromDB($data['items_id']);
-                        $entries[] = [
-                            'itemtype' => ProjectTaskTeam::class,
-                            'id' => $data['id'],
-                            'type' => $item::getTypeName(1),
-                            'member' => $item->getLink(),
-                        ];
+                        echo "<tr class='tab_bg_2'>";
+                        if ($canedit) {
+                            echo "<td>";
+                            Html::showMassiveActionCheckBox('ProjectTaskTeam', $data["id"]);
+                            echo "</td>";
+                        }
+                        echo "<td>" . $item->getTypeName(1) . "</td>";
+                        echo "<td>" . $item->getLink() . "</td>";
+                        echo "</tr>";
                     }
                 }
             }
         }
+        if ($nb) {
+            echo $header_begin . $header_bottom . $header_end;
+        }
+        echo "</table>";
+        if ($canedit && $nb) {
+            $massiveactionparams['ontop'] = false;
+            Html::showMassiveActions($massiveactionparams);
+            Html::closeForm();
+        }
 
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'nosort' => true,
-            'columns' => [
-                'type' => _n('Type', 'Types', 1),
-                'member' => _n('Member', 'Members', 1),
-            ],
-            'formatters' => [
-                'member' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => count($entries),
-                'container'     => 'mass' . static::class . mt_rand(),
-            ],
-        ]);
+        echo "</div>";
+        // Add items
 
         return true;
     }
 
-    /**
-     * Get the list of active project tasks for a list of groups.
-     *
-     * @param array $groups_id The group IDs.
-     * @return array The list of projecttask IDs.
-     */
-    public static function getActiveProjectTaskIDsForGroup(array $groups_id): array
-    {
-        global $DB;
-
-        if (count($groups_id) === 0) {
-            return [];
-        }
-
-        $req = [
-            'SELECT' => self::getTable() . '.id',
-            'FROM' => self::getTable(),
-            'LEFT JOIN' => [
-                ProjectState::getTable() => [
-                    'FKEY' => [
-                        ProjectState::getTable() => 'id',
-                        self::getTable() => 'projectstates_id',
-                    ],
-                ],
-                Project::getTable() => [
-                    'FKEY' => [
-                        Project::getTable() => 'id',
-                        ProjectTask::getTable() => 'projects_id',
-                    ],
-                ],
-            ],
-            'WHERE' => [
-                ProjectTask::getTable() . '.is_template' => false,
-                Project::getTable() . '.is_template' => false,
-                self::getTable() . '.id' => new QuerySubQuery([
-                    'SELECT' => [
-                        'projecttasks_id',
-                    ],
-                    'FROM' => ProjectTaskTeam::getTable(),
-                    'WHERE' => [
-                        ['itemtype' => Group::class, 'items_id' => $groups_id],
-                        'OR' => [
-                            [ProjectState::getTable() . '.is_finished' => 0],
-                            [ProjectState::getTable() . '.is_finished' => null],
-                        ],
-                    ],
-                ]),
-            ],
-        ];
-
-        return iterator_to_array($DB->request($req), false);
-    }
 
     /**
-     * Get the list of active project tasks for a list of users
-     *
-     * @param array $users_id The user IDs.
-     * @param bool $search_in_groups Whether to search in groups.
-     * @return array The list of projecttask IDs.
-     */
-    public static function getActiveProjectTaskIDsForUser(array $users_id, bool $search_in_groups = true): array
+     * Display debug information for current object
+     **/
+    public function showDebug()
     {
-        global $DB;
-
-        if (count($users_id) === 0) {
-            return [];
-        }
-
-        $groups_sub_query = new QuerySubQuery([
-            'SELECT' => [
-                'groups_id',
-            ],
-            'FROM' => Group_User::getTable(),
-            'WHERE' => [
-                'users_id' => $users_id,
-            ],
-        ]);
-
-        $crit = [
-            ['itemtype' => User::class, 'items_id' => $users_id],
-        ];
-
-        if ($search_in_groups) {
-            $crit[] = ['itemtype' => Group::class, 'items_id' => $groups_sub_query];
-        }
-
-        $req = [
-            'SELECT' => self::getTable() . '.id',
-            'FROM' => self::getTable(),
-            'LEFT JOIN' => [
-                ProjectState::getTable() => [
-                    'FKEY' => [
-                        ProjectState::getTable() => 'id',
-                        self::getTable() => 'projectstates_id',
-                    ],
-                ],
-                Project::getTable() => [
-                    'FKEY' => [
-                        Project::getTable() => 'id',
-                        ProjectTask::getTable() => 'projects_id',
-                    ],
-                ],
-            ],
-            'WHERE' => [
-                ProjectTask::getTable() . '.is_template' => false,
-                Project::getTable() . '.is_template' => false,
-                self::getTable() . '.id' => new QuerySubQuery([
-                    'SELECT' => [
-                        'projecttasks_id',
-                    ],
-                    'FROM' => ProjectTaskTeam::getTable(),
-                    'WHERE' => [
-                        'OR' => $crit,
-                    ],
-                ]),
-                'OR' => [
-                    [ProjectState::getTable() . '.is_finished' => 0],
-                    [ProjectState::getTable() . '.is_finished' => null],
-                ],
-            ],
-        ];
-
-        return iterator_to_array($DB->request($req), false);
-    }
-
-    /**
-     *  Show the list of projecttasks for a user in the personal view or for a group in the group view
-     *
-     * @param string $itemtype The itemtype (User or Group)
-     * @return void
-     * @used-by Central
-     */
-    public static function showListForCentral(string $itemtype): void
-    {
-        $projecttasks_id = [];
-        switch ($itemtype) {
-            case 'User':
-                $projecttasks_id = self::getActiveProjectTaskIDsForUser([Session::getLoginUserID()], false);
-                break;
-            case 'Group':
-                $projecttasks_id = self::getActiveProjectTaskIDsForGroup($_SESSION['glpigroups']);
-                break;
-        }
-
-        // If no project tasks are found, do not display anything
-        if ($projecttasks_id === []) {
-            return;
-        }
-
-        $options = [
-            'criteria' => [
-                [
-                    'link' => 'AND',
-                    'field' => ($itemtype === 'User') ? 87 : 88, // 87 = ProjectTask teams - Users, 88 = ProjectTask teams - Groups
-                    'searchtype' => 'equals',
-                    'value' => ($itemtype === 'User') ? 'myself' : 'mygroups', // 'myself' or 'mygroups'
-                ],
-            ],
-        ];
-
-        // Retrieve finished project states to exclude them from the search
-        $project_states = (new ProjectState())->find([
-            'is_finished' => 1,
-        ]);
-
-        foreach ($project_states as $state) {
-            $options['criteria'][] = [
-                'link' => 'AND',
-                'field' => 12,
-                'searchtype' => 'notequals',
-                'value' => $state['id'],
-            ];
-        }
-
-        $displayed_row_count = min(count($projecttasks_id), (int) $_SESSION['glpidisplay_count_on_home']);
-
-        $twig_params = [
-            'class'       => 'table table-borderless table-striped table-hover card-table',
-            'header_rows' => [
-                [
-                    [
-                        'colspan' => 4,
-                        'content' => sprintf(
-                            '<a href="%s">%s</a>',
-                            htmlescape(self::getSearchURL() . '?' . Toolbox::append_params($options)),
-                            Html::makeTitle(__('Ongoing projects tasks'), $displayed_row_count, count($projecttasks_id))
-                        ),
-                    ],
-                ],
-                [
-                    [
-                        'content' => __s('Name'),
-                        'style'   => 'width: 30%',
-                    ],
-                    [
-                        'content' => _sn('State', 'States', 1),
-                        'style'   => 'width: 30%',
-                    ],
-                    [
-                        'content' => _sn('Project', 'Projects', 1),
-                        'style'   => 'width: 30%',
-                    ],
-                    [
-                        'content' => __s('Percent done'),
-                        'style'   => 'width: 10%',
-                    ],
-                ],
-            ],
-            'rows' => [],
-        ];
-
-        foreach ($projecttasks_id as $key => $raw_projecttask) {
-            if ($key >= $displayed_row_count) {
-                break;
-            }
-
-            $projecttask = self::getById($raw_projecttask['id']);
-            $project = Project::getById($projecttask->fields['projects_id']);
-            $state = ProjectState::getById($projecttask->fields['projectstates_id']);
-
-            $twig_params['rows'][] = [
-                'values' => [
-                    [
-                        'content' => $projecttask->getLink(),
-                    ],
-                    [
-                        'content' => $state !== false
-                            ? sprintf(
-                                '<div class="badge_block" style="border-color:%s"><span class="me-1" style="background:%s"></span>%s',
-                                htmlescape($state->fields['color']),
-                                htmlescape($state->fields['color']),
-                                htmlescape($state->fields['name']),
-                            )
-                            : '',
-                    ],
-                    [
-                        'content' => $project->getLink(),
-                    ],
-                    [
-                        'content' => Html::getProgressBar((float) $projecttask->fields['percent_done']),
-                    ],
-                ],
-            ];
-        }
-
-        TemplateRenderer::getInstance()->display('components/table.html.twig', $twig_params);
+        NotificationEvent::debugEvent($this);
     }
 
     /**
@@ -1900,7 +1372,7 @@ TWIG, $twig_params);
      *
      * @since 9.1
      *
-     * @param array $options of possible options:
+     * @param $options  array of possible options:
      *    - who         ID of the user (0 = undefined)
      *    - whogroup    ID of the group of users (0 = undefined)
      *    - begin       Date
@@ -1912,14 +1384,18 @@ TWIG, $twig_params);
      **/
     public static function populatePlanning($options = []): array
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $interv = [];
         $ttask  = new self();
 
         if (
-            !isset($options['begin'], $options['end'])
-            || ($options['begin'] === 'NULL') || ($options['end'] === 'NULL')
+            !isset($options['begin']) || ($options['begin'] == 'NULL')
+            || !isset($options['end']) || ($options['end'] == 'NULL')
         ) {
             return $interv;
         }
@@ -1928,7 +1404,6 @@ TWIG, $twig_params);
             'genical'             => false,
             'color'               => '',
             'event_type_color'    => '',
-            'state_done'          => true,
         ];
         $options = array_merge($default_options, $options);
 
@@ -1961,7 +1436,7 @@ TWIG, $twig_params);
         if (!count($ADDWHERE)) {
             $ADDWHERE = [
                 'glpi_projecttaskteams.itemtype' => 'User',
-                'glpi_projecttaskteams.items_id' => new QuerySubQuery([
+                'glpi_projecttaskteams.items_id' => new \QuerySubQuery([
                     'SELECT'          => 'glpi_profiles_users.users_id',
                     'DISTINCT'        => true,
                     'FROM'            => 'glpi_profiles',
@@ -1975,74 +1450,66 @@ TWIG, $twig_params);
                     ],
                     'WHERE'           => [
                         'glpi_profiles.interface'  => 'central',
-                    ] + getEntitiesRestrictCriteria('glpi_profiles_users', '', $_SESSION['glpiactive_entity'], true),
+                    ] + getEntitiesRestrictCriteria('glpi_profiles_users', '', $_SESSION['glpiactive_entity'], 1),
                 ]),
             ];
         }
 
-        if (!$options['state_done']) {
+        if (!isset($options['display_done_events']) || !$options['display_done_events']) {
             $ADDWHERE['glpi_projecttasks.percent_done'] = ['<', 100];
-            $ADDWHERE[] = [
-                'OR' => [
-                    ['glpi_projectstates.is_finished' => 0],
-                    ['glpi_projectstates.is_finished' => null],
-                ],
+            $ADDWHERE[] = ['OR' => [
+                ['glpi_projectstates.is_finished'  => 0],
+                ['glpi_projectstates.is_finished'  => null],
+            ],
             ];
         }
 
-        $ttask_table = $ttask::getTable();
-        $SELECT = [$ttask_table . '.*'];
+        $SELECT = [$ttask->getTable() . '.*'];
         $WHERE = $ADDWHERE;
         if (isset($options['not_planned'])) {
             //not planned case
-            $bdate = QueryFunction::dateSub(
-                date: $ttask_table . '.date_creation',
-                interval: new QueryExpression($DB::quoteName($ttask_table . '.planned_duration')),
-                interval_unit: 'SECOND',
-            );
-            $edate = QueryFunction::dateAdd(
-                date: $ttask_table . '.date_creation',
-                interval: new QueryExpression($DB::quoteName($ttask_table . '.planned_duration')),
-                interval_unit: 'SECOND',
-            );
-            $SELECT[] = new QueryExpression($bdate, 'notp_date');
-            $SELECT[] = new QueryExpression($edate, 'notp_edate');
+            $bdate = "DATE_SUB(" . $DB->quoteName($ttask->getTable() . '.date_creation') .
+            ", INTERVAL " . $DB->quoteName($ttask->getTable() . '.planned_duration') . " SECOND)";
+            $SELECT[] = new QueryExpression($bdate . ' AS ' . $DB->quoteName('notp_date'));
+            $edate = "DATE_ADD(" . $DB->quoteName($ttask->getTable() . '.date_creation') .
+            ", INTERVAL " . $DB->quoteName($ttask->getTable() . '.planned_duration') . " SECOND)";
+            $SELECT[] = new QueryExpression($edate . ' AS ' . $DB->quoteName('notp_edate'));
 
             $WHERE = array_merge($WHERE, [
-                $ttask_table . '.plan_start_date'   => null,
-                $ttask_table . '.plan_end_date'     => null,
-                $ttask_table . '.planned_duration'  => ['>', 0],
+                $ttask->getTable() . '.plan_start_date'   => null,
+                $ttask->getTable() . '.plan_end_date'     => null,
+                $ttask->getTable() . '.planned_duration'  => ['>', 0],
                 //begin is replaced with creation tim minus duration
                 new QueryExpression($edate . " >= '" . $begin . "'"),
                 new QueryExpression($bdate . " <= '" . $end . "'"),
             ]);
         } else {
             //std case: get tasks for current view dates
-            $WHERE[$ttask_table . '.plan_end_date'] = ['>=', $begin];
-            $WHERE[$ttask_table . '.plan_start_date'] = ['<=', $end];
+            $WHERE[$ttask->getTable() . '.plan_end_date'] = ['>=', $begin];
+            $WHERE[$ttask->getTable() . '.plan_start_date'] = ['<=', $end];
         }
 
         $iterator = $DB->request([
             'SELECT'       => $SELECT,
             'FROM'         => 'glpi_projecttaskteams',
             'INNER JOIN'   => [
-                $ttask_table => [
+                $ttask->getTable() => [
                     'ON' => [
                         'glpi_projecttaskteams' => 'projecttasks_id',
-                        $ttask_table      => 'id',
+                        $ttask->getTable()      => 'id',
                     ],
                 ],
             ],
             'LEFT JOIN'    => [
                 'glpi_projectstates' => [
                     'ON' => [
-                        $ttask_table   => 'projectstates_id',
+                        $ttask->getTable()   => 'projectstates_id',
                         'glpi_projectstates' => 'id',
                     ],
                 ],
             ],
             'WHERE'        => $WHERE,
-            'ORDERBY'      => $ttask_table . '.plan_start_date',
+            'ORDERBY'      => $ttask->getTable() . '.plan_start_date',
         ]);
 
         $interv = [];
@@ -2050,65 +1517,67 @@ TWIG, $twig_params);
 
         if (count($iterator)) {
             foreach ($iterator as $data) {
-                $task->getFromResultSet($data);
-                if (isset($data['notp_date'])) {
-                    $data['plan_start_date'] = $data['notp_date'];
-                    $data['plan_end_date'] = $data['notp_edate'];
+                if ($task->getFromDB($data["id"])) {
+                    if (isset($data['notp_date'])) {
+                        $data['plan_start_date'] = $data['notp_date'];
+                        $data['plan_end_date'] = $data['notp_edate'];
+                    }
+                    $key = $data["plan_start_date"] .
+                      "$$$" . "ProjectTask" .
+                      "$$$" . $data["id"] .
+                      "$$$" . $who . "$$$" . $whogroup;
+                    $interv[$key]['color']            = $options['color'];
+                    $interv[$key]['event_type_color'] = $options['event_type_color'];
+                    $interv[$key]['itemtype']         = 'ProjectTask';
+                    if (!$options['genical']) {
+                        $interv[$key]["url"] = Project::getFormURLWithID($task->fields['projects_id']);
+                    } else {
+                        $interv[$key]["url"] = $CFG_GLPI["url_base"] .
+                                        Project::getFormURLWithID($task->fields['projects_id'], false);
+                    }
+                    $interv[$key]["ajaxurl"] = $CFG_GLPI["root_doc"] . "/ajax/planning.php" .
+                                          "?action=edit_event_form" .
+                                          "&itemtype=ProjectTask" .
+                                          "&id=" . $data['id'];
+
+                    $interv[$key][$task->getForeignKeyField()] = $data["id"];
+                    $interv[$key]["id"]                        = $data["id"];
+                    $interv[$key]["users_id"]                  = $data["users_id"];
+
+                    if (strcmp($begin, $data["plan_start_date"]) > 0) {
+                        $interv[$key]["begin"] = $begin;
+                    } else {
+                        $interv[$key]["begin"] = $data["plan_start_date"];
+                    }
+
+                    if (strcmp($end, $data["plan_end_date"]) < 0) {
+                        $interv[$key]["end"]   = $end;
+                    } else {
+                        $interv[$key]["end"]   = $data["plan_end_date"];
+                    }
+
+                    $interv[$key]["name"]     = Sanitizer::unsanitize($task->fields["name"]); // name is re-encoded on JS side
+                    $interv[$key]["content"]  = $task->fields["content"] !== null
+                    ? RichText::getSafeHtml($task->fields["content"])
+                    : '';
+                    $interv[$key]["status"]   = $task->fields["percent_done"];
+
+                    $ttask->getFromDB($data["id"]);
+                    $interv[$key]["editable"] = $ttask->canUpdateItem();
                 }
-                $key = $data["plan_start_date"]
-                  . "$$$" . "ProjectTask"
-                  . "$$$" . $data["id"]
-                  . "$$$" . $who . "$$$" . $whogroup;
-                $interv[$key]['color']            = $options['color'];
-                $interv[$key]['event_type_color'] = $options['event_type_color'];
-                $interv[$key]['itemtype']         = 'ProjectTask';
-                if (!$options['genical']) {
-                    $interv[$key]["url"] = Project::getFormURLWithID($task->fields['projects_id']);
-                } else {
-                    $interv[$key]["url"] = $CFG_GLPI["url_base"]
-                                    . Project::getFormURLWithID($task->fields['projects_id'], false);
-                }
-                $interv[$key]["ajaxurl"] = $CFG_GLPI["root_doc"] . "/ajax/planning.php"
-                                      . "?action=edit_event_form"
-                                      . "&itemtype=ProjectTask"
-                                      . "&id=" . $data['id'];
-
-                $interv[$key][$task::getForeignKeyField()] = $data["id"];
-                $interv[$key]["id"]                        = $data["id"];
-                $interv[$key]["users_id"]                  = $data["users_id"];
-
-                if (strcmp($begin, $data["plan_start_date"]) > 0) {
-                    $interv[$key]["begin"] = $begin;
-                } else {
-                    $interv[$key]["begin"] = $data["plan_start_date"];
-                }
-
-                if (strcmp($end, $data["plan_end_date"]) < 0) {
-                    $interv[$key]["end"]   = $end;
-                } else {
-                    $interv[$key]["end"]   = $data["plan_end_date"];
-                }
-
-                $interv[$key]["name"]     = $task->fields["name"];
-                $interv[$key]["content"]  = $task->fields["content"] !== null
-                ? RichText::getSafeHtml($task->fields["content"])
-                : '';
-                $interv[$key]["status"]   = $task->fields["percent_done"];
-
-                $ttask->getFromDB($data["id"]);
-                $interv[$key]["editable"] = $ttask->canUpdateItem();
             }
         }
 
         return $interv;
     }
 
+
     /**
      * Populate the planning with not planned project tasks
      *
      * @since 9.1
      *
-     * @param array $options of possible options:
+     * @param $options  array of possible options:
      *    - who         ID of the user (0 = undefined)
      *    - whogroup    ID of the group of users (0 = undefined)
      *    - begin       Date
@@ -2117,7 +1586,6 @@ TWIG, $twig_params);
      *    - event_type_color
      *
      * @return array of planning item
-     * @used-by Planning
      **/
     public static function populateNotPlanned($options = []): array
     {
@@ -2125,100 +1593,89 @@ TWIG, $twig_params);
         return self::populatePlanning($options);
     }
 
+
     /**
      * Display a Planning Item
      *
      * @since 9.1
      *
-     * @param array $val Array of the items to display
-     * @param int $who ID of the user (0 if all)
-     * @param string $type Position of the item in the time block (in, through, begin or end)
+     * @param $val       array of the item to display
+     * @param $who             ID of the user (0 if all)
+     * @param $type            position of the item in the time block (in, through, begin or end)
      *                         (default '')
-     * @param int $complete (Not used)
+     * @param $complete        complete display (more details) (default 0)
      *
      * @return string
      **/
     public static function displayPlanningItem(array $val, $who, $type = "", $complete = 0)
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
+        $html = "";
+        $rand     = mt_rand();
         $users_id = "";  // show users_id project task
-        $img      = $CFG_GLPI["root_doc"] . "/pics/rdv_private.png"; // default icon for project task
+        $img      = "rdv_private.png"; // default icon for project task
 
-        if ((int) $val["users_id"] !== Session::getLoginUserID()) {
-            $users_id = sprintf(__('%1$s: %2$s'), __('By'), getUserName($val["users_id"]));
-            $img      = $CFG_GLPI["root_doc"] . "/pics/rdv_public.png";
+        if ($val["users_id"] != Session::getLoginUserID()) {
+            $users_id = "<br>" . sprintf(__('%1$s: %2$s'), __('By'), getUserName($val["users_id"]));
+            $img      = "rdv_public.png";
         }
 
-        $name = Html::resume_text($val['name'], 80);
-        $label = match ($type) {
-            "in" => sprintf(
-                __('%1$s: %2$s'),
-                sprintf(
+        $html .= "<img src='" . $CFG_GLPI["root_doc"] . "/pics/" . $img . "' alt='' title=\"" .
+             self::getTypeName(1) . "\">&nbsp;";
+        $html .= "<a id='project_task_" . $val["id"] . $rand . "' href='" .
+             ProjectTask::getFormURLWithID($val["id"]) . "'>";
+
+        switch ($type) {
+            case "in":
+                //TRANS: %1$s is the start time of a planned item, %2$s is the end
+                $beginend = sprintf(
                     __('From %1$s to %2$s'),
                     date("H:i", strtotime($val["begin"])),
                     date("H:i", strtotime($val["end"]))
-                ),
-                $name
-            ),
-            "through" => $name,
-            "begin" => sprintf(
-                __('%1$s: %2$s'),
-                sprintf(
-                    __('Start at %s'),
-                    date("H:i", strtotime($val["begin"]))
-                ),
-                $name
-            ),
-            "end" => sprintf(
-                __('%1$s: %2$s'),
-                sprintf(
-                    __('End at %s'),
-                    date("H:i", strtotime($val["end"]))
-                ),
-                $name
-            ),
-            default => ''
-        };
+                );
+                $html .= sprintf(__('%1$s: %2$s'), $beginend, Html::resume_text($val["name"], 80));
+                break;
 
-        $parent = getItemForItemtype($val['itemtype']);
-        $parent->getFromDB($val[$parent::getForeignKeyField()]);
+            case "through":
+                $html .= Html::resume_text($val["name"], 80);
+                break;
 
-        $twig_params = [
-            'users_id' => $users_id,
-            'img' => $img,
-            'planning' => $val,
-            'label' => $label,
-            'percent_done' => sprintf(__('%1$s: %2$s'), __('Percent done'), $val["status"] . "%"),
-            'parent' => $parent,
-            'parent_entity' => Entity::badgeCompletenameById($parent->getEntityID()),
-        ];
+            case "begin":
+                $start = sprintf(__('Start at %s'), date("H:i", strtotime($val["begin"])));
+                $html .= sprintf(__('%1$s: %2$s'), $start, Html::resume_text($val["name"], 80));
+                break;
 
-        // language=Twig
-        return TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-            <img src="{{ img }}" role="presentation" alt='' title="{{ 'ProjectTask'|itemtype_name(1) }}"/>
-            <a href="{{ 'ProjectTask'|itemtype_form_path(planning['id']) }}">
-                {{ label }}
-                {{ users_id }}
-            </a>
-            <div class="fw-bold">{{ percent_done }}</div>
-            <div class="event-description rich_text_container">{{ planning['content']|safe_html }}</div>
-            {{ get_item_link(parent) }}
-            <br>
-            <span>{{ parent_entity|raw }}</span>
-TWIG, $twig_params);
+            case "end":
+                $end = sprintf(__('End at %s'), date("H:i", strtotime($val["end"])));
+                $html .= sprintf(__('%1$s: %2$s'), $end, Html::resume_text($val["name"], 80));
+                break;
+        }
+
+        $html .= $users_id;
+        $html .= "</a>";
+
+        $html .= "<div class='b'>";
+        $html .= sprintf(__('%1$s: %2$s'), __('Percent done'), $val["status"] . "%");
+        $html .= "</div>";
+
+        // $val['content'] has already been sanitized and decoded by self::populatePlanning()
+        $content = $val['content'];
+        $html .= "<div class='event-description rich_text_container'>" . $content . "</div>";
+        return $html;
     }
 
     /**
      * Update the specified project task's percent_done based on the percent_done of sub-tasks.
      * This function indirectly updates the percent done for all parent tasks if they are set to automatically update.
      * The parent project's percent_done is not updated here to avoid duplicate updates.
-     * @param int $ID The ID of the project task to recalculate.
      * @since 9.5.0
-     * @return bool False if the specified project task is not set to automatically update the percent done.
+     * @return boolean False if the specified project task is not set to automatically update the percent done.
      */
     public static function recalculatePercentDone($ID)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $projecttask = new self();
@@ -2229,13 +1686,9 @@ TWIG, $twig_params);
 
         $iterator = $DB->request([
             'SELECT' => [
-                QueryFunction::cast(
-                    expression: QueryFunction::avg('percent_done'),
-                    type: 'UNSIGNED',
-                    alias: 'percent_done'
-                ),
+                new QueryExpression('CAST(AVG(' . $DB->quoteName('percent_done') . ') AS UNSIGNED) AS percent_done'),
             ],
-            'FROM'   => self::getTable(),
+            'FROM'   => ProjectTask::getTable(),
             'WHERE'  => [
                 'projecttasks_id' => $ID,
             ],
@@ -2252,39 +1705,9 @@ TWIG, $twig_params);
         return true;
     }
 
-    /**
-     * Recalculate the status of a project task based on the percent_done.
-     * @since 11.0.0
-     * @param array $input
-     * @return int|false
-     */
-    public function recalculateStatus(array $input): int|false
-    {
-        global $DB;
-
-        $auto_projectstates = $input['auto_projectstates'] ?? $this->fields['auto_projectstates'] ?? false;
-        $percent_done = $input['percent_done'] ?? $this->fields['percent_done'] ?? null;
-
-        if (!$auto_projectstates || $percent_done === null) {
-            return false;
-        }
-        $config = Config::getConfigurationValues('core');
-        if ((int) $percent_done === 0 || (int) $percent_done < 0) {
-            $state_id = $config['projecttask_unstarted_states_id'] ?? 0;
-        } elseif ((int) $percent_done === 100) {
-            $state_id = $config['projecttask_completed_states_id'] ?? 0;
-        } else {
-            $state_id = $config['projecttask_inprogress_states_id'] ?? 0;
-        }
-        $state = ProjectState::getById($state_id);
-        if (!$state) {
-            return false;
-        }
-        return $state->getID();
-    }
-
     public static function getGroupItemsAsVCalendars($groups_id)
     {
+
         return self::getItemsAsVCalendars(
             [
                 ProjectTaskTeam::getTableField('itemtype') => Group::class,
@@ -2295,6 +1718,7 @@ TWIG, $twig_params);
 
     public static function getUserItemsAsVCalendars($users_id)
     {
+
         return self::getItemsAsVCalendars(
             [
                 ProjectTaskTeam::getTableField('itemtype') => User::class,
@@ -2308,10 +1732,12 @@ TWIG, $twig_params);
      *
      * @param array $criteria
      *
-     * @return VCalendar[]
+     * @return \Sabre\VObject\Component\VCalendar[]
      */
     private static function getItemsAsVCalendars(array $criteria)
     {
+
+        /** @var \DBmysql $DB */
         global $DB;
 
         $query = [
@@ -2342,46 +1768,41 @@ TWIG, $twig_params);
         return $vcalendars;
     }
 
-    /**
-     * {@inheritdoc}
-     * @return VCalendar|null
-     * @throws Exception If one or more of the datetimes are invalid
-     */
-    public function getAsVCalendar(): ?VCalendar
+    public function getAsVCalendar()
     {
+
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         if (!$this->canViewItem()) {
             return null;
         }
 
+        $is_task = true;
         $is_planned = !empty($this->fields['plan_start_date']) && !empty($this->fields['plan_end_date']);
-        $target_component = $this->getTargetCaldavComponent($is_planned, true);
+        $target_component = $this->getTargetCaldavComponent($is_planned, $is_task);
         if (null === $target_component) {
             return null;
         }
 
         $vcalendar = $this->getVCalendarForItem($this, $target_component);
 
-        $fields = $this->fields;
-        $utc_tz = new DateTimeZone('UTC');
+        $fields = Html::entity_decode_deep($this->fields);
+        $utc_tz = new \DateTimeZone('UTC');
 
         $vcomp = $vcalendar->getBaseComponent();
-        if ($vcomp === null) {
-            return null;
-        }
 
         if ('VTODO' === $target_component) {
             if ($is_planned) {
-                $vcomp->DTSTART = (new DateTime($fields['plan_start_date']))->setTimeZone($utc_tz);
-                $vcomp->DUE = (new DateTime($fields['plan_end_date']))->setTimeZone($utc_tz);
+                $vcomp->DTSTART = (new \DateTime($fields['plan_start_date']))->setTimeZone($utc_tz);
+                $vcomp->DUE = (new \DateTime($fields['plan_end_date']))->setTimeZone($utc_tz);
             }
-            $vcomp->STATUS = 100 === (int) $fields['percent_done'] ? 'COMPLETED' : 'NEEDS-ACTION';
+            $vcomp->STATUS = 100 == $fields['percent_done'] ? 'COMPLETED' : 'NEEDS-ACTION';
             $vcomp->{'PERCENT-COMPLETE'} = $fields['percent_done'];
         } elseif ('VEVENT' === $target_component) {
             if ($is_planned) {
-                $vcomp->DTSTART = (new DateTime($fields['plan_start_date']))->setTimeZone($utc_tz);
-                $vcomp->DTEND   = (new DateTime($fields['plan_end_date']))->setTimeZone($utc_tz);
+                $vcomp->DTSTART = (new \DateTime($fields['plan_start_date']))->setTimeZone($utc_tz);
+                $vcomp->DTEND   = (new \DateTime($fields['plan_end_date']))->setTimeZone($utc_tz);
             }
         }
 
@@ -2392,10 +1813,11 @@ TWIG, $twig_params);
 
     public function getInputFromVCalendar(VCalendar $vcalendar)
     {
+
         $vtodo = $vcalendar->getBaseComponent();
 
         if (null !== $vtodo->RRULE) {
-            throw new UnexpectedValueException('RRULE not yet implemented for Project tasks');
+            throw new \UnexpectedValueException('RRULE not yet implemented for Project tasks');
         }
 
         $input = $this->getCommonInputFromVcomponent($vtodo, $this->isNewItem());
@@ -2407,7 +1829,7 @@ TWIG, $twig_params);
 
         if ($vtodo->{'PERCENT-COMPLETE'} instanceof IntegerValue) {
             $input['percent_done'] = $vtodo->{'PERCENT-COMPLETE'}->getValue();
-        } elseif (array_key_exists('state', $input) && $input['state'] == Planning::DONE) {
+        } elseif (array_key_exists('state', $input) && $input['state'] == \Planning::DONE) {
             // Consider task as done if status is DONE
             $input['percent_done'] = 100;
         }
@@ -2415,9 +1837,10 @@ TWIG, $twig_params);
         return $input;
     }
 
+
     public function prepareInputForClone($input)
     {
-        $input['uuid'] = Uuid::uuid4();
+        $input['uuid'] = \Ramsey\Uuid\Uuid::uuid4();
         return $input;
     }
 
@@ -2458,9 +1881,6 @@ TWIG, $twig_params);
         return (bool) $result;
     }
 
-    /**
-     * @return array<array{id: int, projecttasks_id: int, itemtype: class-string<CommonDBTM>, items_id: int, display_name?: string}>
-     */
     public function getTeam(): array
     {
         $team = ProjectTaskTeam::getTeamFor($this->getID(), true);

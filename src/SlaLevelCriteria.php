@@ -41,7 +41,7 @@
 /// Class SlaLevelCriteria
 class SlaLevelCriteria extends RuleCriteria
 {
-    public static $itemtype = SlaLevel::class;
+    public static $itemtype  = 'SlaLevel';
     public static $items_id  = 'slalevels_id';
     public $dohistory        = true;
 
@@ -50,7 +50,7 @@ class SlaLevelCriteria extends RuleCriteria
     {
         // Override in order not to use glpi_rules table.
         if ($rule_type !== static::$itemtype) {
-            throw new LogicException(
+            throw new \LogicException(
                 sprintf(
                     '%s is not expected to be used with a different rule type than %s',
                     static::class,

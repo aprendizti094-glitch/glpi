@@ -33,14 +33,13 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Plugin\Hooks;
-use Glpi\Search\SearchOption;
+include('../inc/includes.php');
 
 header("Content-Type: text/html; charset=UTF-8");
 Html::header_nocache();
 
 if (!isset($_POST["itemtype"]) || !($item = getItemForItemtype($_POST['itemtype']))) {
-    return;
+    exit();
 }
 
 if (Infocom::canApplyOn($_POST["itemtype"])) {
@@ -57,16 +56,16 @@ if (isset($_POST['inline']) && $_POST['inline']) {
 }
 $submitname = _sx('button', 'Post');
 if (isset($_POST['submitname']) && $_POST['submitname']) {
-    $submitname = htmlescape($_POST['submitname']);
+    $submitname = stripslashes($_POST['submitname']);
 }
 
 
 if (
     isset($_POST["id_field"]) && $_POST["id_field"]
 ) {
-    $search = SearchOption::getOptionsForItemtype($_POST["itemtype"]);
+    $search = Search::getOptions($_POST["itemtype"]);
     if (!isset($search[$_POST["id_field"]])) {
-        return;
+        exit();
     }
 
     $search            = $search[$_POST["id_field"]];
@@ -82,7 +81,7 @@ if (
     ) {
         $plugdisplay = Plugin::doOneHook(
             $plug['plugin'],
-            Hooks::AUTO_MASSIVE_ACTIONS_FIELDS_DISPLAY,
+            'MassiveActionsFieldsDisplay',
             ['itemtype' => $_POST["itemtype"],
                 'options'  => $search,
             ]
@@ -113,7 +112,7 @@ if (
         echo $item->getValueToSelect($search, $fieldname, $values, $options);
     }
 
-    echo "<input type='hidden' name='field' value='" . htmlescape($fieldname) . "'>";
+    echo "<input type='hidden' name='field' value='$fieldname'>";
     echo "</td>";
     if ($inline) {
         echo "<td><input type='submit' name='massiveaction' class='btn btn-primary' value='$submitname'></td>";

@@ -33,7 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
 Session::checkRight("domain", READ);
 
@@ -64,7 +64,7 @@ if (isset($_POST["add"])) {
     $domain->redirectToList();
 } elseif (isset($_POST["purge"])) {
     $domain->check($_POST['id'], PURGE);
-    $domain->delete($_POST, true);
+    $domain->delete($_POST, 1);
     $domain->redirectToList();
 } elseif (isset($_POST["update"])) {
     $domain->check($_POST['id'], UPDATE);
@@ -72,31 +72,15 @@ if (isset($_POST["add"])) {
     Html::back();
 } elseif (isset($_POST["additem"])) {
     if (!empty($_POST['itemtype']) && $_POST['items_id'] > 0) {
-        if (!$_POST['domains_id']) {
-            $message = sprintf(
-                __('Mandatory fields are not filled. Please correct: %s'),
-                _n('Domain', 'Domains', 1)
-            );
-            Session::addMessageAfterRedirect(htmlescape($message), false, ERROR);
-            Html::back();
-        }
         $ditem->check(-1, UPDATE, $_POST);
         $ditem->addItem($_POST);
     }
     Html::back();
 } elseif (isset($_POST["addrecord"])) {
-    $record = new DomainRecord();
+    $record = new \DomainRecord();
     $_POST['id'] = $_POST['domainrecords_id'];
     unset($_POST['domainrecords_id']);
-    if (!$_POST['id']) {
-        $message = sprintf(
-            __('Mandatory fields are not filled. Please correct: %s'),
-            _n('Record', 'Records', 1)
-        );
-        Session::addMessageAfterRedirect(htmlescape($message), false, ERROR);
-        Html::back();
-    }
-    $record->check($_POST['id'], UPDATE, $_POST);
+    $record->check(-1, UPDATE, $_POST);
     $record->update($_POST);
     Html::redirect($domain->getFormURLWithID($_POST['domains_id']));
 } elseif (isset($_POST["deleteitem"])) {

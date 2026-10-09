@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-
 /**
  *  NetworkAlias Class
  *
@@ -44,7 +42,7 @@ use Glpi\Application\View\TemplateRenderer;
 class NetworkAlias extends FQDNLabel
 {
     // From CommonDBChild
-    public static $itemtype = NetworkName::class;
+    public static $itemtype           = 'NetworkName';
     public static $items_id           = 'networknames_id';
     public $dohistory                 = true;
 
@@ -56,14 +54,48 @@ class NetworkAlias extends FQDNLabel
         return _n('Network alias', 'Network aliases', $nb);
     }
 
+
     public function defineTabs($options = [])
     {
+
         $ong  = [];
         $this->addDefaultFormTab($ong);
 
         return $ong;
     }
 
+
+    /**
+     * Get the full name (internet name) of a NetworkName
+     *
+     * @param integer $ID  ID of the NetworkName
+     *
+     * @return string  its internet name, or empty string if invalid NetworkName
+     **/
+    public static function getInternetNameFromID($ID)
+    {
+
+        $networkAlias = new self();
+        if ($networkAlias->can($ID, READ)) {
+            return FQDNLabel::getInternetNameFromLabelAndDomainID(
+                $networkAlias->fields["name"],
+                $networkAlias->fields["fqdns_id"]
+            );
+        }
+        return "";
+    }
+
+
+    /**
+     * Print the network alias form
+     *
+     * @param $ID        integer ID of the item
+     * @param $options   array
+     *     - target for the Form
+     *     - withtemplate template or basic computer
+     *
+     * @return void
+     **/
     public function showForm($ID, $options = [])
     {
 
@@ -86,18 +118,19 @@ class NetworkAlias extends FQDNLabel
 
         echo "<tr class='tab_bg_1'><td>";
         $this->displayRecursiveItems($recursiveItems, 'Type');
-        echo "&nbsp;:</td><td>";
+        echo "&nbsp;:</td>\n<td>";
 
-        if ($ID <= 0) {
-            echo "<input type='hidden' name='networknames_id' value='" . htmlescape($this->fields["networknames_id"]) . "'>";
+        if (!($ID > 0)) {
+            echo "<input type='hidden' name='networknames_id' value='" .
+               $this->fields["networknames_id"] . "'>\n";
         }
         $this->displayRecursiveItems($recursiveItems, "Link");
-        echo "</td><td>" . __s('Name') . "</td><td>";
+        echo "</td><td>" . __('Name') . "</td><td>\n";
         echo Html::input('name', ['value' => $this->fields['name']]);
-        echo "</td></tr>";
+        echo "</td></tr>\n";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td>" . htmlescape(FQDN::getTypeName()) . "</td><td>";
+        echo "<td>" . FQDN::getTypeName() . "</td><td>";
         Dropdown::show(
             getItemTypeForTable(getTableNameForForeignKeyField("fqdns_id")),
             ['value'        => $this->fields["fqdns_id"],
@@ -107,26 +140,25 @@ class NetworkAlias extends FQDNLabel
             ]
         );
         echo "</td>";
-        echo "<td>" . __s('Comments') . "</td>";
-        echo "<td><textarea class='form-control' rows='4' name='comment' >" . htmlescape($this->fields["comment"]);
-        echo "</textarea></td>";
-        echo "</tr>";
+        echo "<td>" . __('Comments') . "</td>";
+        echo "<td><textarea class='form-control' rows='4' name='comment' >" . $this->fields["comment"];
+        echo "</textarea></td>\n";
+        echo "</tr>\n";
 
         $this->showFormButtons($options);
         return true;
     }
 
+
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param HTMLTableBase $base
-     * @param HTMLTableSuperHeader|null $super
-     * @param HTMLTableHeader|null $father
-     * @param array $options
-     * @throws Exception
      * @since 0.84
      *
-     * @return void
-     */
+     * @param $itemtype
+     * @param $base                  HTMLTableBase object
+     * @param $super                 HTMLTableSuperHeader object (default NULL)
+     * @param $father                HTMLTableHeader object (default NULL)
+     * @param $options      array
+     **/
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -135,37 +167,39 @@ class NetworkAlias extends FQDNLabel
         array $options = []
     ) {
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        if ($itemtype !== NetworkName::class) {
+        if ($itemtype != 'NetworkName') {
             return;
         }
 
-        $content = htmlescape(self::getTypeName());
+        $content = self::getTypeName();
         if (isset($options['column_links'][$column_name])) {
-            $content = "<a href='" . htmlescape($options['column_links'][$column_name]) . "'>$content</a>";
+            $content = "<a href='" . $options['column_links'][$column_name] . "'>$content</a>";
         }
         $this_header = $base->addHeader($column_name, $content, $super, $father);
         $this_header->setItemType('NetworkAlias');
     }
 
+
     /**
-     * @param HTMLTableRow|null $row
-     * @param CommonDBTM|null $item
-     * @param HTMLTableCell|null $father
-     * @param array $options
+     * @since 0.84
      *
-     * @return void
-     */
+     * @param $row                HTMLTableRow object (default NULL)
+     * @param $item               CommonDBTM object (default NULL)
+     * @param $father             HTMLTableCell object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (empty($item)) {
@@ -175,11 +209,11 @@ class NetworkAlias extends FQDNLabel
             $item = $father->getItem();
         }
 
-        if ($item->getType() !== NetworkName::class) {
+        if ($item->getType() != 'NetworkName') {
             return;
         }
 
-        $column_name = self::class;
+        $column_name = __CLASS__;
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
@@ -190,6 +224,7 @@ class NetworkAlias extends FQDNLabel
         }
 
         $createRow            = (isset($options['createRow']) && $options['createRow']);
+        $options['createRow'] = false;
         $alias                = new self();
 
         $iterator = $DB->request([
@@ -204,27 +239,28 @@ class NetworkAlias extends FQDNLabel
                     $row = $row->createRow();
                 }
 
-                $content = '<a href="' . htmlescape($alias->getLinkURL()) . '">'
-                    . htmlescape($alias->getInternetName())
-                    . '</a>';
+                $content = "<a href='" . $alias->getLinkURL() . "'>" . $alias->getInternetName() . "</a>";
                 $row->addCell($header, $content, $father, $alias);
             }
         }
     }
 
+
     /**
-     * Show aliases for an item from its form
-     *
-     * Beware that the rendering can be different if read from direct item form (ie : add new
-     * NetworkAlias, remove, ...) or if read from item of the item (for instance from the computer
+     * \brief Show aliases for an item from its form
+     * Beware that the rendering can be different if readden from direct item form (ie : add new
+     * NetworkAlias, remove, ...) or if readden from item of the item (for instance from the computer
      * form through NetworkPort::ShowForItem and NetworkName::ShowForItem).
      *
-     * @param NetworkName $item
-     * @param int $withtemplate
-     * @return false|void
-     */
+     * @param $item                     NetworkName object
+     * @param $withtemplate   integer   withtemplate param (default 0)
+     **/
     public static function showForNetworkName(NetworkName $item, $withtemplate = 0)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $ID = $item->getID();
@@ -247,37 +283,32 @@ class NetworkAlias extends FQDNLabel
         }
 
         if ($canedit) {
-            echo Html::scriptBlock(
-                "function viewAddAlias$rand() {"
-                . Ajax::updateItemJsCode(
-                    "viewnetworkalias$rand",
-                    $CFG_GLPI["root_doc"] . "/ajax/viewsubitem.php",
-                    [
-                        'type'            => self::class,
-                        'parenttype'      => 'NetworkName',
-                        'networknames_id' => $ID,
-                        'id'              => -1,
-                    ],
-                    display: false
-                )
-                . "};"
+            echo "\n<div class='firstbloc'>";
+            echo "<script type='text/javascript' >\n";
+            echo "function viewAddAlias$rand() {\n";
+            $params = ['type'            => __CLASS__,
+                'parenttype'      => 'NetworkName',
+                'networknames_id' => $ID,
+                'id'              => -1,
+            ];
+            Ajax::updateItemJsCode(
+                "viewnetworkalias$rand",
+                $CFG_GLPI["root_doc"] . "/ajax/viewsubitem.php",
+                $params
             );
-
-            TemplateRenderer::getInstance()->display(
-                'components/tab/addlink_block.html.twig',
-                [
-                    'add_link' => 'javascript:viewAddAlias' . $rand . '();',
-                    'button_label' => __('Add a network alias'),
-                ]
-            );
+            echo "};";
+            echo "</script>";
+            echo "<a class='btn btn-primary' href='javascript:viewAddAlias$rand();'>";
+            echo __('Add a network alias') . "</a>\n";
+            echo "</div>\n";
         }
         echo "<div id='viewnetworkalias$rand'></div>";
 
         echo "<div class='spaced'>";
         if ($canedit && $number) {
-            Html::openMassiveActionsForm('mass' . self::class . $rand);
+            Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
             $massiveactionparams = ['num_displayed' => min($_SESSION['glpilist_limit'], $number),
-                'container'     => 'mass' . self::class . $rand,
+                'container'     => 'mass' . __CLASS__ . $rand,
             ];
             Html::showMassiveActions($massiveactionparams);
         }
@@ -288,60 +319,58 @@ class NetworkAlias extends FQDNLabel
         $header_end    = '';
 
         if ($canedit && $number) {
-            $header_top    .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . self::class . $rand);
+            $header_top    .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
             $header_top    .= "</th>";
-            $header_bottom .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . self::class . $rand);
+            $header_bottom .= "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
             $header_bottom .= "</th>";
         }
-        $header_end .= "<th>" . __s('Name') . "</th>";
-        $header_end .= "<th>" . _sn('Internet domain', 'Internet domains', 1) . "</th>";
-        $header_end .= "<th>" . htmlescape(Entity::getTypeName(1)) . "</th>";
+        $header_end .= "<th>" . __('Name') . "</th>";
+        $header_end .= "<th>" . _n('Internet domain', 'Internet domains', 1) . "</th>";
+        $header_end .= "<th>" . Entity::getTypeName(1) . "</th>";
         $header_end .= "</tr>";
         echo $header_begin . $header_top . $header_end;
 
         foreach ($aliases as $data) {
-            $id = (int) $data['id'];
-
             $showviewjs = ($canedit
-                        ? "style='cursor:pointer' onClick=\"viewEditAlias" . $id . "$rand();\""
+                        ? "style='cursor:pointer' onClick=\"viewEditAlias" . $data['id'] . "$rand();\""
                         : '');
             echo "<tr class='tab_bg_1'>";
             if ($canedit) {
                 echo "<td>";
-                Html::showMassiveActionCheckBox(self::class, $id);
+                Html::showMassiveActionCheckBox(__CLASS__, $data["id"]);
                 echo "</td>";
             }
             $name = $data["name"];
             if ($_SESSION["glpiis_ids_visible"] || empty($data["name"])) {
-                $name = sprintf(__('%1$s (%2$s)'), $name, $id);
+                $name = sprintf(__('%1$s (%2$s)'), $name, $data["id"]);
             }
             echo "<td class='center b' $showviewjs>";
             if ($canedit) {
-                $js = "function viewEditAlias" . $id . "$rand() {";
-                $js .= Ajax::updateItemJsCode(
+                echo "\n<script type='text/javascript' >\n";
+                echo "function viewEditAlias" . $data["id"] . "$rand() {\n";
+                $params = ['type'             => __CLASS__,
+                    'parenttype'       => 'NetworkName',
+                    'networknames_id'  => $ID,
+                    'id'               => $data["id"],
+                ];
+                Ajax::updateItemJsCode(
                     "viewnetworkalias$rand",
                     $CFG_GLPI["root_doc"] . "/ajax/viewsubitem.php",
-                    [
-                        'type'             => self::class,
-                        'parenttype'       => 'NetworkName',
-                        'networknames_id'  => $ID,
-                        'id'               => $id,
-                    ],
-                    display: false
+                    $params
                 );
-                $js .= "};";
-                echo Html::scriptBlock($js);
+                echo "};";
+                echo "</script>\n";
             }
-            echo "<a href='" . htmlescape(static::getFormURLWithID($id)) . "'>" . htmlescape($name) . "</a>";
+            echo "<a href='" . static::getFormURLWithID($data["id"]) . "'>" . $name . "</a>";
             echo "</td>";
-            echo "<td class='center' $showviewjs>" . htmlescape(Dropdown::getDropdownName(
+            echo "<td class='center' $showviewjs>" . Dropdown::getDropdownName(
                 "glpi_fqdns",
                 $data["fqdns_id"]
-            ));
-            echo "<td class='center' $showviewjs>" . htmlescape(Dropdown::getDropdownName(
+            );
+            echo "<td class='center' $showviewjs>" . Dropdown::getDropdownName(
                 "glpi_entities",
                 $data["entities_id"]
-            ));
+            );
             echo "</tr>";
         }
         if ($number) {
@@ -356,16 +385,16 @@ class NetworkAlias extends FQDNLabel
         echo "</div>";
     }
 
+
     /**
      * Show the aliases contained by the alias
      *
-     * @param FQDN $item The FQDN owning the aliases
-     * @param int $withtemplate
-     *
-     * @return void
-     */
-    public static function showForFQDN(FQDN $item, $withtemplate)
+     * @param FQDN       $item          the FQDN owning the aliases
+     * @param integer    $withtemplate  withtemplate param
+     **/
+    public static function showForFQDN(CommonGLPI $item, $withtemplate)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $alias   = new self();
@@ -383,25 +412,25 @@ class NetworkAlias extends FQDNLabel
             $order = "alias";
         }
 
-        $number = countElementsInTable($alias::getTable(), ['fqdns_id' => $item->getID() ]);
+        $number = countElementsInTable($alias->getTable(), ['fqdns_id' => $item->getID() ]);
 
         echo "<br><div class='center'>";
 
         if ($number < 1) {
             echo "<table class='tab_cadre_fixe'>";
-            echo "<tr><th>" . htmlescape(self::getTypeName(1)) . "</th><th>" . __s('No results found') . "</th></tr>";
-            echo "</table>";
+            echo "<tr><th>" . self::getTypeName(1) . "</th><th>" . __('No item found') . "</th></tr>";
+            echo "</table>\n";
         } else {
             Html::printAjaxPager(self::getTypeName($number), $start, $number);
 
             echo "<table class='tab_cadre_fixe'><tr>";
 
-            echo "<th><a href='javascript:reloadTab(\"order=alias\");'>" . htmlescape(self::getTypeName(1))
-              . "</a></th>"; // Alias
-            echo "<th><a href='javascript:reloadTab(\"order=realname\");'>" . __s("Computer's name")
-              . "</a></th>";
-            echo "<th>" . __s('Comments') . "</th>";
-            echo "</tr>";
+            echo "<th><a href='javascript:reloadTab(\"order=alias\");'>" . self::getTypeName(1) .
+              "</a></th>"; // Alias
+            echo "<th><a href='javascript:reloadTab(\"order=realname\");'>" . __("Computer's name") .
+              "</a></th>";
+            echo "<th>" . __('Comments') . "</th>";
+            echo "</tr>\n";
 
             Session::initNavigateListItems(
                 $item->getType(),
@@ -439,36 +468,43 @@ class NetworkAlias extends FQDNLabel
                 Session::addToNavigateListItems($alias->getType(), $data["alias_id"]);
                 if ($address->getFromDB($data["address_id"])) {
                     echo "<tr class='tab_bg_1'>";
-                    echo "<td><a href='" . htmlescape($alias->getFormURLWithID($data['alias_id'])) . "'>"
-                          . htmlescape($data['alias']) . "</a></td>";
-                    echo "<td><a href='" . htmlescape($address->getLinkURL()) . "'>" . htmlescape($address->getInternetName())
-                    . "</a></td>";
-                    echo "<td>" . htmlescape($data['comment']) . "</td>";
-                    echo "</tr>";
+                    echo "<td><a href='" . $alias->getFormURLWithID($data['alias_id']) . "'>" .
+                          $data['alias'] . "</a></td>";
+                    echo "<td><a href='" . $address->getLinkURL() . "'>" . $address->getInternetName() .
+                    "</a></td>";
+                    echo "<td>" . $data['comment'] . "</td>";
+                    echo "</tr>\n";
                 }
             }
 
-            echo "</table>";
+            echo "</table>\n";
             Html::printAjaxPager(self::getTypeName($number), $start, $number);
         }
-        echo "</div>";
+        echo "</div>\n";
     }
+
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        switch ($item::class) {
-            case NetworkName::class:
+
+        switch ($item->getType()) {
+            case 'NetworkName':
+                /** @var NetworkName $item */
                 self::showForNetworkName($item, $withtemplate);
                 break;
-            case FQDN::class:
+
+            case 'FQDN':
+                /** @var FQDN $item */
                 self::showForFQDN($item, $withtemplate);
                 break;
         }
         return true;
     }
 
+
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         if (
             ($item instanceof CommonDBTM)
             && $item->getID()
@@ -476,25 +512,26 @@ class NetworkAlias extends FQDNLabel
         ) {
             $nb = 0;
             if ($_SESSION['glpishow_count_on_tabs']) {
-                switch ($item::class) {
+                switch (get_class($item)) {
                     case NetworkName::class:
                         $nb = countElementsInTable(
-                            static::getTable(),
-                            ['networknames_id' => $item->getID()]
+                            $this->getTable(),
+                            ['networknames_id' => $item->getID() ]
                         );
                         break;
 
                     case FQDN::class:
                         $nb = countElementsInTable(
-                            static::getTable(),
-                            ['fqdns_id' => $item->getID()]
+                            $this->getTable(),
+                            ['fqdns_id' => $item->getID() ]
                         );
                 }
             }
-            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+            return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
         }
         return '';
     }
+
 
     public function rawSearchOptions()
     {

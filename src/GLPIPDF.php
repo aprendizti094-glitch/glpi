@@ -33,16 +33,17 @@
  * ---------------------------------------------------------------------
  */
 
-use function Safe\glob;
-
 /**
  * @since 0.85
  */
 class GLPIPDF extends TCPDF
 {
-    private int $total_count;
+    /**
+     * @var int
+     */
+    private $total_count;
 
-    private static array $default_config = [
+    private static $default_config = [
         'orientation'        => 'P',
         'unit'               => 'mm',
         'mode'               => 'UTF-8',
@@ -59,7 +60,7 @@ class GLPIPDF extends TCPDF
     ];
     private array $config = [];
 
-    public function __construct(array $config = [], ?int $count = null, ?string $title = null, bool $addpage = true)
+    public function __construct(array $config = [], ?int $count = null, ?string $title = null)
     {
         if (
             isset($config['font'])
@@ -85,7 +86,7 @@ class GLPIPDF extends TCPDF
 
         if ($title !== null) {
             $this->SetTitle($title);
-            $this->SetHeaderData('', 0, $title, '');
+            $this->SetHeaderData('', '', $title, '');
         }
 
         $this->SetCreator('GLPI');
@@ -102,22 +103,18 @@ class GLPIPDF extends TCPDF
 
         //set auto page breaks
         $this->SetAutoPageBreak(true, $config['margin_bottom']);
-        if ($addpage === true) {
-            $this->AddPage();
-        }
+        $this->AddPage();
     }
 
     /**
      * Page header
      *
      * @see TCPDF::Header()
-     *
-     * @return void
-    */
-    public function Header()
+    **/
+    public function Header() // phpcs:ignore PSR1.Methods.CamelCapsMethodName
     {
         // Title
-        $this->Cell(0, $this->config['margin_bottom'], $this->title, 0, 0, 'C', false, '', 0, false, 'M', 'M');
+        $this->Cell(0, $this->config['margin_bottom'], $this->title, 0, false, 'C', 0, '', 0, false, 'M', 'M');
     }
 
 
@@ -125,10 +122,8 @@ class GLPIPDF extends TCPDF
      * Page footer
      *
      * @see TCPDF::Footer()
-     *
-     * @return void
-    */
-    public function Footer()
+    **/
+    public function Footer() // phpcs:ignore PSR1.Methods.CamelCapsMethodName
     {
         // Position at 15 mm from bottom
         $this->SetY(-$this->config['margin_bottom']);
@@ -139,7 +134,7 @@ class GLPIPDF extends TCPDF
         $text .= sprintf(" - %s/%s", $this->getAliasNumPage(), $this->getAliasNbPages());
 
         // Page number
-        $this->Cell(0, $this->config['margin_footer'], $text, 0, 0, 'C', false, '', 0, false, 'T', 'M');
+        $this->Cell(0, $this->config['margin_footer'], $text, 0, false, 'C', 0, '', 0, false, 'T', 'M');
     }
 
     /**
@@ -158,10 +153,11 @@ class GLPIPDF extends TCPDF
         // only available inside the function scope, and will so not affect other elements from loop.
         // Also, varibales declared in font file will be automatically garbage collected (some are huge).
         $include_fct = function ($font_path) use (&$list) {
+            $name = null;
+            $type = null;
+
             include $font_path;
 
-            $name ??= null;
-            $type ??= null;
             if ($name === null) {
                 return; // Not a font file
             }
@@ -170,13 +166,13 @@ class GLPIPDF extends TCPDF
 
             // skip subfonts
             if (
-                ((str_ends_with($font, 'b')) || (str_ends_with($font, 'i')))
+                ((substr($font, -1) == 'b') || (substr($font, -1) == 'i'))
                 && isset($list[substr($font, 0, -1)])
             ) {
                 return;
             }
             if (
-                ((str_ends_with($font, 'bi')))
+                ((substr($font, -2) == 'bi'))
                 && isset($list[substr($font, 0, -2)])
             ) {
                 return;
@@ -199,7 +195,7 @@ class GLPIPDF extends TCPDF
     /**
      * Set total results count
      *
-     * @param int $count Total number of results
+     * @param integer $count Total number of results
      *
      * @return GLPIPDF
      */

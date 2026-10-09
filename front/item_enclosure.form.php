@@ -33,13 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
-use Glpi\Exception\Http\BadRequestHttpException;
+include('../inc/includes.php');
 
 Session::checkCentralAccess();
 
-$ien = new Item_Enclosure();
+$ien = new \Item_Enclosure();
 $enclosure = new Enclosure();
 
 if (isset($_POST['update'])) {
@@ -58,13 +56,13 @@ if (isset($_POST['update'])) {
     Html::redirect($url);
 } elseif (isset($_POST['purge'])) {
     $ien->check($_POST['id'], PURGE);
-    $ien->delete($_POST, true);
+    $ien->delete($_POST, 1);
     $url = $enclosure->getFormURLWithID($_POST['enclosures_id']);
     Html::redirect($url);
 }
 
 if (!isset($_REQUEST['enclosure']) && !isset($_REQUEST['id'])) {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie('Lost');
 }
 
 $params = [];
@@ -76,5 +74,5 @@ if (isset($_REQUEST['id'])) {
     ];
 }
 
-$menus = ["assets", Enclosure::class];
+$menus = ["management", "enclosure"];
 Item_Enclosure::displayFullPageForItem($_REQUEST['id'] ?? 0, $menus, $params);

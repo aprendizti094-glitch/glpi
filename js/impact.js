@@ -31,10 +31,6 @@
  * ---------------------------------------------------------------------
  */
 
-/* eslint prefer-arrow-callback: 0 */
-/* eslint prefer-template: 0 */
-/* eslint no-var: 0 */
-
 // Load cytoscape
 var cytoscape = window.cytoscape;
 
@@ -87,7 +83,7 @@ var GLPIImpact = {
     ACTION_EDIT_DEPENDS_COLOR           : 12,
     ACTION_EDIT_IMPACT_COLOR            : 13,
     ACTION_EDIT_IMPACT_AND_DEPENDS_COLOR: 14,
-    ACTION_EDIT_EDGE                    : 15,
+
     // Constans for depth
     DEFAULT_DEPTH: 5,
     MAX_DEPTH: 10,
@@ -148,14 +144,10 @@ var GLPIImpact = {
         editCompoundDialog      : "#edit_compound_dialog",
         editCompoundDialogSave  : '#edit_compound_save',
         editCompoundDialogCancel: '#edit_compound_cancel',
-        editEdgeDialog          : "#edit_edge_dialog",
-        editEdgeDialogSave      : '#edit_edge_save',
-        editEdgeDialogCancel    : '#edit_edge_cancel',
 
         // Inputs
         compoundName         : "input[name=compound_name]",
         compoundColor        : "input[name=compound_color]",
-        edgeName             : "input[name=edge_name]",
         dependsColor         : "input[name=depends_color]",
         impactColor          : "input[name=impact_color]",
         impactAndDependsColor: "input[name=impact_and_depends_color]",
@@ -213,7 +205,6 @@ var GLPIImpact = {
         previousCursor     : "default",
         ctrlDown           : false,
         editCompound       : null,        // Compound being edited
-        editEdge           : null,        // Edge being edited
     },
 
     /**
@@ -324,15 +315,6 @@ var GLPIImpact = {
                 this.cy.filter("node" + this.makeIDSelector(data.id)).data({
                     label: data.oldLabel,
                     color: data.oldColor,
-                });
-                GLPIImpact.cy.trigger("change");
-                break;
-
-            // Revert edit
-            // Available data: id, label, oldLabel
-            case this.ACTION_EDIT_EDGE:
-                this.cy.filter("node" + this.makeIDSelector(data.id)).data({
-                    label: data.oldLabel,
                 });
                 GLPIImpact.cy.trigger("change");
                 break;
@@ -579,14 +561,7 @@ var GLPIImpact = {
                 });
                 GLPIImpact.cy.trigger("change");
                 break;
-                // Reapply edit
-                // Available data : id, label, previousLabel
-            case this.ACTION_EDIT_EDGE:
-                this.cy.filter("node" + this.makeIDSelector(data.id)).data({
-                    label: data.label,
-                });
-                GLPIImpact.cy.trigger("change");
-                break;
+
                 // Remove node from the compound (and delete if needed)
                 // Available data: nodeData, compoundData, children
             case this.ACTION_REMOVE_FROM_COMPOUND:
@@ -859,16 +834,6 @@ var GLPIImpact = {
                     'target-endpoint'          : 'inside-to-node',
                     'source-distance-from-node': '0px',
                     'target-distance-from-node': '0px',
-                }
-            },
-            {
-                selector: 'edge[label]',
-                css: {
-                    'label'        : 'data(label)',
-                    'text-rotation': 'autorotate',
-                    'text-margin-x': '0px',
-                    'text-margin-y': '-10px',
-                    'font-size'    : '0.8em'
                 }
             },
             {
@@ -1148,7 +1113,6 @@ var GLPIImpact = {
         // Load edges
         GLPIImpact.cy.edges().forEach(function(edge) {
             data.edges[edge.data('id')] = {
-                name: edge.data('label'),
                 source: edge.data('source'),
                 target: edge.data('target'),
             };
@@ -1185,27 +1149,14 @@ var GLPIImpact = {
         // First iterate on the edges we had in the initial state
         Object.keys(GLPIImpact.initialState.edges).forEach(function(edgeID) {
             var edge = GLPIImpact.initialState.edges[edgeID];
-            var source = edge.source.split(GLPIImpact.NODE_ID_SEPERATOR);
-            var target = edge.target.split(GLPIImpact.NODE_ID_SEPERATOR);
             if (Object.prototype.hasOwnProperty.call(currentEdges, edgeID)) {
             // If the edge is still here in the current state, nothing happened
-                var currentEdge = currentEdges[edgeID];
-
-                // Check for updates ...
-                if (edge.name != currentEdge.name) {
-                    edgesDelta[edgeID] = {
-                        action: GLPIImpact.DELTA_ACTION_UPDATE,
-                        name  : currentEdge.name,
-                        itemtype_source  : source[0],
-                        items_id_source  : source[1],
-                        itemtype_impacted: target[0],
-                        items_id_impacted: target[1]
-                    };
-                }
-                // Remove it from the currentEdges data so we can skip it later
+            // Remove it from the currentEdges data so we can skip it later
                 delete currentEdges[edgeID];
             } else {
             // If the edge is missing in the current state, it has been deleted
+                var source = edge.source.split(GLPIImpact.NODE_ID_SEPERATOR);
+                var target = edge.target.split(GLPIImpact.NODE_ID_SEPERATOR);
                 edgesDelta[edgeID] = {
                     action           : GLPIImpact.DELTA_ACTION_DELETE,
                     itemtype_source  : source[0],
@@ -1374,29 +1325,21 @@ var GLPIImpact = {
         return [
             {
                 id             : 'goTo',
-                content        : '<i class="ti ti-external-link me-2"></i>' + __("Go to"),
+                content        : '<i class="fas fa-link me-2"></i>' + __("Go to"),
                 tooltipText    : _.unescape(__("Open this element in a new tab")),
                 selector       : 'node[link]',
                 onClickFunction: this.menuOnGoTo
             },
             {
                 id             : 'showOngoing',
-                content        : '<i class="ti ti-alert-circle me-2"></i>' + __("Show ongoing tickets"),
+                content        : '<i class="fas fa-list me-2"></i>' + __("Show ongoing tickets"),
                 tooltipText    : _.unescape(__("Show ongoing tickets for this item")),
                 selector       : 'node[hasITILObjects=1]',
                 onClickFunction: this.menuOnShowOngoing
             },
             {
-                id             : 'editEdge',
-                content        : '<i class="ti ti-edit me-2"></i>' + __("Edge properties..."),
-                tooltipText    : _.unescape(__("Set name for this edge")),
-                selector       : 'edge',
-                onClickFunction: this.menuOnEditEdge,
-                show           : !this.readonly,
-            },
-            {
                 id             : 'editCompound',
-                content        : '<i class="ti ti-edit me-2"></i>' + __("Group properties..."),
+                content        : '<i class="fas fa-edit me-2"></i>' + __("Group properties..."),
                 tooltipText    : _.unescape(__("Set name and/or color for this group")),
                 selector       : 'node:parent',
                 onClickFunction: this.menuOnEditCompound,
@@ -1404,7 +1347,7 @@ var GLPIImpact = {
             },
             {
                 id             : 'removeFromCompound',
-                content        : '<i class="ti ti-home-move me-2"></i>' + __("Remove from group"),
+                content        : '<i class="fas fa-external-link-alt me-2"></i>' + __("Remove from group"),
                 tooltipText    : _.unescape(__("Remove this asset from the group")),
                 selector       : 'node:child',
                 onClickFunction: this.menuOnRemoveFromCompound,
@@ -1412,7 +1355,7 @@ var GLPIImpact = {
             },
             {
                 id             : 'delete',
-                content        : '<i class="ti ti-trash me-2"></i>' + __("Delete"),
+                content        : '<i class="fas fa-trash me-2"></i>' + __("Delete"),
                 tooltipText    : _.unescape(__("Delete element")),
                 selector       : 'node, edge',
                 onClickFunction: this.menuOnDelete,
@@ -1430,7 +1373,7 @@ var GLPIImpact = {
         var nodeID = GLPIImpact.makeID(GLPIImpact.NODE, node.itemtype, node.items_id);
 
         // Check if the node is already on the graph
-        if (GLPIImpact.cy.filter('node[id="' + CSS.escape(nodeID) + '"]').length > 0) {
+        if (GLPIImpact.cy.filter('node[id="' + nodeID + '"]').length > 0) {
             alert(__('This asset already exists.'));
             return;
         }
@@ -1518,47 +1461,6 @@ var GLPIImpact = {
     },
 
     /**
-     * Set up event handlers for the edit edge dialog
-     */
-    prepareEditEdgeDialog: function() {
-        $(this.selectors.editEdgeDialogSave).on('click', function() {
-            var edge = GLPIImpact.eventData.editEdge.target;
-
-            // Save edge name
-            edge.data(
-                'label',
-                $(GLPIImpact.selectors.edgeName).val()
-            );
-
-            // Close dialog
-            $(GLPIImpact.selectors.editEdgeDialog).modal('hide');
-            GLPIImpact.cy.trigger("change");
-
-            // Log for undo
-            if (GLPIImpact.eventData.newEdge == null) {
-                var previousLabel = GLPIImpact.eventData.editEdge.previousLabel;
-
-                GLPIImpact.addToUndo(GLPIImpact.ACTION_EDIT_EDGE, {
-                    id      : edge.data('id'),
-                    label   : edge.data('label'),
-                    oldLabel: previousLabel,
-                });
-            } else {
-                var label = $(GLPIImpact.selectors.edgeName).val();
-
-                GLPIImpact.eventData.newEdge.data.label = label;
-
-                GLPIImpact.addToUndo(
-                    GLPIImpact.ACTION_ADD_EDGE,
-                    _.cloneDeep(GLPIImpact.eventData.newEdge)
-                );
-
-                GLPIImpact.eventData.newEdge = null;
-            }
-        });
-    },
-
-    /**
     * Show the edit compound dialog
     *
     * @param {Object} compound label, color
@@ -1580,27 +1482,6 @@ var GLPIImpact = {
 
         // Show modal
         $(GLPIImpact.selectors.editCompoundDialog).modal('show');
-    },
-
-    /**
-     * Show the edit edge dialog
-     *
-     * @param {Object} edge label
-     */
-    showEditEdgeDialog: function(edge) {
-        var previousLabel = edge.data('label');
-
-        // Reset inputs
-        $(GLPIImpact.selectors.edgeName).val(previousLabel);
-
-        // Set global event data
-        this.eventData.editEdge = {
-            target: edge,
-            previousLabel: previousLabel
-        };
-
-        // Show modal
-        $(GLPIImpact.selectors.editEdgeDialog).modal('show');
     },
 
     /**
@@ -1631,7 +1512,6 @@ var GLPIImpact = {
 
         // Init dialogs actions handlers
         this.prepareEditCompoundDialog();
-        this.prepareEditEdgeDialog();
 
         this.initToolbar();
     },
@@ -1713,7 +1593,7 @@ var GLPIImpact = {
             gridSpacing: 12,
             drawGrid: true,
             panGrid: true,
-            gridColor: getComputedStyle(document.documentElement).getPropertyValue('--tblr-border-color'),
+            gridColor: getComputedStyle(document.documentElement).getPropertyValue('--card-border-color'),
         });
 
         // Disable box selection as we don't need it
@@ -2021,7 +1901,7 @@ var GLPIImpact = {
             GLPIImpact.maxDepth = GLPIImpact.NO_DEPTH_LIMIT;
         }
 
-        $(GLPIImpact.selectors.maxDepthView).text(max);
+        $(GLPIImpact.selectors.maxDepthView).html(max);
         GLPIImpact.updateStyle();
         GLPIImpact.cy.trigger("change");
     },
@@ -2079,7 +1959,7 @@ var GLPIImpact = {
         for (i=0; i<graph.length; i++) {
             var id = graph[i].data.id;
             // Check that the element is not already on the graph,
-            if (this.cy.filter('[id="' + CSS.escape(id) + '"]').length > 0) {
+            if (this.cy.filter('[id="' + id + '"]').length > 0) {
                 continue;
             }
             // Store node to add them at once with a layout
@@ -2090,7 +1970,7 @@ var GLPIImpact = {
                 var node_info = graph[i].data.id.split(GLPIImpact.NODE_ID_SEPERATOR);
                 var itemtype = node_info[0];
                 var items_id = node_info[1];
-                $("p[data-id=" + CSS.escape(items_id) + "][data-type='" + CSS.escape(itemtype) + "']").remove();
+                $("p[data-id=" + items_id + "][data-type='" + itemtype + "']").remove();
             }
         }
 
@@ -2611,10 +2491,10 @@ var GLPIImpact = {
     * @returns {string}
     */
     buildOngoingDialogContent: function(ITILObjects) {
-        return this.listElements(_.unescape(__("Requests")), ITILObjects.requests, "ticket")
-         + this.listElements(_.unescape(__("Incidents")), ITILObjects.incidents, "ticket")
-         + this.listElements(_.unescape(__("Changes")), ITILObjects.changes , "change")
-         + this.listElements(_.unescape(__("Problems")), ITILObjects.problems, "problem");
+        return this.listElements(__("Requests"), ITILObjects.requests, "ticket")
+         + this.listElements(__("Incidents"), ITILObjects.incidents, "ticket")
+         + this.listElements(__("Changes"), ITILObjects.changes , "change")
+         + this.listElements(__("Problems"), ITILObjects.problems, "problem");
     },
 
     /**
@@ -2630,12 +2510,12 @@ var GLPIImpact = {
         var html = "";
 
         if (elements.length > 0) {
-            html += "<h3>" + _.escape(title) + "</h3>";
+            html += "<h3>" + title + "</h3>";
             html += "<ul>";
 
             elements.forEach(function(element) {
                 var link = CFG_GLPI.root_doc + "/front/" + url + ".form.php?id=" + element.id;
-                html += '<li><a target="_blank" href="' + _.escape(link) + '">' + _.escape(element.name)
+                html += '<li><a target="_blank" href="' + link + '">' + element.name
                + '</a></li>';
             });
             html += "</ul>";
@@ -2644,7 +2524,7 @@ var GLPIImpact = {
     },
 
     /**
-    * Add a compound from the selected nodes
+    * Add a new compound from the selected nodes
     */
     addCompoundFromSelection: _.debounce(function(){
         // Check that there is enough selected nodes
@@ -2838,26 +2718,16 @@ var GLPIImpact = {
                 hit = true;
 
                 if (trigger) {
-                    let target = badgeHitboxDetails.target;
+                    var target = badgeHitboxDetails.target;
 
-                    let next_criteria = 0;
-                    if (badgeHitboxDetails.id_option) {
-                        // Add items_id/itemtype metacriteria since we know the ID field for the asset type
-                        target += `&criteria[0][link]=AND&criteria[0][field]=${badgeHitboxDetails.id_option}&criteria[0][itemtype]=${badgeHitboxDetails.itemtype}&criteria[0][meta]=1&criteria[0][searchtype]=contains&criteria[0][value]=${badgeHitboxDetails.id}`;
-                        next_criteria = 1;
-                    } else {
-                        // Asset type doesn't have an ID metacriteria that we know of so fallback to the options directly on the ITIL item
-                        // Add items_id criteria
-                        target += `&criteria[0][link]=AND&criteria[0][field]=13&criteria[0][searchtype]=contains&criteria[0][value]=${badgeHitboxDetails.id}`;
-                        // Add itemtype criteria
-                        target += `&criteria[1][link]=AND&criteria[1][field]=131&criteria[1][searchtype]=equals&criteria[1][value]=${badgeHitboxDetails.itemtype}`;
-                        next_criteria = 2;
-                    }
-
+                    // Add items_id criteria
+                    target += "&criteria[0][link]=AND&criteria[0][field]=13&criteria[0][searchtype]=contains&criteria[0][value]=" + badgeHitboxDetails.id;
+                    // Add itemtype criteria
+                    target += "&criteria[1][link]=AND&criteria[1][field]=131&criteria[1][searchtype]=equals&criteria[1][value]=" + badgeHitboxDetails.itemtype;
                     // Add type criteria (incident)
-                    target += `&criteria[${next_criteria}][link]=AND&criteria[${next_criteria}][field]=14&criteria[${next_criteria}][searchtype]=equals&criteria[${next_criteria}][value]=1`;
+                    target += "&criteria[2][link]=AND&criteria[2][field]=14&criteria[2][searchtype]=equals&criteria[2][value]=1";
                     // Add status criteria (not solved)
-                    target += `&criteria[${next_criteria + 1}][link]=AND&criteria[${next_criteria + 1}][field]=12&criteria[${next_criteria + 1}][searchtype]=equals&criteria[${next_criteria + 1}][value]=notold`;
+                    target += "&criteria[3][link]=AND&criteria[3][field]=12&criteria[3][searchtype]=equals&criteria[3][value]=notold";
 
                     if (blank) {
                         window.open(target);
@@ -3569,8 +3439,8 @@ var GLPIImpact = {
                 event.target.select();
 
                 if (event.target.isNode()){
-                    var sourceFilter = "edge[source='" + CSS.escape(id) + "']";
-                    var targetFilter = "edge[target='" + CSS.escape(id) + "']";
+                    var sourceFilter = "edge[source='" + id + "']";
+                    var targetFilter = "edge[target='" + id + "']";
                     event.cy.filter(sourceFilter + ", " + targetFilter)
                         .data('todelete', 1)
                         .select();
@@ -3677,15 +3547,6 @@ var GLPIImpact = {
     },
 
     /**
-     * Handle "EditEdge" menu event
-     *
-     * @param {JQuery.Event} event
-     */
-    menuOnEditEdge: function (event) {
-        GLPIImpact.showEditEdgeDialog(event.target);
-    },
-
-    /**
     * Handler for "delete" menu action
     *
     * @param {JQuery.Event} event
@@ -3734,12 +3595,12 @@ var GLPIImpact = {
                         cssClass = "impact-res-disabled";
                     }
 
-                    var str = '<p class="' + cssClass + '" data-id="' + _.escape(value['id']) + '" data-type="' + _.escape(itemtype) + '">';
-                    str += `<img src='${_.escape(value['image'])}'></img>`;
-                    str += _.escape(value["name"]);
+                    var str = '<p class="' + cssClass + '" data-id="' + value['id'] + '" data-type="' + itemtype + '">';
+                    str += '<img src="' + $(GLPIImpact.selectors.sideSearch + " img").attr('src') + '"></img>';
+                    str += value["name"];
 
                     if (isHidden) {
-                        str += '<i class="ti ti-eye-off impact-res-hidden"></i>';
+                        str += '<i class="fas fa-eye-slash impact-res-hidden"></i>';
                     }
 
                     str += "</p>";
@@ -3882,17 +3743,17 @@ var GLPIImpact = {
             });
         });
 
-        // Add a node on the graph
+        // Add a new node on the graph
         $(GLPIImpact.selectors.addNode).click(function() {
             GLPIImpact.setEditionMode(GLPIImpact.EDITION_ADD_NODE);
         });
 
-        // Add a edge on the graph
+        // Add a new edge on the graph
         $(GLPIImpact.selectors.addEdge).click(function() {
             GLPIImpact.setEditionMode(GLPIImpact.EDITION_ADD_EDGE);
         });
 
-        // Add a compound on the graph
+        // Add a new compound on the graph
         $(GLPIImpact.selectors.addCompound).click(function() {
             GLPIImpact.setEditionMode(GLPIImpact.EDITION_ADD_COMPOUND);
         });
@@ -3985,7 +3846,7 @@ var GLPIImpact = {
             $(GLPIImpact.selectors.sideSearch).show();
             $(GLPIImpact.selectors.sideSearch + " img").attr('title', $(img).attr('title'));
             $(GLPIImpact.selectors.sideSearch + " img").attr('src', $(img).attr('src'));
-            $(GLPIImpact.selectors.sideSearch + " > h4 > span").html(_.escape($(img).attr('title')));
+            $(GLPIImpact.selectors.sideSearch + " > h4 > span").html($(img).attr('title'));
             $(GLPIImpact.selectors.sideSearchSelectItemtype).hide();
 
             // Empty search
@@ -4160,8 +4021,13 @@ var GLPIImpact = {
                     return;
                 }
 
-                const bg_color = window.tinycolor(node.data('badge').color);
-                const rgb = bg_color.toRgb();
+                // Set badge color, adjust contract as needed (target ratio is > 1.8)
+                var rgb = hexToRgb(node.data('badge').color);
+                while (contrast([255, 255, 255], [rgb.r, rgb.g, rgb.b]) < 1.8) {
+                    rgb.r *= 0.95;
+                    rgb.g *= 0.95;
+                    rgb.b *= 0.95;
+                }
 
                 // Set badge position (bottom right corner of the node)
                 var bbox = node.renderedBoundingBox({
@@ -4180,7 +4046,6 @@ var GLPIImpact = {
                     target  : node.data('badge').target,
                     itemtype: node.data('id').split(GLPIImpact.NODE_ID_SEPERATOR)[0],
                     id      : node.data('id').split(GLPIImpact.NODE_ID_SEPERATOR)[1],
-                    id_option: node.data('id_option'),
                 });
 
                 // Draw the badge
@@ -4189,9 +4054,14 @@ var GLPIImpact = {
                 ctx.fillStyle = "rgb(" + rgb.r + ", " + rgb.g + ", " + rgb.b + ")";
                 ctx.fill();
 
-                ctx.fillStyle = window.tinycolor.mostReadable(bg_color, window.tinycolor(bg_color).monochromatic(), {
-                    includeFallbackColors: true
-                }).toHexString();
+                // Check if text should be light or dark by calculating the
+                // grayscale of the background color
+                var greyscale = (
+                    Math.round(rgb.r * 299)
+               + Math.round(rgb.g * 587)
+               + Math.round(rgb.b * 114)
+                ) / 1000;
+                ctx.fillStyle = (greyscale >= 138) ? '#4e4e4e' : 'white';
 
                 // Print number
                 ctx.font = 6 * GLPIImpact.cy.zoom() + "px sans-serif";
@@ -4204,7 +4074,5 @@ var GLPIImpact = {
         });
     }
 };
-// Explicitly bind to the `window` object for Jest tests
-window.GLPIImpact = GLPIImpact;
 
-var searchAssetsDebounced = _.debounce(window.GLPIImpact.searchAssets, 400, false);
+var searchAssetsDebounced = _.debounce(GLPIImpact.searchAssets, 400, false);

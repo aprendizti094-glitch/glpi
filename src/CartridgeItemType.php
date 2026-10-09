@@ -33,9 +33,7 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * Class CartridgeItemType
- **/
+/// Class CartridgeItemType
 class CartridgeItemType extends CommonType
 {
     public static function getTypeName($nb = 0)

@@ -33,14 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * @extends NotificationTarget<SavedSearch_Alert>
- */
 class NotificationTargetSavedSearch_Alert extends NotificationTarget
 {
-    #[Override]
     public function getEvents()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $events = [];
@@ -54,7 +51,7 @@ class NotificationTargetSavedSearch_Alert extends NotificationTarget
 
         if ($iterator->numRows()) {
             foreach ($iterator as $row) {
-                if (str_contains($row['event'], 'alert_')) {
+                if (strpos($row['event'], 'alert_') !== false) {
                     $search = new SavedSearch();
                     $search->getFromDB(str_replace('alert_', '', $row['event']));
                     $events[$row['event']] = sprintf(
@@ -70,19 +67,23 @@ class NotificationTargetSavedSearch_Alert extends NotificationTarget
         return $events;
     }
 
+
     public function addDataForTemplate($event, $options = [])
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
         $events = $this->getEvents();
+
+        $savedsearch_alert = $options['item'];
         /** @var SavedSearch $savedsearch */
         $savedsearch = $options['savedsearch'];
 
         $this->data['##savedsearch.action##']    = $events[$event];
         $this->data['##savedsearch.name##']      = $savedsearch->getField('name');
         $this->data['##savedsearch.message##']   = $options['msg'];
-        $this->data['##savedsearch.id##']        = (string) $savedsearch->getID();
-        $this->data['##savedsearch.count##']     = (string) $options['data']['totalcount'];
+        $this->data['##savedsearch.id##']        = $savedsearch->getID();
+        $this->data['##savedsearch.count##']     = (int) $options['data']['totalcount'];
         $this->data['##savedsearch.type##']      = $savedsearch->getField('itemtype');
         $url = $savedsearch::getSearchURL(false) . "?action=load&id=" . $savedsearch->getID();
         $this->data['##savedsearch.url##']       = $this->formatURL($options['additionnaloption']['usertype'], $url);
@@ -95,7 +96,7 @@ class NotificationTargetSavedSearch_Alert extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
         $tags = [
@@ -117,7 +118,7 @@ class NotificationTargetSavedSearch_Alert extends NotificationTarget
         asort($this->tag_descriptions);
     }
 
-    #[Override]
+
     public function addNotificationTargets($entity)
     {
         if ($this->raiseevent == 'alert') {
@@ -127,7 +128,7 @@ class NotificationTargetSavedSearch_Alert extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function addSpecificTargets($data, $options)
     {
         //Look for all targets whose type is Notification::ITEM_USER

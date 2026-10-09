@@ -45,34 +45,38 @@ class DeviceControl extends CommonDevice
         return _n('Controller', 'Controllers', $nb);
     }
 
+
     public function getAdditionalFields()
     {
+
         return array_merge(
             parent::getAdditionalFields(),
-            [
-                [
-                    'name'  => 'is_raid',
-                    'label' => __('RAID'),
-                    'type'  => 'bool',
-                ],
-                [
-                    'name'  => 'interfacetypes_id',
+            [['name'  => 'is_raid',
+                'label' => __('RAID'),
+                'type'  => 'bool',
+            ],
+                ['name'  => 'interfacetypes_id',
                     'label' => __('Interface'),
                     'type'  => 'dropdownValue',
                 ],
-                [
-                    'name'  => 'devicecontrolmodels_id',
+                ['name'  => 'devicecontrolmodels_id',
                     'label' => _n('Model', 'Models', 1),
                     'type'  => 'dropdownValue',
                 ],
-                [
-                    'name'  => 'none',
-                    'label' => RegisteredID::getTypeName(Session::getPluralNumber()),
+                ['name'  => 'none',
+                    'label' => RegisteredID::getTypeName(Session::getPluralNumber()) .
+                                        RegisteredID::showAddChildButtonForItemForm(
+                                            $this,
+                                            '_registeredID',
+                                            null,
+                                            false
+                                        ),
                     'type'  => 'registeredIDChooser',
                 ],
             ]
         );
     }
+
 
     public function rawSearchOptions()
     {
@@ -80,7 +84,7 @@ class DeviceControl extends CommonDevice
 
         $tab[] = [
             'id'                 => '12',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_raid',
             'name'               => __('RAID'),
             'datatype'           => 'bool',
@@ -105,6 +109,7 @@ class DeviceControl extends CommonDevice
         return $tab;
     }
 
+
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -120,13 +125,14 @@ class DeviceControl extends CommonDevice
         }
 
         switch ($itemtype) {
-            case Computer::class:
-                Manufacturer::getHTMLTableHeader(self::class, $base, $super, $father, $options);
-                InterfaceType::getHTMLTableHeader(self::class, $base, $super, $father, $options);
+            case 'Computer':
+                Manufacturer::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
+                InterfaceType::getHTMLTableHeader(__CLASS__, $base, $super, $father, $options);
 
                 break;
         }
     }
+
 
     public function getHTMLTableCellForItem(
         ?HTMLTableRow $row = null,
@@ -134,22 +140,23 @@ class DeviceControl extends CommonDevice
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
+
         $column = parent::getHTMLTableCellForItem($row, $item, $father, $options);
 
         if ($column == $father) {
             return $father;
         }
 
-        switch ($item::class) {
-            case Computer::class:
+        switch ($item->getType()) {
+            case 'Computer':
                 Manufacturer::getHTMLTableCellsForItem($row, $this, null, $options);
                 InterfaceType::getHTMLTableCellsForItem($row, $this, null, $options);
         }
-        return $column;
     }
+
 
     public static function getIcon()
     {
-        return "ti ti-cpu";
+        return "fas fa-microchip";
     }
 }

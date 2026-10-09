@@ -147,6 +147,7 @@ class RequestType extends CommonDropdown
 
     public function post_addItem()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $update = [];
@@ -184,6 +185,7 @@ class RequestType extends CommonDropdown
      **/
     public function post_updateItem($history = true)
     {
+        /** @var \DBmysql $DB */
         global $DB;
         $update = [];
 
@@ -191,7 +193,7 @@ class RequestType extends CommonDropdown
             if ($this->input["is_helpdesk_default"]) {
                 $update['is_helpdesk_default'] = 0;
             } else {
-                Session::addMessageAfterRedirect(__s('Be careful: there is no default value'), true);
+                Session::addMessageAfterRedirect(__('Be careful: there is no default value'), true);
             }
         }
 
@@ -199,7 +201,7 @@ class RequestType extends CommonDropdown
             if ($this->input["is_followup_default"]) {
                 $update['is_followup_default'] = 0;
             } else {
-                Session::addMessageAfterRedirect(__s('Be careful: there is no default value'), true);
+                Session::addMessageAfterRedirect(__('Be careful: there is no default value'), true);
             }
         }
 
@@ -207,7 +209,7 @@ class RequestType extends CommonDropdown
             if ($this->input["is_mail_default"]) {
                 $update['is_mail_default'] = 0;
             } else {
-                Session::addMessageAfterRedirect(__s('Be careful: there is no default value'), true);
+                Session::addMessageAfterRedirect(__('Be careful: there is no default value'), true);
             }
         }
 
@@ -215,7 +217,7 @@ class RequestType extends CommonDropdown
             if ($this->input["is_mailfollowup_default"]) {
                 $update['is_mailfollowup_default'] = 0;
             } else {
-                Session::addMessageAfterRedirect(__s('Be careful: there is no default value'), true);
+                Session::addMessageAfterRedirect(__('Be careful: there is no default value'), true);
             }
         }
 
@@ -234,20 +236,20 @@ class RequestType extends CommonDropdown
     /**
      * Get the default request type for a given source (mail, helpdesk)
      *
-     * @param string $source
+     * @param $source string
      *
-     * @return int requesttypes_id
-     */
+     * @return integer requesttypes_id
+     **/
     public static function getDefault($source)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         if (!in_array($source, ['mail', 'mailfollowup', 'helpdesk', 'followup'])) {
             return 0;
         }
 
-        $types = $DB->request(['FROM' => self::getTable(), 'WHERE' => ['is_' . $source . '_default' => 1, 'is_active' => 1]]);
-        foreach ($types as $data) {
+        foreach ($DB->request(self::getTable(), ['is_' . $source . '_default' => 1, 'is_active' => 1]) as $data) {
             return $data['id'];
         }
         return 0;
@@ -292,7 +294,7 @@ class RequestType extends CommonDropdown
     /**
      * Check if type is used as default for new tickets.
      *
-     * @return bool
+     * @return boolean
      */
     private function isUsedAsDefaultRequestType()
     {

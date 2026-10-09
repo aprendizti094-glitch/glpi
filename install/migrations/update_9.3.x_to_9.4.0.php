@@ -35,20 +35,24 @@
 /**
  * Update from 9.3 to 9.4
  *
- * @return bool
+ * @return bool for success (will die for most error)
  **/
 function update93xto940()
 {
     /**
-     * @var DBmysql $DB
-     * @var Migration $migration
+     * @var \DBmysql $DB
+     * @var \Migration $migration
      */
     global $DB, $migration;
+    $dbutils = new DbUtils();
 
+    $current_config   = Config::getConfigurationValues('core');
     $updateresult     = true;
     $ADDTODISPLAYPREF = [];
     $config_to_drop = [];
 
+    //TRANS: %s is the number of new version
+    $migration->displayTitle(sprintf(__('Update to %s'), '9.4.0'));
     $migration->setVersion('9.4.0');
 
     /** Add otherserial field on ConsumableItem */
@@ -82,12 +86,12 @@ function update93xto940()
         'condition'    => 3,
         'entities_id'  => 0,
         'uuid'         => 'fbeb1115-7a37b143-5a3a6fc1afdc17.92779763',
-        'match'        => Rule::AND_MATCHING,
+        'match'        => \Rule::AND_MATCHING,
     ];
     $criteria = [
-        ['criteria' => '_itemtype', 'condition' => Rule::PATTERN_IS, 'pattern' => 'Computer'],
-        ['criteria' => '_auto', 'condition' => Rule::PATTERN_IS, 'pattern' => 1],
-        ['criteria' => 'contact', 'condition' => Rule::REGEX_MATCH, 'pattern' => '/(.*)@/'],
+        ['criteria' => '_itemtype', 'condition' => \Rule::PATTERN_IS, 'pattern' => 'Computer'],
+        ['criteria' => '_auto', 'condition' => \Rule::PATTERN_IS, 'pattern' => 1],
+        ['criteria' => 'contact', 'condition' => \Rule::REGEX_MATCH, 'pattern' => '/(.*)@/'],
     ];
     $action = [['action_type' => 'regex_result', 'field' => '_affect_user_by_regex', 'value' => '#0']];
     $migration->createRule($rule, $criteria, $action);
@@ -99,12 +103,12 @@ function update93xto940()
         'condition'    => 3,
         'entities_id'  => 0,
         'uuid'         => 'fbeb1115-7a37b143-5a3a6fc1b03762.88595154',
-        'match'        => Rule::AND_MATCHING,
+        'match'        => \Rule::AND_MATCHING,
     ];
     $criteria = [
-        ['criteria' => '_itemtype', 'condition' => Rule::PATTERN_IS, 'pattern' => 'Computer'],
-        ['criteria' => '_auto', 'condition' => Rule::PATTERN_IS, 'pattern' => 1],
-        ['criteria' => 'contact', 'condition' => Rule::REGEX_MATCH, 'pattern' => '/(.*),/'],
+        ['criteria' => '_itemtype', 'condition' => \Rule::PATTERN_IS, 'pattern' => 'Computer'],
+        ['criteria' => '_auto', 'condition' => \Rule::PATTERN_IS, 'pattern' => 1],
+        ['criteria' => 'contact', 'condition' => \Rule::REGEX_MATCH, 'pattern' => '/(.*),/'],
     ];
     $migration->createRule($rule, $criteria, $action);
 
@@ -115,17 +119,17 @@ function update93xto940()
         'condition'    => 3,
         'entities_id'  => 0,
         'uuid'         => 'fbeb1115-7a37b143-5a3a6fc1b073e1.16257440',
-        'match'        => Rule::AND_MATCHING,
+        'match'        => \Rule::AND_MATCHING,
     ];
     $criteria = [
-        ['criteria' => '_itemtype', 'condition' => Rule::PATTERN_IS, 'pattern' => 'Computer'],
-        ['criteria' => '_auto', 'condition' => Rule::PATTERN_IS, 'pattern' => 1],
-        ['criteria' => 'contact', 'condition' => Rule::REGEX_MATCH, 'pattern' => '/(.*)/'],
+        ['criteria' => '_itemtype', 'condition' => \Rule::PATTERN_IS, 'pattern' => 'Computer'],
+        ['criteria' => '_auto', 'condition' => \Rule::PATTERN_IS, 'pattern' => 1],
+        ['criteria' => 'contact', 'condition' => \Rule::REGEX_MATCH, 'pattern' => '/(.*)/'],
     ];
     $migration->createRule($rule, $criteria, $action);
 
     if (!countElementsInTable('glpi_profilerights', ['profiles_id' => 4, 'name' => 'rule_asset'])) {
-        $DB->insert("glpi_profilerights", [
+        $DB->insertOrDie("glpi_profilerights", [
             'id'           => null,
             'profiles_id'  => "4",
             'name'         => "rule_asset",
@@ -198,13 +202,13 @@ function update93xto940()
     }
     /** Add watcher visibility to groups */
 
-    $migration->removeConfig($config_to_drop);
+    Config::deleteConfigurationValues('core', $config_to_drop);
 
     // Add a config entry for the CAS version
     $migration->addConfig(['cas_version' => 'CAS_VERSION_2_0']);
 
     /** Drop old embed ocs search options */
-    $DB->delete(
+    $DB->deleteOrDie(
         'glpi_displaypreferences',
         [
             'itemtype'  => 'Computer',
@@ -235,7 +239,7 @@ function update93xto940()
         '95'  => '117',
     ];
     foreach ($so_maping as $old => $new) {
-        $DB->update(
+        $DB->updateOrDie(
             'glpi_displaypreferences',
             [
                 'num' => $new,

@@ -33,26 +33,27 @@
  * ---------------------------------------------------------------------
  */
 
-use Safe\Exceptions\JsonException;
+use Glpi\Toolbox\Sanitizer;
 
-use function Safe\json_encode;
+include('../inc/includes.php');
 
 header('Content-Type: application/json; charset=UTF-8');
 Html::header_nocache();
 
-$raw_itillayout  = $_POST['itil_layout'];
+Session::checkLoginUser();
 
-try {
-    $json_itillayout = json_encode($raw_itillayout);
-} catch (JsonException $e) {
-    return;
+$raw_itillayout  = Sanitizer::unsanitize($_POST['itil_layout']);
+
+$json_itillayout = json_encode($raw_itillayout);
+if ($json_itillayout === false) {
+    exit;
 }
 
 $user = new User();
 $success = $user->update(
     [
         'id' => Session::getLoginUserID(),
-        'itil_layout' => $json_itillayout,
+        'itil_layout' => Sanitizer::dbEscape($json_itillayout),
     ]
 );
 echo json_encode(['success' => $success]);

@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QuerySubQuery;
-
 /**
  * @since 10.0.0
  */
@@ -66,11 +64,6 @@ class CleanSoftwareCron extends CommonDBTM
         return __('Max items to handle in one execution');
     }
 
-    /**
-     * @param string $name
-     *
-     * @return array
-     */
     public static function cronInfo($name)
     {
         return [
@@ -82,7 +75,7 @@ class CleanSoftwareCron extends CommonDBTM
     /**
      * Clean unused software and software versions
      *
-     * @param ?int $max Max items to handle
+     * @param int $max Max items to handle
      * @return int Number of deleted items
      */
     public static function run(?int $max): int
@@ -112,8 +105,6 @@ class CleanSoftwareCron extends CommonDBTM
      * Run from cronTask
      *
      * @param CronTask $task
-     *
-     * @return int
      */
     public static function cronCleanSoftware(CronTask $task)
     {
@@ -200,6 +191,7 @@ class CleanSoftwareCron extends CommonDBTM
         CommonDBTM $em,
         int $max
     ): int {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $total = 0;

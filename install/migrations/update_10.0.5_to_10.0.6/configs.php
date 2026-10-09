@@ -33,8 +33,10 @@
  */
 
 /**
- * @var Migration $migration
+ * @var \Migration $migration
  */
+
+$migration->displayMessage('Add new configurations / user preferences');
 $migration->addConfig([
     'timeline_action_btn_layout'   => 0,
     'timeline_date_format'   => 0,

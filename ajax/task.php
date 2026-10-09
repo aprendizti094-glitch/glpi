@@ -37,63 +37,60 @@
  * @since 9.1
  */
 
-use Glpi\Exception\Http\BadRequestHttpException;
+use Glpi\Http\Response;
 
-use function Safe\json_encode;
+$AJAX_INCLUDE = 1;
 
+include('../inc/includes.php');
 header("Content-Type: application/json; charset=UTF-8");
 Html::header_nocache();
+
+Session::checkLoginUser();
 
 // Mandatory parameter: tasktemplates_id
 $tasktemplates_id = $_POST['tasktemplates_id'] ?? null;
 if ($tasktemplates_id === null) {
-    throw new BadRequestHttpException("Missing or invalid parameter: 'tasktemplates_id'");
+    Response::sendError(400, "Missing or invalid parameter: 'tasktemplates_id'");
 } elseif ($tasktemplates_id == 0) {
     // Reset form
     echo json_encode([
         'content' => "",
     ]);
-    return;
+    die;
 }
 
-// Optional parameter: items_id (0 = massive action context, no parent to load)
-$parents_id = (int) ($_POST['items_id'] ?? 0);
+// Mandatory parameter: items_id
+$parents_id = $_POST['items_id'] ?? 0;
+if (!$parents_id) {
+    Response::sendError(400, "Missing or invalid parameter: 'items_id'");
+}
 
-// Optional parameter: itemtype
-$parents_itemtype = (string) ($_POST['itemtype'] ?? '');
+// Mandatory parameter: itemtype
+$parents_itemtype = $_POST['itemtype'] ?? '';
+if (empty($parents_itemtype) || !is_subclass_of($parents_itemtype, CommonITILObject::class)) {
+    Response::sendError(400, "Missing or invalid parameter: 'itemtype'");
+}
 
 // Load task template
 $template = new TaskTemplate();
 if (!$template->getFromDB($tasktemplates_id)) {
-    throw new BadRequestHttpException("Unable to load template: $tasktemplates_id");
+    Response::sendError(400, "Unable to load template: $tasktemplates_id");
 }
 
-// Load parent item (optional: not available in massive action context)
-$parent = null;
-if ($parents_itemtype !== '') {
-    if (!is_subclass_of($parents_itemtype, CommonITILObject::class)) {
-        throw new BadRequestHttpException("Missing or invalid parameter: 'itemtype'");
-    }
-    $parent = new $parents_itemtype();
-    if ($parents_id > 0) {
-        if (!$parent->getFromDB($parents_id)) {
-            throw new BadRequestHttpException(
-                sprintf(
-                    'Unable to load parent item: %s %s',
-                    $parents_itemtype,
-                    $parents_id
-                )
-            );
-        }
-        $template->fields['content'] = $template->getRenderedContent($parent);
-    }
+// Load parent item
+$parent = new $parents_itemtype();
+if (!$parent->getFromDB($parents_id)) {
+    Response::sendError(400, "Unable to load parent item: $parents_itemtype $parents_id");
 }
+
+// Render template content using twig
+$template->fields['content'] = $template->getRenderedContent($parent);
 
 //load taskcategorie name (use to create OPTION dom)
 //need when template is used and when GLPI preselected type if defined
 $template->fields['taskcategories_name'] = "";
 if ($template->fields['taskcategories_id']) {
-    $entityRestrict = getEntitiesRestrictCriteria(getTableForItemType(TaskCategory::getType()), "", $parent?->fields['entities_id'] ?? null, true);
+    $entityRestrict = getEntitiesRestrictCriteria(getTableForItemType(TaskCategory::getType()), "", $parent->fields['entities_id'], true);
 
     $taskcategory = new TaskCategory();
     if (
@@ -104,7 +101,7 @@ if ($template->fields['taskcategories_id']) {
         $template->fields['taskcategories_name'] = Dropdown::getDropdownName(
             getTableForItemType(TaskCategory::getType()),
             $template->fields['taskcategories_id'],
-            false,
+            0,
             true,
             false,
             //default value like "(id)" is the default behavior of GLPI when field 'name' is empty
@@ -113,23 +110,12 @@ if ($template->fields['taskcategories_id']) {
     }
 }
 
-if (($template->fields['pendingreasons_id'] ?? 0) > 0) {
-    $pendingReason = new PendingReason();
-    if ($pendingReason->getFromDB($template->fields['pendingreasons_id'])) {
-        $template->fields = array_merge($template->fields, [
-            'pendingreasons_name'         => $pendingReason->fields['name'],
-            'followup_frequency'          => $pendingReason->fields['followup_frequency'],
-            'followups_before_resolution' => $pendingReason->fields['followups_before_resolution'],
-        ]);
-    }
-}
-
 if ($template->fields['groups_id_tech'] == 0) {
     unset($template->fields['groups_id_tech']);
 }
 
-if ($template->fields['users_id_tech'] == -1) {
-    $template->fields['users_id_tech'] = Session::getLoginUserID();
+if ($template->fields['users_id_tech'] == 0) {
+    unset($template->fields['users_id_tech']);
 }
 
 // Return json response with the template fields

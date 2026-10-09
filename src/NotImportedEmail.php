@@ -33,8 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-
 /**
  * NotImportedEmail Class
  **/
@@ -48,10 +46,6 @@ class NotImportedEmail extends CommonDBTM
     public const FAILED_INSERT     = self::FAILED_OPERATION;
     public const NOT_ENOUGH_RIGHTS = 3;
 
-    public static function canPurge(): bool
-    {
-        return self::canUpdate();
-    }
 
     public function getForbiddenStandardMassiveAction()
     {
@@ -69,11 +63,10 @@ class NotImportedEmail extends CommonDBTM
         return _n('Refused email', 'Refused emails', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['config', MailCollector::class, self::class];
-    }
 
+    /**
+     * @see CommonDBTM::getSpecificMassiveActions()
+     **/
     public function getSpecificMassiveActions($checkitem = null)
     {
 
@@ -81,13 +74,19 @@ class NotImportedEmail extends CommonDBTM
         $actions = parent::getSpecificMassiveActions($checkitem);
 
         if ($isadmin) {
-            $prefix                          = self::class . MassiveAction::CLASS_ACTION_SEPARATOR;
-            $actions[$prefix . 'delete_email'] = __s('Delete emails');
-            $actions[$prefix . 'import_email'] = _sx('button', 'Import');
+            $prefix                          = __CLASS__ . MassiveAction::CLASS_ACTION_SEPARATOR;
+            $actions[$prefix . 'delete_email'] = __('Delete emails');
+            $actions[$prefix . 'import_email'] = _x('button', 'Import');
         }
         return $actions;
     }
 
+
+    /**
+     * @since 0.85
+     *
+     * @see CommonDBTM::showMassiveActionsSubForm()
+     **/
     public static function showMassiveActionsSubForm(MassiveAction $ma)
     {
 
@@ -101,6 +100,12 @@ class NotImportedEmail extends CommonDBTM
         return parent::showMassiveActionsSubForm($ma);
     }
 
+
+    /**
+     * @since 0.85
+     *
+     * @see CommonDBTM::processMassiveActionsForOneItemtype()
+     **/
     public static function processMassiveActionsForOneItemtype(
         MassiveAction $ma,
         CommonDBTM $item,
@@ -209,34 +214,33 @@ class NotImportedEmail extends CommonDBTM
     }
 
 
-    /**
-     * @return void
-     */
     public static function deleteLog()
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
-        $DB->delete('glpi_notimportedemails', [new QueryExpression('true')]);
+        $DB->truncate('glpi_notimportedemails');
     }
 
 
     /**
-     * @param int $reason_id
-     *
-     * @return string
-     */
+     * @param $reason_id
+     **/
     public static function getReason($reason_id)
     {
 
         $tab = self::getAllReasons();
-        return $tab[$reason_id] ?? NOT_AVAILABLE;
+        if (isset($tab[$reason_id])) {
+            return $tab[$reason_id];
+        }
+        return NOT_AVAILABLE;
     }
 
 
     /**
-     * Get All possible reasons array
+     * @since versin 0.84
      *
-     * @return array
+     * Get All possible reasons array
      **/
     public static function getAllReasons()
     {
@@ -265,13 +269,13 @@ class NotImportedEmail extends CommonDBTM
         }
         switch ($field) {
             case 'reason':
-                return htmlescape(self::getReason($values[$field]));
+                return self::getReason($values[$field]);
 
             case 'messageid':
                 $clean = ['<' => '',
                     '>' => '',
                 ];
-                return htmlescape(strtr($values[$field], $clean));
+                return strtr($values[$field], $clean);
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }

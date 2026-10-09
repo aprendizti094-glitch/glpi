@@ -33,11 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 
-Session::checkRightsOr(Cartridge::$rightname, [READ, READ_ASSIGNED]);
+include('../inc/includes.php');
+
+Session::checkRight("cartridge", READ);
 
 $cart    = new Cartridge();
 $cartype = new CartridgeItem();
@@ -61,7 +61,7 @@ if (isset($_POST["add"])) {
 } elseif (isset($_POST["purge"])) {
     $cartype->check($_POST["cartridgeitems_id"], PURGE);
 
-    if ($cart->delete($_POST, true)) {
+    if ($cart->delete($_POST, 1)) {
         Event::log(
             $_POST["cartridgeitems_id"],
             "cartridgeitems",

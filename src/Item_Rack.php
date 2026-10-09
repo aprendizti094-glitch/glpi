@@ -33,13 +33,9 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-
-use function Safe\json_encode;
-
 class Item_Rack extends CommonDBRelation
 {
-    public static $itemtype_1 = Rack::class;
+    public static $itemtype_1 = 'Rack';
     public static $items_id_1 = 'racks_id';
     public static $itemtype_2 = 'itemtype';
     public static $items_id_2 = 'items_id';
@@ -69,16 +65,13 @@ class Item_Rack extends CommonDBRelation
                 ['racks_id'  => $item->getID()]
             );
         }
-        return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb, $item::class);
+        return self::createTabEntry(self::getTypeName(Session::getPluralNumber()), $nb);
     }
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if (!$item instanceof Rack) {
-            return false;
-        }
-
-        return self::showItems($item);
+        self::showItems($item);
+        return true;
     }
 
     public function getForbiddenStandardMassiveAction()
@@ -113,9 +106,6 @@ class Item_Rack extends CommonDBRelation
                                 $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
                                 $ma->addMessage($item->getErrorMessage(ERROR_ON_ACTION));
                             }
-                        } else {
-                            // Item is not linked to a rack, not an error
-                            $ma->itemDone($item->getType(), $id, MassiveAction::NO_ACTION);
                         }
                     } else {
                         $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_NORIGHT);
@@ -127,61 +117,120 @@ class Item_Rack extends CommonDBRelation
         parent::processMassiveActionsForOneItemtype($ma, $item, $ids);
     }
 
-    private static function showItemsList(Rack $rack, iterable $items): void
+    /**
+     * Print racks items
+     * @param  Rack   $rack the current rack instance
+     * @return void
+     */
+    public static function showItems(Rack $rack)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
+        global $CFG_GLPI, $DB;
+
+        $ID = $rack->getID();
         $rand = mt_rand();
-        $canedit = $rack->canEdit($rack->getID());
 
-        echo "<h2>" . __s("Racked items") . "</h2>";
-
-        $entries = [];
-        foreach ($items as $row) {
-            $item = getItemForItemtype($row['itemtype']);
-            $item->getFromDB($row['items_id']);
-            $entries[] = [
-                'itemtype' => self::class,
-                'id' => $row['id'],
-                'item' => $item->getLink(),
-                'position' => $row['position'],
-                'orientation' => $row['orientation'] === Rack::FRONT ? __('Front') : __('Rear'),
-                'side' => $row['hpos'] === Rack::POS_LEFT ? __('Left') : __('Right'),
-            ];
+        if (
+            !$rack->getFromDB($ID)
+            || !$rack->can($ID, READ)
+        ) {
+            return false;
         }
+        $canedit = $rack->canEdit($ID);
 
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'nofilter' => true,
-            'columns' => [
-                'item' => _n('Item', 'Items', 1),
-                'position' => __('Position'),
-                'orientation' => __('Orientation'),
-                'side' => __('Side'),
+        $items = $DB->request([
+            'FROM'   => self::getTable(),
+            'WHERE'  => [
+                'racks_id' => $rack->getID(),
             ],
-            'formatters' => [
-                'item' => 'raw_html',
-            ],
-            'entries' => $entries,
-            'total_number' => count($entries),
-            'filtered_number' => count($entries),
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => min($_SESSION['glpilist_limit'], count($entries)),
-                'container'     => 'mass' . static::class . $rand,
-            ],
+            'ORDER' => 'position DESC',
         ]);
-
-        PDU_Rack::showListForRack($rack);
-    }
-
-    private static function showItemsGraph(Rack $rack, iterable $items): void
-    {
-        $canedit = $rack->canEdit($rack->getID());
         $link = new self();
 
-        $data = [
-            Rack::FRONT => [],
-            Rack::REAR  => [],
-        ];
+        if ($canedit) {
+            Session::initNavigateListItems(
+                self::getType(),
+                //TRANS : %1$s is the itemtype name,
+                //        %2$s is the name of the item (used for headings of a list)
+                sprintf(
+                    __('%1$s = %2$s'),
+                    $rack->getTypeName(1),
+                    $rack->getName()
+                )
+            );
+        }
+
+        echo "<div id='switchview'>";
+        echo "<i id='sviewlist' class='pointer ti ti-list' title='" . __('View as list') . "'></i>";
+        echo "<i id='sviewgraph' class='pointer ti ti-server selected' title='" . __('View graphical representation') . "'></i>";
+        echo "</div>";
+
+        $items = iterator_to_array($items);
+        echo "<div id='viewlist'>";
+
+        echo "<h2>" . __("Racked items") . "</h2>";
+        if (!count($items)) {
+            echo "<table class='tab_cadre_fixe'><tr><th>" . __('No item found') . "</th></tr>";
+            echo "</table>";
+        } else {
+            if ($canedit) {
+                Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+                $massiveactionparams = [
+                    'num_displayed'   => min($_SESSION['glpilist_limit'], count($items)),
+                    'container'       => 'mass' . __CLASS__ . $rand,
+                ];
+                Html::showMassiveActions($massiveactionparams);
+            }
+
+            echo "<table class='tab_cadre_fixehov'>";
+            $header = "<tr>";
+            if ($canedit) {
+                $header .= "<th width='10'>";
+                $header .= Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+                $header .= "</th>";
+            }
+            $header .= "<th>" . _n('Item', 'Items', 1) . "</th>";
+            $header .= "<th>" . __('Position') . "</th>";
+            $header .= "<th>" . __('Orientation') . "</th>";
+            $header .= "</tr>";
+
+            echo $header;
+            foreach ($items as $row) {
+                $item = new $row['itemtype']();
+                $item->getFromDB($row['items_id']);
+                echo "<tr lass='tab_bg_1'>";
+                if ($canedit) {
+                    echo "<td>";
+                    Html::showMassiveActionCheckBox(__CLASS__, $row["id"]);
+                    echo "</td>";
+                }
+                echo "<td>" . $item->getLink() . "</td>";
+                echo "<td>{$row['position']}</td>";
+                $txt_orientation = $row['orientation'] == Rack::FRONT ? __('Front') : __('Rear');
+                echo "<td>$txt_orientation</td>";
+                echo "</tr>";
+            }
+            echo $header;
+            echo "</table>";
+
+            if ($canedit && count($items)) {
+                $massiveactionparams['ontop'] = false;
+                Html::showMassiveActions($massiveactionparams);
+            }
+            if ($canedit) {
+                Html::closeForm();
+            }
+        }
+
+        PDU_Rack::showListForRack($rack);
+
+        echo "</div>";
+        echo "<div id='viewgraph'>";
+
+        $data = [];
         //all rows; empty
         for ($i = (int) $rack->fields['number_units']; $i > 0; --$i) {
             $data[Rack::FRONT][$i] = false;
@@ -193,7 +242,7 @@ class Item_Rack extends CommonDBRelation
         foreach ($items as $row) {
             $rel  = new self();
             $rel->getFromDB($row['id']);
-            $item = getItemForItemtype($row['itemtype']);
+            $item = new $row['itemtype']();
             if (!$item->getFromDB($row['items_id'])) {
                 continue;
             }
@@ -217,14 +266,15 @@ class Item_Rack extends CommonDBRelation
                 'reserved'  => (bool) $row['is_reserved'],
             ];
 
-            $model = $item->getModelClassInstance();
-            $modelsfield = $model::getForeignKeyField();
+            $model_class = $item->getType() . 'Model';
+            $modelsfield = strtolower($item->getType()) . 'models_id';
+            $model = new $model_class();
             if ($model->getFromDB($item->fields[$modelsfield])) {
                 if ($model->fields['required_units'] > 1) {
                     $gs_item['height'] = $model->fields['required_units'];
                     $gs_item['y']      = $rack->fields['number_units'] + 1
-                        - $row['position']
-                        - $model->fields['required_units'];
+                                    - $row['position']
+                                    - $model->fields['required_units'];
                 }
 
                 if ($model->fields['is_half_rack'] == 1) {
@@ -283,7 +333,7 @@ class Item_Rack extends CommonDBRelation
 
         if (count($outbound)) {
             echo "<table class='outbound'><thead><th>";
-            echo __s('Following elements are out of rack bounds');
+            echo __('Following elements are out of rack bounds');
             echo "</th></thead><tbody>";
             foreach ($outbound as $out) {
                 echo "<tr><td>" . self::getCell($out, !$canedit) . "</td></tr>";
@@ -298,13 +348,13 @@ class Item_Rack extends CommonDBRelation
       <div class="racks_row">
          <span class="racks_view_controls">
             <span class="mini_toggle active"
-                  id="toggle_images">' . __s('images') . '</span>
+                  id="toggle_images">' . __('images') . '</span>
             <span class="mini_toggle active"
-                  id="toggle_text">' . __s('texts') . '</span>
+                  id="toggle_text">' . __('texts') . '</span>
             <div class="clearfix"></div>
          </span>
          <div class="racks_col">
-         <h2>' . __s('Front') . '</h2>
+         <h2>' . __('Front') . '</h2>
          <div class="rack_side rack_front">';
         // append some spaces on top for having symetrical view between front and rear
         for ($i = 0; $i < $nb_top_pdu; $i++) {
@@ -314,7 +364,7 @@ class Item_Rack extends CommonDBRelation
             <div class="grid-stack grid-stack-2 grid-rack"
                  id="grid-front"
                  gs-column="2"
-                 gs-max-row="' . htmlescape($rack->fields['number_units'] + 1) . '">';
+                 gs-max-row="' . ($rack->fields['number_units'] + 1) . '">';
 
         if ($link->canCreate()) {
             echo '<div class="racks_add"></div>';
@@ -325,7 +375,7 @@ class Item_Rack extends CommonDBRelation
         }
         echo '   <div class="grid-stack-item lock-bottom"
                     gs-no-resize="true" gs-no-move="true"
-                    gs-h="1" gs-w="2" gs-x="0" gs-y="' . htmlescape($rack->fields['number_units']) . '"></div>
+                    gs-h="1" gs-w="2" gs-x="0" gs-y="' . $rack->fields['number_units'] . '"></div>
             </div>
             <ul class="indexes"></ul>';
         // append some spaces on bottom for having symetrical view between front and rear
@@ -335,7 +385,7 @@ class Item_Rack extends CommonDBRelation
         echo '</div>
          </div>
          <div class="racks_col">
-            <h2>' . __s('Rear') . '</h2>';
+            <h2>' . __('Rear') . '</h2>';
         echo '<div class="rack_side rack_rear">';
         PDU_Rack::showVizForRack($rack, PDU_Rack::SIDE_TOP);
         PDU_Rack::showVizForRack($rack, PDU_Rack::SIDE_LEFT);
@@ -343,7 +393,7 @@ class Item_Rack extends CommonDBRelation
             <div class="grid-stack grid-stack-2 grid-rack"
                  id="grid2-rear"
                  gs-column="2"
-                 gs-max-row="' . htmlescape($rack->fields['number_units'] + 1) . '">';
+                 gs-max-row="' . ($rack->fields['number_units'] + 1) . '">';
 
         if ($link->canCreate()) {
             echo '<div class="racks_add"></div>';
@@ -354,7 +404,7 @@ class Item_Rack extends CommonDBRelation
         }
         echo '   <div class="grid-stack-item lock-bottom"
                     gs-no-resize="true" gs-no-move="true"
-                    gs-h="1" gs-w="2" gs-x="0" gs-y="' . htmlescape($rack->fields['number_units']) . '">
+                    gs-h="1" gs-w="2" gs-x="0" gs-y="' . $rack->fields['number_units'] . '">
                </div>
             </div>
             <ul class="indexes"></ul>';
@@ -369,80 +419,25 @@ class Item_Rack extends CommonDBRelation
         echo '</div>'; // .racks_col
         echo '</div>'; // .racks_row
         echo "<div id='grid-dialog'></div>";
-    }
-
-    /**
-     * Print racks items
-     * @param  Rack   $rack the current rack instance
-     * @return bool
-     */
-    public static function showItems(Rack $rack): bool
-    {
-        global $CFG_GLPI, $DB;
-
-        $ID = $rack->getID();
-
-        if (
-            !$rack->getFromDB($ID)
-            || !$rack->can($ID, READ)
-        ) {
-            return false;
-        }
-        $canedit = $rack->canEdit($ID);
-
-        $items = $DB->request([
-            'FROM'   => self::getTable(),
-            'WHERE'  => [
-                'racks_id' => $rack->getID(),
-            ],
-            'ORDER' => 'position DESC',
-        ]);
-        $link = new self();
-
-        if ($canedit) {
-            Session::initNavigateListItems(
-                self::getType(),
-                //TRANS : %1$s is the itemtype name,
-                //        %2$s is the name of the item (used for headings of a list)
-                sprintf(
-                    __('%1$s = %2$s'),
-                    $rack->getTypeName(1),
-                    $rack->getName()
-                )
-            );
-        }
-
-        echo "<div id='switchview'>";
-        echo "<i id='sviewlist' class='pointer ti ti-list' title='" . __s('View as list') . "'></i>";
-        echo "<i id='sviewgraph' class='pointer ti ti-server selected' title='" . __s('View graphical representation') . "'></i>";
-        echo "</div>";
-
-        echo "<div id='viewlist'>";
-        self::showItemsList($rack, $items);
-        echo "</div>";
-        echo "<div id='viewgraph'>";
-        self::showItemsGraph($rack, $items);
         echo "</div>"; // #viewgraph
 
-        $rack_add_tip = __('Insert an item here');
+        $rack_add_tip = __s('Insert an item here');
         $ajax_url     = $CFG_GLPI['root_doc'] . "/ajax/rack.php";
 
-        $js = '
-            // init variables to pass to js/rack.js
-            var grid_link_url      = "' . jsescape($link->getFormURL()) . '";
-            var grid_item_ajax_url = "' . $ajax_url . '";
-            var grid_rack_id       = ' . $ID . ';
-            var grid_rack_units    = ' . ((int) $rack->fields['number_units']) . ';
-            var grid_rack_add_tip  = "' . jsescape($rack_add_tip) . '";
+        $js = <<<JAVASCRIPT
+      // init variables to pass to js/rack.js
+      var grid_link_url      = "{$link->getFormURL()}";
+      var grid_item_ajax_url = "{$ajax_url}";
+      var grid_rack_id       = $ID;
+      var grid_rack_units    = {$rack->fields['number_units']};
+      var grid_rack_add_tip  = "{$rack_add_tip}";
 
-            $(function() {
-                // initialize grid with function defined in js/rack.js
-                initRack();
-            });
-        ';
+      $(function() {
+         // initialize grid with function defined in js/rack.js
+         initRack();
+      });
+JAVASCRIPT;
         echo Html::scriptBlock($js);
-
-        return true;
     }
 
     /**
@@ -452,6 +447,7 @@ class Item_Rack extends CommonDBRelation
      */
     public static function showStats(Rack $rack)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $items = $DB->request([
@@ -472,11 +468,12 @@ class Item_Rack extends CommonDBRelation
         foreach ($items as $row) {
             $rel->getFromDB($row['id']);
 
-            $item = getItemForItemtype($row['itemtype']);
+            $item = new $row['itemtype']();
             $item->getFromDB($row['items_id']);
 
-            $model = $item->getModelClassInstance();
-            $modelsfield = $model::getForeignKeyField();
+            $model_class = $item->getType() . 'Model';
+            $modelsfield = strtolower($item->getType()) . 'models_id';
+            $model = new $model_class();
 
             if ($model->getFromDB($item->fields[$modelsfield])) {
                 $required_units = $model->fields['required_units'];
@@ -511,35 +508,47 @@ class Item_Rack extends CommonDBRelation
 
         echo "<div id='rack_stats' class='rack_side_block'>";
 
-        echo "<h2>" . __s("Rack stats") . "</h2>";
+        echo "<h2>" . __("Rack stats") . "</h2>";
 
         echo "<div class='rack_side_block_content'>";
-        echo "<h3>" . __s("Space") . "</h3>";
-        echo Html::getProgressBar($space_prct);
+        echo "<h3>" . __("Space") . "</h3>";
+        Html::progressBar('rack_space', [
+            'create' => true,
+            'percent' => $space_prct,
+            'message' => $space_prct . "%",
+        ]);
 
-        echo "<h3>" . __s("Weight") . "</h3>";
-        echo Html::getProgressBar(
-            $weight_prct,
-            $weight . " / " . $rack->fields['max_weight']
-        );
+        echo "<h3>" . __("Weight") . "</h3>";
+        Html::progressBar('rack_weight', [
+            'create' => true,
+            'percent' => $weight_prct,
+            'message' => $weight . " / " . $rack->fields['max_weight'],
+        ]);
 
-        echo "<h3>" . __s("Power") . "</h3>";
-        echo Html::getProgressBar(
-            $power_prct,
-            $power . " / " . $rack->fields['max_power']
-        );
+        echo "<h3>" . __("Power") . "</h3>";
+        Html::progressBar('rack_power', [
+            'create' => true,
+            'percent' => $power_prct,
+            'message' => $power . " / " . $rack->fields['max_power'],
+        ]);
         echo "</div>";
         echo "</div>";
     }
 
     public function showForm($ID, array $options = [])
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
+
+        $colspan = 4;
 
         echo "<div class='center'>";
 
         $this->initForm($ID, $options);
-        $this->showFormHeader($options);
+        $this->showFormHeader();
 
         $rack = new Rack();
         $rack->getFromDB($this->fields['racks_id']);
@@ -547,7 +556,7 @@ class Item_Rack extends CommonDBRelation
         $rand = mt_rand();
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='dropdown_itemtype$rand'>" . __s('Item type') . "</label></td>";
+        echo "<td><label for='dropdown_itemtype$rand'>" . __('Item type') . "</label></td>";
         echo "<td>";
 
         if (isset($options['_onlypdu']) && $options['_onlypdu']) {
@@ -559,7 +568,7 @@ class Item_Rack extends CommonDBRelation
                     'value' => 'PDU',
                 ]
             );
-            echo htmlescape(PDU::getTypeName(1));
+            echo PDU::getTypeName(1);
         } else {
             $types = array_combine($CFG_GLPI['rackable_types'], $CFG_GLPI['rackable_types']);
             foreach ($types as $type => &$text) {
@@ -616,11 +625,11 @@ class Item_Rack extends CommonDBRelation
         //TODO: update orientation according to item model depth
 
         echo "</td>";
-        echo "<td><label for='dropdown_items_id$rand'>" . _sn('Item', 'Items', 1) . "</label></td>";
+        echo "<td><label for='dropdown_items_id$rand'>" . _n('Item', 'Items', 1) . "</label></td>";
         echo "<td id='items_id'>";
         if (isset($this->fields['itemtype']) && !empty($this->fields['itemtype'])) {
             $itemtype = $this->fields['itemtype'];
-            $itemtype = getItemForItemtype($itemtype);
+            $itemtype = new $itemtype();
             $itemtype::dropdown([
                 'name'   => "items_id",
                 'value'  => $this->fields['items_id'],
@@ -641,11 +650,11 @@ class Item_Rack extends CommonDBRelation
         echo "</tr>";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='dropdown_racks_id$rand'>" . htmlescape(Rack::getTypeName(1)) . "</label></td>";
+        echo "<td><label for='dropdown_racks_id$rand'>" . Rack::getTypeName(1) . "</label></td>";
         echo "<td>";
         Rack::dropdown(['value' => $this->fields["racks_id"], 'rand' => $rand]);
         echo "</td>";
-        echo "<td><label for='dropdown_position$rand'>" . __s('Position') . "</label></td>";
+        echo "<td><label for='dropdown_position$rand'>" . __('Position') . "</label></td>";
         echo "<td >";
         Dropdown::showNumber(
             'position',
@@ -662,7 +671,7 @@ class Item_Rack extends CommonDBRelation
         echo "</tr>";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='dropdown_orientation$rand'>" . __s('Orientation (front rack point of view)') . "</label></td>";
+        echo "<td><label for='dropdown_orientation$rand'>" . __('Orientation (front rack point of view)') . "</label></td>";
         echo "<td >";
         Dropdown::showFromArray(
             'orientation',
@@ -676,7 +685,7 @@ class Item_Rack extends CommonDBRelation
             ]
         );
         echo "</td>";
-        echo "<td><label for='bgcolor$rand'>" . __s('Background color') . "</label></td>";
+        echo "<td><label for='bgcolor$rand'>" . __('Background color') . "</label></td>";
         echo "<td>";
         Html::showColorField(
             'bgcolor',
@@ -689,7 +698,7 @@ class Item_Rack extends CommonDBRelation
         echo "</tr>";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='dropdown_hpos$rand'>" . __s('Horizontal position (from rack point of view)') . "</label></td>";
+        echo "<td><label for='dropdown_hpos$rand'>" . __('Horizontal position (from rack point of view)') . "</label></td>";
         echo "<td>";
         Dropdown::showFromArray(
             'hpos',
@@ -704,7 +713,7 @@ class Item_Rack extends CommonDBRelation
             ]
         );
         echo "</td>";
-        echo "<td><label for='dropdown_is_reserved$rand'>" . __s('Reserved position?') . "</label></td>";
+        echo "<td><label for='dropdown_is_reserved$rand'>" . __('Reserved position?') . "</label></td>";
         echo "<td>";
 
         echo Html::scriptBlock("
@@ -765,7 +774,6 @@ class Item_Rack extends CommonDBRelation
      * Get cell content
      *
      * @param mixed $cell Rack cell (array or false)
-     * @param bool $readonly
      *
      * @return string
      */
@@ -825,40 +833,40 @@ class Item_Rack extends CommonDBRelation
 
             $tip = "<span class='tipcontent'>";
             $tip .= "<span>
-                  <label>"
-                  . ($rear
-                     ? __s("asset rear side")
-                     : __s("asset front side")) . "
+                  <label>" .
+                  ($rear
+                     ? __("asset rear side")
+                     : __("asset front side")) . "
                   </label>
                </span>";
             if (!empty($typename)) {
                 $tip .= "<span>
-                     <label>" . _sn('Type', 'Types', 1) . ":</label>
-                     " . htmlescape($typename) . "
+                     <label>" . _n('Type', 'Types', 1) . ":</label>
+                     $typename
                   </span>";
             }
             if (!empty($name)) {
                 $tip .= "<span>
-                     <label>" . __s('name') . ":</label>
-                     " . htmlescape($name) . "
+                     <label>" . __('name') . ":</label>
+                     $name
                   </span>";
             }
             if (!empty($serial)) {
                 $tip .= "<span>
-                     <label>" . __s('serial') . ":</label>
-                     " . htmlescape($serial) . "
+                     <label>" . __('serial') . ":</label>
+                     $serial
                   </span>";
             }
             if (!empty($otherserial)) {
                 $tip .= "<span>
-                     <label>" . __s('Inventory number') . ":</label>
-                     " . htmlescape($otherserial) . "
+                     <label>" . __('Inventory number') . ":</label>
+                     $otherserial
                   </span>";
             }
             if (!empty($model)) {
                 $tip .= "<span>
-                     <label>" . __s('model') . ":</label>
-                     " . htmlescape($model) . "
+                     <label>" . __('model') . ":</label>
+                     $model
                   </span>";
             }
 
@@ -866,20 +874,20 @@ class Item_Rack extends CommonDBRelation
 
             $readonly_attr = $readonly ? 'gs-no-move="true"' : '';
             return "
-         <div class='grid-stack-item {$back_class} {$half_class} {$reserved_cl} {$img_class}'
-               gs-w='" . htmlescape($gs_item['width']) . "' gs-h='" . htmlescape($gs_item['height']) . "'
-               gs-x='" . htmlescape($gs_item['x']) . "'     gs-y='" . htmlescape($gs_item['y']) . "'
-               gs-id='" . htmlescape($gs_item['id']) . "'   gs-locked='true' {$readonly_attr}
-               style='background-color: " . htmlescape($bg_color) . "; color: " . htmlescape($fg_color) . ";'>
-            <div class='grid-stack-item-content' style='" . htmlescape($fg_color_s) . " " . htmlescape($img_s) . "'>
-               $icon"
-               . (!empty($gs_item['url'])
-                  ? "<a href='" . htmlescape($gs_item['url']) . "' class='itemrack_name' style='" . htmlescape($fg_color_s) . "'>" . htmlescape($gs_item['name']) . "</a>"
-                  : "<span class='itemrack_name'>" . htmlescape($gs_item['name']) . "</span>") . "
-               <a href='" . htmlescape($gs_item['rel_url']) . "' class='edit_rack_item'>
+         <div class='grid-stack-item pdu-grid {$back_class} {$half_class} {$reserved_cl} {$img_class}'
+               gs-w='{$gs_item['width']}' gs-h='{$gs_item['height']}'
+               gs-x='{$gs_item['x']}'     gs-y='{$gs_item['y']}'
+               gs-id='{$gs_item['id']}'   gs-locked='true' {$readonly_attr}
+               style='background-color: $bg_color; color: $fg_color;'>
+            <div class='grid-stack-item-content' style='$fg_color_s $img_s'>
+               $icon" .
+               (!empty($gs_item['url'])
+                  ? "<a href='{$gs_item['url']}' class='itemrack_name' style='$fg_color_s'>{$gs_item['name']}</a>"
+                  : "<span class='itemrack_name'>" . $gs_item['name'] . "</span>") . "
+               <a href='{$gs_item['rel_url']}'>
                   <i class='fa fa-pencil-alt rel-link'
-                     style='" . htmlescape($fg_color_s) . "'
-                     title='" . __s("Edit rack relation") . "'></i>
+                     style='$fg_color_s'
+                     title='" . __("Edit rack relation") . "'></i>
                </a>
                $tip
             </div>
@@ -912,10 +920,10 @@ class Item_Rack extends CommonDBRelation
         }
 
         if (!empty($icon)) {
-            $icon = "<i class='item_rack_icon " . htmlescape($icon) . "'></i>";
+            $icon = "<i class='item_rack_icon $icon'></i>";
         }
 
-        return "";
+        return $icon;
     }
 
     public function prepareInputForAdd($input)
@@ -1003,10 +1011,11 @@ class Item_Rack extends CommonDBRelation
                 $filled = $rack->getFilled($this->fields['itemtype'], $this->fields['items_id']);
             }
 
-            $item = getItemForItemtype($itemtype);
+            $item = new $itemtype();
             $item->getFromDB($items_id);
-            $model = $item->getModelClassInstance();
-            $modelsfield = $model::getForeignKeyField();
+            $model_class = $item->getType() . 'Model';
+            $modelsfield = strtolower($item->getType()) . 'models_id';
+            $model = new $model_class();
 
             $required_units = 1;
             $width          = 1;
@@ -1034,8 +1043,8 @@ class Item_Rack extends CommonDBRelation
              * @var int $required_units
              */
             if (
-                $position > $rack->fields['number_units']
-                || $position + $required_units  > $rack->fields['number_units'] + 1
+                $position > $rack->fields['number_units'] ||
+                $position + $required_units  > $rack->fields['number_units'] + 1
             ) {
                 $error_detected[] = __('Item is out of rack bounds');
             } elseif (!count($error_detected)) {
@@ -1079,7 +1088,7 @@ class Item_Rack extends CommonDBRelation
         if (count($error_detected)) {
             foreach ($error_detected as $error) {
                 Session::addMessageAfterRedirect(
-                    htmlescape($error),
+                    $error,
                     true,
                     ERROR
                 );

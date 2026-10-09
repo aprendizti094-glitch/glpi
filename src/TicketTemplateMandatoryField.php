@@ -38,14 +38,7 @@
 class TicketTemplateMandatoryField extends ITILTemplateMandatoryField
 {
     // From CommonDBChild
-    public static $itemtype = TicketTemplate::class;
+    public static $itemtype  = 'TicketTemplate';
     public static $items_id  = 'tickettemplates_id';
-    public static $itiltype = Ticket::class;
-
-    public static function getExcludedFields()
-    {
-        return [
-            14 => 14, // ticket type has no empty option
-        ] + parent::getExcludedFields();
-    }
+    public static $itiltype = 'Ticket';
 }

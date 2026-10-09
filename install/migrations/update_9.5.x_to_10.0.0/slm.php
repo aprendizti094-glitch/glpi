@@ -32,12 +32,15 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
+if (!defined('GLPI_ROOT')) {
+    die("Sorry. You can't access this file directly");
+}
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 $default_key_sign = DBConnection::getDefaultPrimaryKeySignOption();
 
 // `glpi_slas.calendars_id` will not exist if GLPI has been initialized on a 9.1.x version.
@@ -77,7 +80,7 @@ foreach (['glpi_olas', 'glpi_slas'] as $table) {
                 $table . '.calendars_id'        => new QueryExpression($DB->quoteName('glpi_slms.calendars_id')),
             ],
             [
-                new QueryExpression('true'),
+                true,
             ],
             [
                 'INNER JOIN' => [

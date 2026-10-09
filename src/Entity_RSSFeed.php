@@ -38,9 +38,9 @@
 class Entity_RSSFeed extends CommonDBRelation
 {
     // From CommonDBRelation
-    public static $itemtype_1 = RSSFeed::class;
+    public static $itemtype_1          = 'RSSFeed';
     public static $items_id_1          = 'rssfeeds_id';
-    public static $itemtype_2 = Entity::class;
+    public static $itemtype_2          = 'Entity';
     public static $items_id_2          = 'entities_id';
 
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
@@ -50,12 +50,13 @@ class Entity_RSSFeed extends CommonDBRelation
     /**
      * Get entities for a rssfeed
      *
-     * @param int $rssfeeds_id ID of the rssfeed
+     * @param integer $rssfeeds_id ID of the rssfeed
      *
      * @return array of entities linked to a rssfeed
      **/
     public static function getEntities($rssfeeds_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $ent   = [];

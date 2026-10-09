@@ -38,7 +38,6 @@
  **/
 abstract class AbstractQuery
 {
-    /** @var ?string */
     protected $alias = null;
 
     /**
@@ -66,8 +65,6 @@ abstract class AbstractQuery
      * Get SQL query
      *
      * @return string
-     *
-     * @psalm-taint-escape sql
      */
     abstract public function getQuery();
 

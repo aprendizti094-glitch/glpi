@@ -48,19 +48,32 @@ class Vlan extends CommonDropdown
         return _n('VLAN', 'VLANs', $nb);
     }
 
+
     public function getAdditionalFields()
     {
-        return [
-            [
-                'name'     => 'tag',
-                'label'    => __('ID TAG'),
-                'type'     => 'integer',
-                'min'      => 1,
-                'max'      => 4094,
-                'list'     => true,
-            ],
+
+        return [['name'     => 'tag',
+            'label'    => __('ID TAG'),
+            'type'     => '',
+            'list'     => true,
+        ],
         ];
     }
+
+
+    public function displaySpecificTypeField($ID, $field = [], array $options = [])
+    {
+
+        if ($field['name'] == 'tag') {
+            Dropdown::showNumber('tag', [
+                'value' => $this->fields['tag'],
+                'min'   => 1,
+                'max'   => (pow(2, 12) - 2),
+                'width' => '100%',
+            ]);
+        }
+    }
+
 
     public function rawSearchOptions()
     {
@@ -68,7 +81,7 @@ class Vlan extends CommonDropdown
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'tag',
             'name'               => __('ID TAG'),
             'datatype'           => 'number',
@@ -82,6 +95,7 @@ class Vlan extends CommonDropdown
 
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 IPNetwork_Vlan::class,
@@ -90,15 +104,16 @@ class Vlan extends CommonDropdown
         );
     }
 
+
     /**
-     * @param class-string<CommonDBTM> $itemtype
-     * @param HTMLTableBase $base
-     * @param HTMLTableSuperHeader|null $super
-     * @param HTMLTableHeader|null $father
-     * @param array $options
-     * @return void
      * @since 0.84
-     */
+     *
+     * @param $itemtype
+     * @param $base            HTMLTableBase object
+     * @param $super           HTMLTableSuperHeader object (default NULL
+     * @param $father          HTMLTableHeader object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableHeader(
         $itemtype,
         HTMLTableBase $base,
@@ -106,49 +121,50 @@ class Vlan extends CommonDropdown
         ?HTMLTableHeader $father = null,
         array $options = []
     ) {
-        $column_name = self::class;
+
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
         if ($itemtype == 'NetworkPort_Vlan') {
-            $base->addHeader($column_name, htmlescape(self::getTypeName()), $super, $father);
+            $base->addHeader($column_name, self::getTypeName(), $super, $father);
         }
     }
 
+
     /**
-     * @param HTMLTableRow|null $row object (default NULL)
-     * @param CommonDBTM|null $item object (default NULL)
-     * @param HTMLTableCell|null $father object (default NULL)
-     * @param array $options
-     * @return void
      * @since 0.84
-     */
+     *
+     * @param $row             HTMLTableRow object (default NULL)
+     * @param $item            CommonDBTM object (default NULL)
+     * @param $father          HTMLTableCell object (default NULL)
+     * @param $options   array
+     **/
     public static function getHTMLTableCellsForItem(
         ?HTMLTableRow $row = null,
         ?CommonDBTM $item = null,
         ?HTMLTableCell $father = null,
         array $options = []
     ) {
-        $column_name = self::class;
+        $column_name = __CLASS__;
 
         if (isset($options['dont_display'][$column_name])) {
             return;
         }
 
-        if ($item === null) {
-            if ($father === null) {
+        if (empty($item)) {
+            if (empty($father)) {
                 return;
             }
             $item = $father->getItem();
-            if ($item === false) {
-                return;
-            }
         }
 
-        if ($item::class === NetworkPort_Vlan::class) {
-            if (isset($item->fields["tagged"]) && ($item->fields["tagged"] === 1)) {
+        $canedit = (isset($options['canedit']) && $options['canedit']);
+
+        if ($item->getType() == 'NetworkPort_Vlan') {
+            if (isset($item->fields["tagged"]) && ($item->fields["tagged"] == 1)) {
                 $tagged_msg = __('Tagged');
             } else {
                 $tagged_msg = __('Untagged');
@@ -156,18 +172,18 @@ class Vlan extends CommonDropdown
 
             $vlan = new self();
             if ($vlan->getFromDB($options['items_id'])) {
-                $content = htmlescape(sprintf(__('%1$s - %2$s'), $vlan->getName(), $tagged_msg));
+                $content = sprintf(__('%1$s - %2$s'), $vlan->getName(), $tagged_msg);
                 $content .= Html::showToolTip(
-                    htmlescape(sprintf(
+                    sprintf(
                         __('%1$s: %2$s'),
                         __('ID TAG'),
                         $vlan->fields['tag']
-                    )) . "<br>"
-                    . htmlescape(sprintf(
-                        __('%1$s: %2$s'),
-                        _n('Comment', 'Comments', Session::getPluralNumber()),
-                        $vlan->fields['comment']
-                    )),
+                    ) . "<br>" .
+                                          sprintf(
+                                              __('%1$s: %2$s'),
+                                              __('Comments'),
+                                              $vlan->fields['comment']
+                                          ),
                     ['display' => false]
                 );
 
@@ -178,9 +194,10 @@ class Vlan extends CommonDropdown
 
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong)
-         ->addStandardTab(NetworkPort_Vlan::class, $ong, $options);
+         ->addStandardTab('NetworkPort_Vlan', $ong, $options);
 
         return $ong;
     }

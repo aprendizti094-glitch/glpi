@@ -33,29 +33,22 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 /**
- * @var mixed $this
- * @var mixed $dropdown
+ * Following variables have to be defined before inclusion of this file:
+ * @var CommonDropdown $dropdown
  */
 
-use Glpi\Controller\GenericListController;
-use Glpi\Controller\LegacyFileLoadController;
-
-if (!($this instanceof LegacyFileLoadController) || !($dropdown instanceof CommonDropdown)) {
-    throw new LogicException();
+if (!($dropdown instanceof CommonDropdown)) {
+    Html::displayErrorAndDie('');
+}
+if (!$dropdown->canView()) {
+    // Gestion timeout session
+    Session::redirectIfNotLoggedIn();
+    Html::displayRightError();
 }
 
-Toolbox::deprecated(\sprintf(
-    'Requiring legacy dropdown files is deprecated. You can safely remove the `%s` file in order to make the `%s` controller used instead.',
-    debug_backtrace()[0]['file'] ?? 'including',
-    GenericListController::class,
-));
+$dropdown::displayCentralHeader();
 
-$request = $this->getRequest(); // @phpstan-ignore method.private
-$request->attributes->set('class', $dropdown::class);
+Search::show(get_class($dropdown));
 
-$controller = new GenericListController();
-$response = $controller($request);
-$response->send();
+Html::footer();

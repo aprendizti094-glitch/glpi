@@ -33,22 +33,33 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
+include('../inc/includes.php');
 
-use Glpi\Exception\Http\BadRequestHttpException;
-use Glpi\Exception\ItemLinkException;
+Session::checkLoginUser();
 
 $item = new Ticket_Contract();
 
 if (isset($_POST["add"])) {
-    try {
-        $item->check(-1, CREATE, $_POST);
-    } catch (ItemLinkException $e) {
+    if (!empty($_POST['tickets_id']) && empty($_POST['contracts_id'])) {
+        $message = sprintf(
+            __('Mandatory fields are not filled. Please correct: %s'),
+            Contract::getTypeName(1)
+        );
+        Session::addMessageAfterRedirect($message, false, ERROR);
         Html::back();
     }
+    if (empty($_POST['tickets_id']) && !empty($_POST['contracts_id'])) {
+        $message = sprintf(
+            __('Mandatory fields are not filled. Please correct: %s'),
+            Ticket::getTypeName(1)
+        );
+        Session::addMessageAfterRedirect($message, false, ERROR);
+        Html::back();
+    }
+    $item->check(-1, CREATE, $_POST);
     $item->add($_POST);
 
     Html::back();
 }
 
-throw new BadRequestHttpException();
+Html::displayErrorAndDie("lost");

@@ -33,38 +33,27 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\Application\View\TemplateRenderer;
-use Glpi\Features\Clonable;
 use Glpi\RichText\RichText;
-
-use function Safe\preg_match;
-use function Safe\preg_match_all;
-use function Safe\preg_replace;
+use Glpi\Toolbox\Sanitizer;
 
 /**
  * NotificationTemplate Class
  **/
 class NotificationTemplate extends CommonDBTM
 {
-    /** @use Clonable<static> */
-    use Clonable;
+    use Glpi\Features\Clonable;
 
     // From CommonDBTM
     public $dohistory = true;
 
-    /**
-     * @var string Signature to add to the template
-     */
+    //Signature to add to the template
     public $signature = '';
 
-    /**
-     * @var array<string, array{subject: string, content_html:string, content_text:string}> Store templates for each language
-     */
+    //Store templates for each language
     public $templates_by_languages = [];
 
     public static $rightname = 'config';
 
-    #[Override]
     public function getCloneRelations(): array
     {
         return [
@@ -72,73 +61,101 @@ class NotificationTemplate extends CommonDBTM
         ];
     }
 
-    #[Override]
     public static function getTypeName($nb = 0)
     {
         return _n('Notification template', 'Notification templates', $nb);
     }
 
-    #[Override]
-    public static function getSectorizedDetails(): array
-    {
-        return ['config', Notification::class, self::class];
-    }
 
-    #[Override]
-    public static function getIcon()
-    {
-        return 'ti ti-template';
-    }
-
-    #[Override]
-    public static function canCreate(): bool
+    public static function canCreate()
     {
         return static::canUpdate();
     }
 
-    #[Override]
-    public static function canPurge(): bool
+
+    /**
+     * @since 0.85
+     **/
+    public static function canPurge()
     {
         return static::canUpdate();
     }
 
-    #[Override]
+
     public function defineTabs($options = [])
     {
 
         $ong = [];
         $this->addDefaultFormTab($ong);
-        $this->addStandardTab(NotificationTemplateTranslation::class, $ong, $options);
-        $this->addStandardTab(Notification_NotificationTemplate::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('NotificationTemplateTranslation', $ong, $options);
+        $this->addStandardTab('Notification_NotificationTemplate', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
 
         return $ong;
     }
 
+
     /**
      * Reset already computed templates
-     *
-     * @return void
-     */
+     **/
     public function resetComputedTemplates()
     {
         $this->templates_by_languages = [];
     }
 
-    #[Override]
+
     public function showForm($ID, array $options = [])
     {
+        /** @var array $CFG_GLPI */
+        global $CFG_GLPI;
+
         if (!Config::canUpdate()) {
             return false;
         }
 
-        TemplateRenderer::getInstance()->display('pages/setup/notification/template.html.twig', [
-            'item' => $this,
-        ]);
+        $spotted = false;
+
+        if (empty($ID)) {
+            if ($this->getEmpty()) {
+                $spotted = true;
+            }
+        } else {
+            if ($this->getFromDB($ID)) {
+                $spotted = true;
+            }
+        }
+
+        $this->showFormHeader($options);
+
+        echo "<tr class='tab_bg_1'><td>" . __('Name') . "</td>";
+        echo "<td colspan='3'>";
+        echo Html::input('name', ['value' => $this->fields['name']]);
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . _n('Type', 'Types', 1) . "</td><td colspan='3'>";
+        Dropdown::showItemTypes(
+            'itemtype',
+            $CFG_GLPI["notificationtemplates_types"],
+            ['value' => ($this->fields['itemtype']
+            ? $this->fields['itemtype'] : 'Ticket'),
+            ]
+        );
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('Comments') . "</td>";
+        echo "<td colspan='3'>";
+        echo "<textarea cols='60' rows='5' name='comment' >" . $this->fields["comment"] . "</textarea>";
+        echo "</td></tr>";
+
+        echo "<tr class='tab_bg_1'><td>" . __('CSS') . "</td>";
+        echo "<td colspan='3'>";
+        echo "<textarea cols='60' rows='5' name='css' >" . $this->fields["css"] . "</textarea></td></tr>";
+
+        $this->showFormButtons($options);
         return true;
     }
 
-    #[Override]
+
     public function rawSearchOptions()
     {
         $tab = [];
@@ -171,40 +188,38 @@ class NotificationTemplate extends CommonDBTM
             'id'                 => '16',
             'table'              => $this->getTable(),
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'datatype'           => 'text',
         ];
 
         return $tab;
     }
 
+
     /**
      * Display templates available for an itemtype
      *
-     * @param string                   $name     dropdown name
-     * @param class-string<CommonDBTM> $itemtype templates for this itemtype only
-     * @param int                      $value    default value
-     *
-     * @return void
-     */
+     * @param $name      the dropdown name
+     * @param $itemtype  display templates for this itemtype only
+     * @param $value     the dropdown's default value (0 by default)
+     **/
     public static function dropdownTemplates($name, $itemtype, $value = 0)
     {
         self::dropdown([
             'name'       => $name,
             'value'     => $value,
             'comment'   => 1,
-            'condition' => ['itemtype' => $itemtype],
+            'condition' => ['itemtype' => addslashes($itemtype)],
         ]);
     }
 
+
     /**
-     * @param array{sendprivate?: bool} $options
-     * @return 0|1
-     *
-     * @return int
-     */
+     * @param $options
+     **/
     public function getAdditionnalProcessOption($options)
     {
+
         //Additionnal option can be given for template processing
         //For the moment, only option to see private tasks & followups is available
         if (
@@ -216,13 +231,14 @@ class NotificationTemplate extends CommonDBTM
         return 0;
     }
 
+
     /**
-     * @param NotificationTarget<covariant CommonGLPI> $target
-     * @param array<mixed>                             $user_infos
-     * @param string                                   $event
-     * @param array<mixed>                             $options
+     * @param $target             NotificationTarget object
+     * @param $user_infos   array
+     * @param $event
+     * @param $options      array
      *
-     * @return false|string id of the template in templates_by_languages / false if computation failed
+     * @return false|integer id of the template in templates_by_languages / false if computation failed
      **/
     public function getTemplateByLanguage(
         NotificationTarget $target,
@@ -230,7 +246,6 @@ class NotificationTemplate extends CommonDBTM
         $event = '',
         $options = []
     ) {
-        global $CFG_GLPI, $DB;
 
         $lang     = [];
         $language = $user_infos['language'];
@@ -250,7 +265,6 @@ class NotificationTemplate extends CommonDBTM
             //Switch to the desired language
             $bak_dropdowntranslations = ($_SESSION['glpi_dropdowntranslations'] ?? null);
             $_SESSION['glpi_dropdowntranslations'] = DropdownTranslation::getAvailableTranslations($language);
-
             Session::loadLanguage($language);
             $bak_language = $_SESSION["glpilanguage"];
             $_SESSION["glpilanguage"] = $language;
@@ -260,27 +274,9 @@ class NotificationTemplate extends CommonDBTM
                 $_SESSION["glpidate_format"] = $additionnaloption['date_format'];
             }
 
-            // set timezone from user, and reload object
-            $orig_tz = null;
-            if (isset($user_infos['additionnaloption']['timezone'])) {
-                $orig_tz = $_SESSION['glpitimezone'] ?? '0';
-                if ($orig_tz === '0') {
-                    $orig_tz = date_default_timezone_get();
-                }
-            }
-
             try {
-                if (isset($user_infos['additionnaloption']['timezone'])) {
-                    $DB->setTimezone($user_infos['additionnaloption']['timezone']);
-
-                    if ($options['item'] instanceof CommonDBTM) {
-                        // reload item to ensure timestamps will be converted to the current user timezone
-                        $options['item']->getFromDB($options['item']->fields['id']);
-                    }
-                }
-
                 //If event is raised by a plugin, load it in order to get the language file available
-                if ($target->obj !== null && ($plug = isPluginItemType($target->obj !== null ? get_class($target->obj) : self::class))) {
+                if ($plug = isPluginItemType(get_class($target->obj))) {
                     Plugin::loadLang(strtolower($plug['plugin']), $language);
                 }
 
@@ -288,15 +284,18 @@ class NotificationTemplate extends CommonDBTM
                 $options['additionnaloption'] = $additionnaloption;
                 $data = &$target->getForTemplate($event, $options);
 
-                $footer_string = sprintf(__('Automatically generated by %s'), $CFG_GLPI['app_name']);
+                $footer_string = __('Automatically generated by GLPI');
                 $add_header    = $target->getContentHeader();
                 $add_footer    = $target->getContentFooter();
 
                 if ($template_datas = $this->getByLanguage($language)) {
                     //Template processing
 
+                    $template_datas  = Sanitizer::unsanitize($template_datas);
+                    $data            = Sanitizer::unsanitize($data);
+
                     $lang['subject']      = $target->getSubjectPrefix($event)
-                        . self::process($template_datas['subject'], self::getDataForPlainText($data), html_context: false);
+                    . self::process($template_datas['subject'], self::getDataForPlainText($data));
                     $lang['content_html'] = '';
 
                     //If no html content, then send only in text
@@ -305,35 +304,35 @@ class NotificationTemplate extends CommonDBTM
 
                         $template_datas['content_html'] = self::process(
                             $template_datas['content_html'],
-                            self::getDataForHtml($data),
-                            html_context: true
+                            self::getDataForHtml($data)
                         );
 
-                        $css = $this->fields['css'] ?? ''; // assume that CSS is safe
+                        $css = !empty($this->fields['css'])
+                            ? Sanitizer::decodeHtmlSpecialChars($this->fields['css'])
+                            : '';
 
-                        $lang['content_html']
-
-                         = "<!DOCTYPE html>"
-                         . "<html>
+                        $lang['content_html'] =
+                         "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
+                            'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>" .
+                         "<html>
                             <head>
-                             <meta charset='utf-8' />
-                             <meta name='viewport' content='width=device-width, initial-scale=1' />
-                             <title>" . htmlescape($lang['subject']) . "</title>
+                             <META http-equiv='Content-Type' content='text/html; charset=utf-8'>
+                             <title>" . Html::entities_deep($lang['subject']) . "</title>
                              <style type='text/css'>
                                {$css}
                              </style>
                             </head>
-                            <body>\n" . (!empty($add_header) ? htmlescape($add_header) . "\n<br><br>" : '')
-                            . $template_datas['content_html']
-                         . (!empty(trim($this->signature)) ? "<br><br>-- \n<br>" . $signature_html : '')
-                         . "<br>" . htmlescape($footer_string)
-                         . "<br><br>\n" . (!empty($add_footer) ? htmlescape($add_footer) . "\n<br><br>" : '')
-                         . "\n</body></html>";
+                            <body>\n" . (!empty($add_header) ? $add_header . "\n<br><br>" : '') .
+                            $template_datas['content_html'] .
+                         (!empty(trim($this->signature)) ? "<br><br>-- \n<br>" . $signature_html : '') .
+                         "<br>$footer_string" .
+                         "<br><br>\n" . (!empty($add_footer) ? $add_footer . "\n<br><br>" : '') .
+                         "\n</body></html>";
                     }
 
                     $signature_text = RichText::getTextFromHtml($this->signature, false, false);
                     $lang['content_text'] = (!empty($add_header) ? $add_header . "\n\n" : '')
-                    . self::process($template_datas['content_text'], self::getDataForPlainText($data), html_context: false)
+                    . self::process($template_datas['content_text'], self::getDataForPlainText($data))
                     . (!empty(trim($this->signature)) ? "\n\n-- \n" . $signature_text : '')
                     . "\n" . $footer_string
                     . "\n\n" . $add_footer;
@@ -356,26 +355,25 @@ class NotificationTemplate extends CommonDBTM
                     Plugin::loadLang(strtolower($plug['plugin']));
                 }
             }
-
-            // Restore original timezone
-            if ($orig_tz !== null) {
-                $DB->setTimezone($orig_tz);
-            }
         }
         if (isset($this->templates_by_languages[$tid])) {
             return $tid;
         }
-
         return false;
     }
 
+
     /**
-     * @param string               $string
-     * @param array<string, mixed> $data
-     * @return string
+     * @param $string
+     * @param $data
      **/
-    public static function process($string, $data, bool $html_context = false)
+    public static function process($string, $data)
     {
+
+        $offset = $new_offset = 0;
+        //Template processed
+        $output = "";
+
         $cleandata = [];
         // clean data for strtr
         foreach ($data as $field => $value) {
@@ -405,14 +403,14 @@ class NotificationTemplate extends CommonDBTM
 
                     //Manage FIRST & LAST statement
                     $foreachvalues = $data[$tag_infos];
-                    if ($foreachvalues !== []) {
+                    if (!empty($foreachvalues)) {
                         if (isset($out[1][$id]) && ($out[1][$id] != '')) {
                             if ($out[1][$id] == 'FIRST') {
                                 $foreachvalues = array_reverse($foreachvalues);
                             }
 
                             if (isset($out[2][$id]) && $out[2][$id]) {
-                                $foreachvalues = array_slice($foreachvalues, 0, (int) $out[2][$id]);
+                                $foreachvalues = array_slice($foreachvalues, 0, $out[2][$id]);
                             } else {
                                 $foreachvalues = array_slice($foreachvalues, 0, 1);
                             }
@@ -440,7 +438,7 @@ class NotificationTemplate extends CommonDBTM
         $string = self::processIf($string, $cleandata);
         $string = strtr($string, $cleandata);
 
-        $string = self::convertRelativeGlpiLinksToAbsolute($string, $html_context);
+        $string = self::convertRelativeGlpiLinksToAbsolute($string);
 
         return $string;
     }
@@ -451,32 +449,29 @@ class NotificationTemplate extends CommonDBTM
      * @param string $string
      * @return string
      */
-    private static function convertRelativeGlpiLinksToAbsolute(string $string, bool $html_context): string
+    private static function convertRelativeGlpiLinksToAbsolute(string $string): string
     {
+        /** @var array $CFG_GLPI */
         global $CFG_GLPI;
-
-        $base_url = $CFG_GLPI['url_base'];
-        if ($html_context) {
-            $base_url = htmlescape($base_url);
-        }
 
         // Convert domain relative links to absolute links
         $string = preg_replace(
             '/((?:href)=[\'"])(\/(?:[^\/][^\'"]*)?)([\'"])/',
-            '$1' . $base_url . '$2$3',
+            '$1' . $CFG_GLPI['url_base'] . '$2$3',
             $string
         );
 
         return $string;
     }
 
+
     /**
-     * @param string $string
-     * @param array  $data<string, string>
-     * @return string
+     * @param $string
+     * @param $data
      **/
     public static function processIf($string, $data)
     {
+
         if (preg_match_all("/##IF([a-z-0-9\._]*)[=]?(.*?)##/i", $string, $out)) {
             foreach ($out[1] as $key => $tag_infos) {
                 $if_field = $tag_infos;
@@ -500,10 +495,10 @@ class NotificationTemplate extends CommonDBTM
                 } else { // check exact match
                     if (isset($data['##' . $if_field . '##'])) {
                         // Data value: the value for the field in the database
-                        $data_value = $data['##' . $if_field . '##'];
+                        $data_value = Html::entity_decode_deep($data['##' . $if_field . '##']);
 
                         // Condition value: the expected value needed to validate the condition
-                        $condition_value = $out[2][$key];
+                        $condition_value = Html::entity_decode_deep($out[2][$key]);
 
                         // Special case for data returned by Dropdown::getYesNo, we
                         // need to use the localized value in the comparison
@@ -512,8 +507,8 @@ class NotificationTemplate extends CommonDBTM
                             $condition_value = __($condition_value);
                         }
 
-                        $condition_ok = html_entity_decode($condition_value, ENT_QUOTES)
-                            == html_entity_decode($data_value, ENT_QUOTES);
+                        // Compare data value and condition value
+                        $condition_ok = $condition_value == $data_value;
                     }
                 }
 
@@ -533,10 +528,10 @@ class NotificationTemplate extends CommonDBTM
     /**
      * Convert notification data to HTML format.
      *
-     * @param array<string, string|array<string>> $data
-     * @return array<string, string|array<string>>
+     * @param array $data
+     * @return array
      */
-    private static function getDataForHtml(array $data): array
+    private static function getDataForHtml(array $data)
     {
         foreach ($data as $tag => $value) {
             if (is_array($value)) {
@@ -549,8 +544,8 @@ class NotificationTemplate extends CommonDBTM
                 continue;
             }
             $data[$tag] = RichText::isRichTextHtmlContent($value)
-                ? RichText::getSafeHtml($value) // Value is rich text, make it safe
-                : nl2br(htmlescape($value)); // Value is plain text, encode its entities
+            ? RichText::getSafeHtml($value) // Value is rich text, make it safe
+            : nl2br(Html::entities_deep($value)); // Value is plain text, encode its entities
         }
 
         return $data;
@@ -559,10 +554,10 @@ class NotificationTemplate extends CommonDBTM
     /**
      * Convert notification data to plain text format.
      *
-     * @param array<string, string|array<string>> $data
-     * @return array array<string, string|array<string>>
+     * @param array $data
+     * @return array
      */
-    private static function getDataForPlainText(array $data): array
+    private static function getDataForPlainText(array $data)
     {
 
         foreach ($data as $tag => $value) {
@@ -585,22 +580,22 @@ class NotificationTemplate extends CommonDBTM
         return $data;
     }
 
+
     /**
-     * @param string $signature
-     *
-     * @return void
+     * @param $signature
      **/
     public function setSignature($signature)
     {
         $this->signature = $signature;
     }
 
+
     /**
-     * @param string $language
-     * @return false|array<string, mixed>
+     * @param $language
      **/
     public function getByLanguage($language)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -620,18 +615,20 @@ class NotificationTemplate extends CommonDBTM
         return false;
     }
 
+
     /**
-     * @param NotificationTarget<covariant CommonGLPI>  $target     Target instance
-     * @param string                                    $tid        template computed id
-     * @param mixed                                     $to         Recipient
-     * @param array                                     $user_infos Extra user infos
-     * @param array                                     $options    Options
+     * @param NotificationTarget $target     Target instance
+     * @param string             $tid        template computed id
+     * @param mixed              $to         Recipient
+     * @param array              $user_infos Extra user infos
+     * @param array              $options    Options
      *
      * @return array
      **/
     public function getDataToSend(NotificationTarget $target, $tid, $to, array $user_infos, array $options)
     {
 
+        $language   = $user_infos['language'];
         $user_name  = $user_infos['username'];
 
         $sender     = $target->getSender();
@@ -659,7 +656,7 @@ class NotificationTemplate extends CommonDBTM
         return $mailing_options;
     }
 
-    #[Override]
+
     public function cleanDBonPurge()
     {
 

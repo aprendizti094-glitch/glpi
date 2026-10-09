@@ -33,11 +33,13 @@
  */
 
 /**
- * @var DBmysql $DB
- * @var Migration $migration
+ * @var \DBmysql $DB
+ * @var \Migration $migration
  */
+
 use Glpi\Agent\Communication\AbstractRequest;
 
+$migration->displayMessage('Add new configurations / user preferences');
 $migration->addPreQuery(
     $DB->buildUpdate(
         Config::getTable(),

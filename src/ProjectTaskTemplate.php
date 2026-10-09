@@ -41,7 +41,6 @@ class ProjectTaskTemplate extends CommonDropdown
 {
     // From CommonDBTM
     public $dohistory          = true;
-    /** @var bool */
     public $can_be_translated  = true;
 
     public static $rightname          = 'project';
@@ -101,7 +100,7 @@ class ProjectTaskTemplate extends CommonDropdown
                 'type'  => 'actiontime',
             ],
             ['name'  => 'comments',
-                'label' => _n('Comment', 'Comments', Session::getPluralNumber()),
+                'label' => __('Comments'),
                 'type'  => 'textarea',
             ],
             ['name'  => 'description',
@@ -255,13 +254,13 @@ class ProjectTaskTemplate extends CommonDropdown
     {
 
         $ong = parent::defineTabs($options);
-        $this->addStandardTab(Document_Item::class, $ong, $options);
+        $this->addStandardTab('Document_Item', $ong, $options);
 
         return $ong;
     }
 
     public static function getIcon()
     {
-        return "ti ti-stack-2-filled";
+        return "fas fa-layer-group";
     }
 }

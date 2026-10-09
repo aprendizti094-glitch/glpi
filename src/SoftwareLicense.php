@@ -34,29 +34,15 @@
  */
 
 use Glpi\Application\View\TemplateRenderer;
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QueryFunction;
 use Glpi\Features\AssetImage;
-use Glpi\Features\AssignableItem;
-use Glpi\Features\AssignableItemInterface;
-use Glpi\Features\Clonable;
-use Glpi\Features\StateInterface;
 
 /**
  * SoftwareLicense Class
  **/
-class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterface, StateInterface
+class SoftwareLicense extends CommonTreeDropdown
 {
-    /** @use Clonable<static> */
-    use Clonable;
-    use Glpi\Features\State;
+    use Glpi\Features\Clonable;
     use AssetImage;
-    use AssignableItem {
-        prepareInputForAdd as prepareInputForAddAssignableItem;
-        prepareInputForUpdate as prepareInputForUpdateAssignableItem;
-        post_addItem as post_addItemAssignableItem;
-        post_updateItem as post_updateItemAssignableItem;
-    }
 
     /// TODO move to CommonDBChild ?
     // From CommonDBTM
@@ -76,7 +62,6 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
             Document_Item::class,
             KnowbaseItem_Item::class,
             Notepad::class,
-            Certificate_Item::class,
         ];
     }
 
@@ -85,56 +70,62 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return _n('License', 'Licenses', $nb);
     }
 
-    public static function getSectorizedDetails(): array
-    {
-        return ['management', self::class];
-    }
 
     public function pre_updateInDB()
     {
+
         // Clean end alert if expire is after old one
         if (
             isset($this->oldvalues['expire'])
             && ($this->oldvalues['expire'] < $this->fields['expire'])
         ) {
             $alert = new Alert();
-            $alert->clear(static::class, $this->fields['id'], Alert::END);
+            $alert->clear($this->getType(), $this->fields['id'], Alert::END);
         }
     }
 
+
+    /**
+     * @see CommonDBTM::prepareInputForAdd()
+     **/
     public function prepareInputForAdd($input)
     {
-        $input = $this->prepareInputForAddAssignableItem($input);
-        if ($input === false) {
+
+        $input = parent::prepareInputForAdd($input);
+
+        if (!isset($this->input['softwares_id']) || !$this->input['softwares_id']) {
+            Session::addMessageAfterRedirect(
+                __("Please select a software for this license"),
+                true,
+                ERROR,
+                true
+            );
             return false;
         }
-        $input = parent::prepareInputForAdd($input);
 
         if (isset($input["id"]) && ($input["id"] > 0)) {
             $input["_oldID"] = $input["id"];
         }
-        unset($input['id'], $input['withtemplate']);
+        unset($input['id']);
+        unset($input['withtemplate']);
 
         // Unset to set to default using mysql default value
         if (empty($input['expire'])) {
             unset($input['expire']);
         }
 
-        if (!isset($input['number'])) {
-            //number is not defined when creating a child licence; and it cannot be 0
-            $input['number'] = 1;
-        }
-
         $input = $this->managePictures($input);
         return $input;
     }
 
+    /**
+     * @since 0.85
+     * @see CommonDBTM::prepareInputForUpdate()
+     **/
     public function prepareInputForUpdate($input)
     {
-        $input = $this->prepareInputForUpdateAssignableItem($input);
-        if ($input === false) {
-            return false;
-        }
+
+        $input = parent::prepareInputForUpdate($input);
 
         // Update number : compute validity indicator
         if (isset($input['number'])) {
@@ -145,11 +136,12 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return $input;
     }
 
+
     /**
      * Compute licence validity indicator.
      *
-     * @param int $ID        ID of the licence
-     * @param int $number    licence count to check (default -1)
+     * @param $ID        ID of the licence
+     * @param $number    licence count to check (default -1)
      *
      * @since 0.85
      *
@@ -157,6 +149,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
      **/
     public static function computeValidityIndicator($ID, $number = -1)
     {
+
         if (
             ($number >= 0)
             && ($number < Item_SoftwareLicense::countForLicense($ID, -1))
@@ -167,9 +160,10 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return 1;
     }
 
+
     /**
      * Update validity indicator of a specific license
-     * @param int $ID ID of the licence
+     * @param $ID ID of the licence
      *
      * @since 0.85
      *
@@ -177,10 +171,11 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
      **/
     public static function updateValidityIndicator($ID)
     {
+
         $lic = new self();
         if ($lic->getFromDB($ID)) {
             $valid = self::computeValidityIndicator($ID, $lic->fields['number']);
-            if ($valid !== $lic->fields['is_valid']) {
+            if ($valid != $lic->fields['is_valid']) {
                 $lic->update(['id'       => $ID,
                     'is_valid' => $valid,
                 ]);
@@ -188,8 +183,13 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         }
     }
 
+
+    /**
+     * @since 0.84
+     **/
     public function cleanDBonPurge()
     {
+
         $this->deleteChildrenAndRelationsFromDb(
             [
                 Item_SoftwareLicense::class,
@@ -198,14 +198,22 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         // Alert does not extends CommonDBConnexity
         $alert = new Alert();
-        $alert->cleanDBonItemDelete(static::class, $this->fields['id']);
+        $alert->cleanDBonItemDelete($this->getType(), $this->fields['id']);
     }
+
 
     public function post_addItem()
     {
-        $this->post_addItemAssignableItem();
+        $itemtype = 'Software';
+        $dupid    = $this->fields["softwares_id"];
+
+        if (isset($this->input["_duplicate_license"])) {
+            $itemtype = 'SoftwareLicense';
+            $dupid    = $this->input["_duplicate_license"];
+        }
+
         // Add infocoms if exists for the licence
-        $infocoms = Infocom::getItemsAssociatedTo(static::class, $this->fields['id']);
+        $infocoms = Infocom::getItemsAssociatedTo($this->getType(), $this->fields['id']);
         if (!empty($infocoms)) {
             $override_input['items_id'] = $this->getID();
             $infocoms[0]->clone($override_input);
@@ -213,21 +221,37 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         Software::updateValidityIndicator($this->fields["softwares_id"]);
     }
 
+    /**
+     * @since 0.85
+     * @see CommonDBTM::post_updateItem()
+     **/
     public function post_updateItem($history = true)
     {
-        $this->post_updateItemAssignableItem($history);
-        if (in_array("is_valid", $this->updates, true)) {
+
+        if (in_array("is_valid", $this->updates)) {
             Software::updateValidityIndicator($this->fields["softwares_id"]);
         }
     }
 
+
+    /**
+     * @since 0.85
+     * @see CommonDBTM::post_deleteFromDB()
+     **/
     public function post_deleteFromDB()
     {
         Software::updateValidityIndicator($this->fields["softwares_id"]);
     }
 
+
+    /**
+     * @since 0.84
+     *
+     * @see CommonDBTM::getPreAdditionalInfosForName
+     **/
     public function getPreAdditionalInfosForName()
     {
+
         $soft = new Software();
         if ($soft->getFromDB($this->fields['softwares_id'])) {
             return $soft->getName();
@@ -237,27 +261,32 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
     public function defineTabs($options = [])
     {
+
         $ong = [];
         $this->addDefaultFormTab($ong);
         $this->addImpactTab($ong, $options);
-        $this->addStandardTab(SoftwareLicense::class, $ong, $options);
-        $this->addStandardTab(Item_SoftwareLicense::class, $ong, $options);
-        $this->addStandardTab(Infocom::class, $ong, $options);
-        $this->addStandardTab(Contract_Item::class, $ong, $options);
-        $this->addStandardTab(Document_Item::class, $ong, $options);
-        $this->addStandardTab(KnowbaseItem_Item::class, $ong, $options);
-        $this->addStandardTab(Item_Ticket::class, $ong, $options);
-        $this->addStandardTab(Item_Problem::class, $ong, $options);
-        $this->addStandardTab(Change_Item::class, $ong, $options);
-        $this->addStandardTab(Notepad::class, $ong, $options);
-        $this->addStandardTab(Certificate_Item::class, $ong, $options);
-        $this->addStandardTab(Log::class, $ong, $options);
+        $this->addStandardTab('SoftwareLicense', $ong, $options);
+        $this->addStandardTab('Item_SoftwareLicense', $ong, $options);
+        $this->addStandardTab('Infocom', $ong, $options);
+        $this->addStandardTab('Contract_Item', $ong, $options);
+        $this->addStandardTab('Document_Item', $ong, $options);
+        $this->addStandardTab('KnowbaseItem_Item', $ong, $options);
+        $this->addStandardTab('Ticket', $ong, $options);
+        $this->addStandardTab('Item_Problem', $ong, $options);
+        $this->addStandardTab('Change_Item', $ong, $options);
+        $this->addStandardTab('Notepad', $ong, $options);
+        $this->addStandardTab('Certificate_Item', $ong, $options);
+        $this->addStandardTab('Log', $ong, $options);
         return $ong;
     }
 
+
     public function showForm($ID, array $options = [])
     {
-        $softwares_id = $options['softwares_id'] ?? -1;
+        $softwares_id = -1;
+        if (isset($options['softwares_id'])) {
+            $softwares_id = $options['softwares_id'];
+        }
 
         if ($ID < 0) {
             // Create item
@@ -273,31 +302,90 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
             ) {
                 $options['entities_id'] = $soft->getEntityID();
             }
-        } elseif ($this->fields['number'] == 0) {
-            //fix licenses stored with number = 0
-            $this->fields['number'] = 1;
         }
 
         $this->initForm($ID, $options);
         TemplateRenderer::getInstance()->display('pages/management/softwarelicense.html.twig', [
             'item'   => $this,
             'params' => $options,
-            'licences_assigned' => Item_SoftwareLicense::countForLicense($this->getID())
-                + SoftwareLicense_User::countForLicense($this->getID()),
         ]);
 
         return true;
     }
 
+    /**
+     * Is the license may be recursive
+     *
+     * @return boolean
+     **/
+    public function maybeRecursive()
+    {
+
+        $soft = new Software();
+        if (
+            isset($this->fields["softwares_id"])
+            && $soft->getFromDB($this->fields["softwares_id"])
+        ) {
+            return $soft->isRecursive();
+        }
+
+        return true;
+    }
+
+    /**
+     * Is the license recursive ?
+     *
+     * @return boolean
+     **/
+    public function isRecursive()
+    {
+        $soft = new Software();
+        if (
+            isset($this->fields["softwares_id"])
+            && $soft->getFromDB($this->fields["softwares_id"])
+        ) {
+            return $soft->isRecursive();
+        }
+
+        return false;
+    }
+
+
     public function rawSearchOptions()
     {
-        $tab = parent::rawSearchOptions();
+        $tab = [];
+
+        // Only use for History (not by search Engine)
+        $tab[] = [
+            'id'                 => 'common',
+            'name'               => __('Characteristics'),
+        ];
+
+        $tab[] = [
+            'id'                 => '1',
+            'table'              => $this->getTable(),
+            'field'              => 'name',
+            'name'               => __('Name'),
+            'datatype'           => 'itemlink',
+            'massiveaction'      => false,
+            'forcegroupby'       => true,
+        ];
+
+        $tab[] = [
+            'id'                 => '2',
+            'table'              => $this->getTable(),
+            'field'              => 'id',
+            'name'               => __('ID'),
+            'massiveaction'      => false,
+            'datatype'           => 'number',
+            'forcegroupby'       => true,
+        ];
 
         $tab = array_merge($tab, Location::rawSearchOptionsToAdd());
 
         $tab[] = [
             'id'                 => '11',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'serial',
             'name'               => __('Serial number'),
             'datatype'           => 'string',
@@ -305,7 +393,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '4',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'number',
             'name'               => __('Number'),
             'datatype'           => 'number',
@@ -317,7 +405,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '5',
-            'table'              => SoftwareLicenseType::getTable(),
+            'table'              => 'glpi_softwarelicensetypes',
             'field'              => 'name',
             'name'               => _n('Type', 'Types', 1),
             'datatype'           => 'dropdown',
@@ -325,7 +413,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '6',
-            'table'              => SoftwareVersion::getTable(),
+            'table'              => 'glpi_softwareversions',
             'field'              => 'name',
             'linkfield'          => 'softwareversions_id_buy',
             'name'               => __('Purchase version'),
@@ -337,7 +425,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '7',
-            'table'              => SoftwareVersion::getTable(),
+            'table'              => 'glpi_softwareversions',
             'field'              => 'name',
             'linkfield'          => 'softwareversions_id_use',
             'name'               => __('Version in use'),
@@ -349,7 +437,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '8',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'expire',
             'name'               => __('Expiration'),
             'datatype'           => 'date',
@@ -357,7 +445,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '9',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'is_valid',
             'name'               => __('Valid'),
             'datatype'           => 'bool',
@@ -365,7 +453,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '10',
-            'table'              => Software::getTable(),
+            'table'              => 'glpi_softwares',
             'field'              => 'name',
             'name'               => Software::getTypeName(1),
             'datatype'           => 'itemlink',
@@ -373,15 +461,42 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '168',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'allow_overquota',
             'name'               => __('Allow Over-Quota'),
             'datatype'           => 'bool',
         ];
 
         $tab[] = [
+            'id'                 => '13',
+            'table'              => $this->getTable(),
+            'field'              => 'completename',
+            'name'               => __('Father'),
+            'datatype'           => 'itemlink',
+            'forcegroupby'       => true,
+            'joinparams'        => ['condition' => [new QueryExpression("1=1")]],
+        ];
+
+        $tab[] = [
+            'id'                 => '16',
+            'table'              => $this->getTable(),
+            'field'              => 'comment',
+            'name'               => __('Comments'),
+            'datatype'           => 'text',
+        ];
+
+        $tab[] = [
+            'id'                 => '121',
+            'table'              => $this->getTable(),
+            'field'              => 'date_creation',
+            'name'               => __('Creation date'),
+            'datatype'           => 'datetime',
+            'massiveaction'      => false,
+        ];
+
+        $tab[] = [
             'id'                 => '24',
-            'table'              => User::getTable(),
+            'table'              => 'glpi_users',
             'field'              => 'name',
             'linkfield'          => 'users_id_tech',
             'name'               => __('Technician in charge of the license'),
@@ -391,37 +506,26 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '31',
-            'table'              => State::getTable(),
+            'table'              => 'glpi_states',
             'field'              => 'completename',
             'name'               => __('Status'),
             'datatype'           => 'dropdown',
-            'condition'          => $this->getStateVisibilityCriteria(),
+            'condition'          => ['is_visible_softwarelicense' => 1],
         ];
 
         $tab[] = [
             'id'                 => '49',
-            'table'              => Group::getTable(),
+            'table'              => 'glpi_groups',
             'field'              => 'completename',
-            'linkfield'          => 'groups_id',
+            'linkfield'          => 'groups_id_tech',
             'name'               => __('Group in charge of the license'),
             'condition'          => ['is_assign' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_TECH],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
             'id'                 => '61',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'template_name',
             'name'               => __('Template name'),
             'datatype'           => 'text',
@@ -432,7 +536,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '70',
-            'table'              => User::getTable(),
+            'table'              => 'glpi_users',
             'field'              => 'name',
             'name'               => User::getTypeName(1),
             'datatype'           => 'dropdown',
@@ -441,27 +545,32 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '71',
-            'table'              => Group::getTable(),
+            'table'              => 'glpi_groups',
             'field'              => 'completename',
             'name'               => Group::getTypeName(1),
             'condition'          => ['is_itemgroup' => 1],
-            'joinparams'         => [
-                'beforejoin'         => [
-                    'table'              => 'glpi_groups_items',
-                    'joinparams'         => [
-                        'jointype'           => 'itemtype_item',
-                        'condition'          => ['NEWTABLE.type' => Group_Item::GROUP_TYPE_NORMAL],
-                    ],
-                ],
-            ],
-            'forcegroupby'       => true,
-            'massiveaction'      => false,
             'datatype'           => 'dropdown',
         ];
 
         $tab[] = [
+            'id'                 => '80',
+            'table'              => 'glpi_entities',
+            'field'              => 'completename',
+            'name'               => Entity::getTypeName(1),
+            'datatype'           => 'dropdown',
+        ];
+
+        $tab[] = [
+            'id'                 => '86',
+            'table'              => $this->getTable(),
+            'field'              => 'is_recursive',
+            'name'               => __('Child entities'),
+            'datatype'           => 'bool',
+        ];
+
+        $tab[] = [
             'id'                 => '162',
-            'table'              => static::getTable(),
+            'table'              => $this->getTable(),
             'field'              => 'otherserial',
             'name'               => __('Inventory number'),
             'massiveaction'      => false,
@@ -470,44 +579,33 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '163',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_items_softwarelicenses',
             'field'              => 'id',
             'name'               => _x('quantity', 'Number of installations'),
             'forcegroupby'       => true,
             'usehaving'          => true,
-            'datatype'           => 'specific',
+            'datatype'           => 'count',
             'massiveaction'      => false,
-            'computation'        => '('
-                . '(SELECT COUNT(*) FROM ' . Item_SoftwareLicense::getTable()
-                . ' WHERE softwarelicenses_id = TABLE.id AND is_deleted = 0)'
-                . ' + '
-                . '(SELECT COUNT(*) FROM ' . SoftwareLicense_User::getTable()
-                . ' WHERE softwarelicenses_id = TABLE.id)'
-                . ')',
-            'computationgroupby' => true,
-            'computationtype' => 'count',
+            'joinparams'         => [
+                'jointype'   => 'child',
+                'beforejoin' => [
+                    'table'      => 'glpi_softwarelicenses',
+                    'joinparams' => ['jointype' => 'child'],
+                ],
+                'condition'  => [
+                    'NEWTABLE.is_deleted'          => 0,
+                ],
+            ],
         ];
 
-        $tab[] = [
-            'id'                 => '164',
-            'table'              => Item_SoftwareLicense::getTable(),
-            'field'              => 'id',
-            'linkfield'          => 'id',
-            'name'               => _x('quantity', 'Affected items'),
-            'datatype'           => 'specific',
-            'massiveaction'      => false,
-            'nosearch'           => true,
-            'nosort'             => true,
-        ];
-
+        // add objectlock search options
+        $tab = array_merge($tab, ObjectLock::rawSearchOptionsToAdd(get_class($this)));
         $tab = array_merge($tab, Notepad::rawSearchOptionsToAdd());
 
         return $tab;
     }
 
-    /**
-     * @return array<int,array<string,mixed>>
-     */
+
     public static function rawSearchOptionsToAdd()
     {
         $tab = [];
@@ -525,7 +623,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
                     'NEWTABLE.is_template' => 0,
                     'OR'  => [
                         ['NEWTABLE.expire' => null],
-                        ['NEWTABLE.expire' => ['>', QueryFunction::now()]],
+                        ['NEWTABLE.expire' => ['>', new QueryExpression('NOW()')]],
                     ],
                 ]
             ),
@@ -538,7 +636,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '160',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'name',
             'name'               => __('Name'),
             'datatype'           => 'dropdown',
@@ -549,7 +647,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '161',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'serial',
             'datatype'           => 'string',
             'name'               => __('Serial number'),
@@ -560,7 +658,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '162',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'otherserial',
             'datatype'           => 'string',
             'name'               => __('Inventory number'),
@@ -571,7 +669,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '163',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'number',
             'name'               => __('Number of licenses'),
             'forcegroupby'       => true,
@@ -583,7 +681,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '164',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicensetypes',
             'field'              => 'name',
             'datatype'           => 'dropdown',
             'name'               => _n('Type', 'Types', 1),
@@ -599,9 +697,9 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '165',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'comment',
-            'name'               => _n('Comment', 'Comments', Session::getPluralNumber()),
+            'name'               => __('Comments'),
             'forcegroupby'       => true,
             'datatype'           => 'text',
             'massiveaction'      => false,
@@ -610,7 +708,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '166',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'expire',
             'name'               => __('Expiration'),
             'forcegroupby'       => true,
@@ -622,7 +720,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
 
         $tab[] = [
             'id'                 => '167',
-            'table'              => static::getTable(),
+            'table'              => 'glpi_softwarelicenses',
             'field'              => 'is_valid',
             'name'               => __('Valid'),
             'forcegroupby'       => true,
@@ -634,29 +732,33 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return $tab;
     }
 
+
     /**
      * Give cron information
      *
-     * @param string $name task's name
+     * @param $name : task's name
      *
      * @return array of information
-     * @used-by CronTask
      **/
     public static function cronInfo($name)
     {
         return ['description' => __('Send alarms on expired licenses')];
     }
 
+
     /**
      * Cron action on software: alert on expired licences
      *
-     * @param CronTask $task Task to log, if NULL display (default NULL)
+     * @param $task to log, if NULL display (default NULL)
      *
-     * @return int 0 : nothing to do 1 : done with success
-     * @used-by CronTask
+     * @return 0 : nothing to do 1 : done with success
      **/
     public static function cronSoftware($task = null)
     {
+        /**
+         * @var array $CFG_GLPI
+         * @var \DBmysql $DB
+         */
         global $CFG_GLPI, $DB;
 
         $cron_status = 1;
@@ -665,6 +767,9 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
             return 0;
         }
 
+        $message      = [];
+        $items_notice = [];
+        $items_end    = [];
 
         $tonotify = Entity::getEntitiesToNotify('use_licenses_alert');
         foreach (array_keys($tonotify) as $entity) {
@@ -699,12 +804,7 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
                 'WHERE'        => [
                     'glpi_alerts.date'   => null,
                     'NOT'                => ['glpi_softwarelicenses.expire' => null],
-                    new QueryExpression(
-                        QueryFunction::datediff(
-                            expression1: $DB::quoteName('glpi_softwarelicenses.expire'),
-                            expression2: QueryFunction::curdate()
-                        )
-                    ) . ' < ' . $before,
+                    new QueryExpression('DATEDIFF(' . $DB->quoteName('glpi_softwarelicenses.expire') . ', CURDATE()) < ' . $before),
                     'glpi_softwares.is_template'  => 0,
                     'glpi_softwares.is_deleted'   => 0,
                     'glpi_softwares.entities_id'  => $entity,
@@ -712,36 +812,36 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
             ];
             $iterator = $DB->request($criteria);
 
-            $messages = [];
-            $items    = [];
+            $message = "";
+            $items   = [];
 
             foreach ($iterator as $license) {
                 $name     = $license['softname'] . ' - ' . $license['name'] . ' - ' . $license['serial'];
                 //TRANS: %1$s the license name, %2$s is the expiration date
-                $messages[] = sprintf(
+                $message .= sprintf(
                     __('License %1$s expired on %2$s'),
                     Html::convDate($license["expire"]),
                     $name
-                );
+                ) . "<br>\n";
                 $items[$license['id']] = $license;
             }
 
-            if ($items !== []) {
+            if (!empty($items)) {
                 $alert                  = new Alert();
                 $options['entities_id'] = $entity;
                 $options['licenses']    = $items;
 
                 if (NotificationEvent::raiseEvent('alert', new self(), $options)) {
-                    $entityname = Dropdown::getDropdownName(Entity::getTable(), $entity);
+                    $entityname = Dropdown::getDropdownName("glpi_entities", $entity);
                     if ($task) {
                         //TRANS: %1$s is the entity, %2$s is the message
-                        $task->log(sprintf(__('%1$s: %2$s') . "\n", $entityname, implode("\n", $messages)));
+                        $task->log(sprintf(__('%1$s: %2$s') . "\n", $entityname, $message));
                         $task->addVolume(1);
                     } else {
                         Session::addMessageAfterRedirect(sprintf(
-                            __s('%1$s: %2$s'),
-                            htmlescape($entityname),
-                            implode('<br>', array_map('htmlescape', $messages))
+                            __('%1$s: %2$s'),
+                            $entityname,
+                            $message
                         ));
                     }
 
@@ -749,19 +849,19 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
                     $input["itemtype"] = 'SoftwareLicense';
 
                     // add alerts
-                    foreach (array_keys($items) as $ID) {
+                    foreach ($items as $ID => $consumable) {
                         $input["items_id"] = $ID;
                         $alert->add($input);
                         unset($alert->fields['id']);
                     }
                 } else {
-                    $entityname = Dropdown::getDropdownName(Entity::getTable(), $entity);
+                    $entityname = Dropdown::getDropdownName('glpi_entities', $entity);
                     //TRANS: %s is entity name
                     $msg = sprintf(__('%1$s: %2$s'), $entityname, __('Send licenses alert failed'));
                     if ($task) {
                         $task->log($msg);
                     } else {
-                        Session::addMessageAfterRedirect(htmlescape($msg), false, ERROR);
+                        Session::addMessageAfterRedirect($msg, false, ERROR);
                     }
                 }
             }
@@ -769,17 +869,19 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return $cron_status;
     }
 
+
     /**
      * Get number of bought licenses of a version
      *
-     * @param int $softwareversions_id   version ID
-     * @param int|''|array<int> $entity  Entity to search for licenses in (default = all active entities)
+     * @param $softwareversions_id   version ID
+     * @param $entity                to search for licenses in (default = all active entities)
      *                               (default '')
      *
-     * @return int number of installations
+     * @return number of installations
      */
     public static function countForVersion($softwareversions_id, $entity = '')
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $result = $DB->request([
@@ -793,15 +895,17 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
         return $result['cpt'];
     }
 
+
     /**
      * Get number of licenses of a software
      *
-     * @param int $softwares_id software ID
+     * @param $softwares_id software ID
      *
-     * @return int number of licenses
+     * @return number of licenses
      **/
     public static function countForSoftware($softwares_id)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $iterator = $DB->request([
@@ -830,74 +934,47 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
                 'number'       => ['>', 0],
             ] + getEntitiesRestrictCriteria('glpi_softwarelicenses', '', '', true),
         ])->current();
-        return $result['numsum'] ?: 0;
+        return ($result['numsum'] ? $result['numsum'] : 0);
     }
+
 
     public function getSpecificMassiveActions($checkitem = null)
     {
+
         $actions = parent::getSpecificMassiveActions($checkitem);
         if (static::canUpdate()) {
             $prefix                       = 'Item_SoftwareLicense' . MassiveAction::CLASS_ACTION_SEPARATOR;
-            $actions[$prefix . 'add_item']  = "<i class='ti ti-package'></i>" . _sx('button', 'Add an item');
+            $actions[$prefix . 'add_item']  = _x('button', 'Add an item');
         }
 
         return $actions;
     }
 
-    public function getForbiddenSingleMassiveActions()
-    {
-        $forbidden = parent::getForbiddenSingleMassiveActions();
-
-        $prefix = 'Item_SoftwareLicense' . MassiveAction::CLASS_ACTION_SEPARATOR;
-        $add_item_action = $prefix . 'add_item';
-
-        if (!static::canUpdate()) {
-            $forbidden[] = $add_item_action;
-            return $forbidden;
-        }
-
-        if (
-            !$this->fields['allow_overquota']
-            && $this->fields['number'] != -1
-        ) {
-            $number = Item_SoftwareLicense::countForLicense($this->getID());
-            $number += SoftwareLicense_User::countForLicense($this->getID());
-
-            if ($number >= $this->fields['number']) {
-                $forbidden[] = $add_item_action;
-            }
-        }
-
-        return $forbidden;
-    }
 
     /**
      * Show Licenses of a software
      *
-     * @param Software $software Software object
+     * @param $software Software object
      *
      * @return void
      **/
     public static function showForSoftware(Software $software)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $softwares_id  = $software->getField('id');
         $license       = new self();
 
         if (!$software->can($softwares_id, READ)) {
-            return;
+            return false;
         }
 
-        $columns = [
-            'name'      => __('Name'),
+        $columns = ['name'      => __('Name'),
             'entity'    => Entity::getTypeName(1),
             'serial'    => __('Serial number'),
             'number'    => _x('quantity', 'Number'),
-            '_affected' => [
-                'label' => __('Affected items'),
-                'nosort' => true,
-            ],
+            '_affected' => __('Affected items'),
             'typename'  => _n('Type', 'Types', 1),
             'buyname'   => __('Purchase version'),
             'usename'   => __('Version in use'),
@@ -908,17 +985,27 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
             unset($columns['entity']);
         }
 
-        $start = (int) ($_GET['start'] ?? 0);
-        $order = ($_GET['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
-
-        if (!empty($_GET["sort"]) && isset($columns[$_GET["sort"]])) {
-            $sort = $_GET["sort"];
+        if (isset($_GET["start"])) {
+            $start = $_GET["start"];
         } else {
-            $sort = 'name';
+            $start = 0;
         }
 
-        // Right type is enough. Can add a License on a software we have Read access
+        if (isset($_GET["order"]) && ($_GET["order"] == "DESC")) {
+            $order = "DESC";
+        } else {
+            $order = "ASC";
+        }
+
+        if (isset($_GET["sort"]) && !empty($_GET["sort"]) && isset($columns[$_GET["sort"]])) {
+            $sort = $_GET["sort"];
+        } else {
+            $sort = ["entity $order", "name $order"];
+        }
+
+        // Righ type is enough. Can add a License on a software we have Read access
         $canedit             = Software::canUpdate();
+        $showmassiveactions  = $canedit;
 
         // Total Number of events
         $number = countElementsInTable(
@@ -928,20 +1015,26 @@ class SoftwareLicense extends CommonTreeDropdown implements AssignableItemInterf
                 'glpi_softwarelicenses.is_template'  => 0,
             ] + getEntitiesRestrictCriteria('glpi_softwarelicenses', '', '', true)
         );
+        echo "<div class='spaced'>";
+
+        Session::initNavigateListItems(
+            'SoftwareLicense',
+            //TRANS : %1$s is the itemtype name, %2$s is the name of the item (used for headings of a list)
+            sprintf(
+                __('%1$s = %2$s'),
+                Software::getTypeName(1),
+                $software->getName()
+            )
+        );
 
         if ($canedit) {
-            $twig_params = [
-                'btn_msg' => _x('button', 'Add a license'),
-                'softwares_id' => $softwares_id,
-            ];
-            // language=Twig
-            echo TemplateRenderer::getInstance()->renderFromStringTemplate(<<<TWIG
-                <div class="text-center mb-3">
-                    <a class="btn btn-primary" href="{{ 'SoftwareLicense'|itemtype_form_path }}?softwares_id={{ softwares_id }}">{{ btn_msg }}</a>
-                </div>
-TWIG, $twig_params);
+            echo "<div class='center firstbloc'>";
+            echo "<a class='btn btn-primary' href='" . SoftwareLicense::getFormURL() . "?softwares_id=$softwares_id'>" .
+                _x('button', 'Add a license') . "</a>";
+            echo "</div>";
         }
 
+        $rand  = mt_rand();
         $iterator = $DB->request([
             'SELECT'    => [
                 'glpi_softwarelicenses.*',
@@ -988,89 +1081,156 @@ TWIG, $twig_params);
                 'glpi_softwarelicenses.softwares_id'   => $softwares_id,
                 'glpi_softwarelicenses.is_template'    => 0,
             ] + getEntitiesRestrictCriteria('glpi_softwarelicenses', '', '', true),
-            'ORDERBY'   => "$sort $order",
-            'START'     => $start,
+            'ORDERBY'   => $sort,
+            'START'     => (int) $start,
             'LIMIT'     => (int) $_SESSION['glpilist_limit'],
         ]);
+        $num_displayed = count($iterator);
 
-        $tot_assoc = 0;
-        $tot       = 0;
-        $entries   = [];
-        foreach ($iterator as $data) {
-            $license->getFromResultSet($data);
-            $expired = true;
-            if (
-                is_null($data['expire'])
-                || ($data['expire'] > date('Y-m-d'))
-            ) {
-                $expired = false;
+        if ($num_displayed) {
+            // Display the pager
+            Html::printAjaxPager(self::getTypeName(Session::getPluralNumber()), $start, $number);
+            if ($showmassiveactions) {
+                Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+                $massiveactionparams
+                 = ['num_displayed'
+                        => min($_SESSION['glpilist_limit'], $num_displayed),
+                     'container'
+                        => 'mass' . __CLASS__ . $rand,
+                     'extraparams'
+                        => ['options'
+                                    => ['glpi_softwareversions.name'
+                                             => ['condition'
+                                                      => $DB->quoteName("glpi_softwareversions.softwares_id") . "
+                                                               = $softwares_id",
+                                             ],
+                                        'glpi_softwarelicenses.name'
+                                             => ['itemlink_as_string' => true],
+                                    ],
+                        ],
+                 ];
+
+                Html::showMassiveActions($massiveactionparams);
             }
-            $nb_assoc   = Item_SoftwareLicense::countForLicense($data['id']);
-            $nb_assoc  += SoftwareLicense_User::countForLicense($data['id']);
-            $tot_assoc += $nb_assoc;
 
-            if ($data['number'] < 0) {
-                // One unlimited license, total is unlimited
-                $tot = -1;
-            } elseif ($tot >= 0) {
-                // Expired licenses do not count
-                if (!$expired) {
-                    // Not unlimited, add the current number
-                    $tot += $data['number'];
+            echo "<table class='tab_cadre_fixehov'>";
+
+            $header_begin  = "<tr><th>";
+            $header_top    = Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand);
+            $header_end    = '';
+
+            foreach ($columns as $key => $val) {
+                // Non order column
+                if ($key[0] == '_') {
+                    $header_end .= "<th>$val</th>";
+                } else {
+                    $header_end .= "<th" . (!is_array($sort) && $sort == "$key" ? " class='order_$order'" : '') . ">" .
+                     "<a href='javascript:reloadTab(\"sort=$key&amp;order=" .
+                        (($order == "ASC") ? "DESC" : "ASC") . "&amp;start=0\");'>$val</a></th>";
                 }
             }
-            $entries[] = [
-                'itemtype' => self::class,
-                'id'       => $data['id'],
-                'row_class' => $expired ? 'table-danger' : '',
-                'name' => $license->getLink(['complete' => true, 'comments' => true]),
-                'entity' => $data['entity'],
-                'serial' => $data['serial'],
-                'number' => ($data['number'] > 0) ? $data['number'] : __('Unlimited'),
-                '_affected' => '<span class="' . ($data['is_valid'] ? 'text-green' : 'text-red') . '">' . $nb_assoc . '</span>',
-                'typename' => $data['typename'],
-                'buyname' => $data['buyname'],
-                'usename' => $data['usename'],
-                'expire' => $data['expire'],
-                'statename' => $data['statename'],
-            ];
+
+            $header_end .= "</tr>\n";
+            echo $header_begin . $header_top . $header_end;
+
+            $tot_assoc = 0;
+            $tot       = 0;
+            foreach ($iterator as $data) {
+                Session::addToNavigateListItems('SoftwareLicense', $data['id']);
+                $expired = true;
+                if (
+                    is_null($data['expire'])
+                    || ($data['expire'] > date('Y-m-d'))
+                ) {
+                    $expired = false;
+                }
+                echo "<tr class='tab_bg_2" . ($expired ? '_2' : '') . "'>";
+
+                if ($license->canEdit($data['id'])) {
+                    echo "<td>" . Html::getMassiveActionCheckBox(__CLASS__, $data["id"]) . "</td>";
+                } else {
+                    echo "<td>&nbsp;</td>";
+                }
+
+                echo "<td>";
+                echo $license->getLink(['complete' => true, 'comments' => true]);
+                echo "</td>";
+
+                if (isset($columns['entity'])) {
+                    echo "<td>";
+                    echo $data['entity'];
+                    echo "</td>";
+                }
+                echo "<td>" . $data['serial'] . "</td>";
+                echo "<td class='numeric'>" .
+                     (($data['number'] > 0) ? $data['number'] : __('Unlimited')) . "</td>";
+                $nb_assoc   = Item_SoftwareLicense::countForLicense($data['id']);
+                $tot_assoc += $nb_assoc;
+                $color = ($data['is_valid'] ? 'green' : 'red');
+
+                echo "<td class='numeric $color'>" . $nb_assoc . "</td>";
+                echo "<td>" . $data['typename'] . "</td>";
+                echo "<td>" . $data['buyname'] . "</td>";
+                echo "<td>" . $data['usename'] . "</td>";
+                echo "<td class='center'>" . Html::convDate($data['expire']) . "</td>";
+                echo "<td>" . $data['statename'] . "</td>";
+                echo "</tr>";
+
+                if ($data['number'] < 0) {
+                    // One illimited license, total is illimited
+                    $tot = -1;
+                } elseif ($tot >= 0) {
+                    // Expire license not count
+                    if (!$expired) {
+                        // Not illimited, add the current number
+                        $tot += $data['number'];
+                    }
+                }
+            }
+            echo "<tr class='tab_bg_1 noHover'>";
+            echo "<td colspan='" .
+                  ($software->isRecursive() ? 4 : 3) . "' class='right b'>" . __('Total') . "</td>";
+            echo "<td class='numeric'>" . (($tot > 0) ? $tot . "" : __('Unlimited')) .
+               "</td>";
+            $color = ($software->fields['is_valid'] ? 'green' : 'red');
+            echo "<td class='numeric $color'>" . $tot_assoc . "</td><td></td><td></td><td></td><td></td><td></td>";
+            echo "</tr>";
+            echo "</table>\n";
+
+            if ($showmassiveactions) {
+                $massiveactionparams['ontop'] = false;
+                Html::showMassiveActions($massiveactionparams);
+
+                Html::closeForm();
+            }
+            Html::printAjaxPager(self::getTypeName(Session::getPluralNumber()), $start, $number);
+        } else {
+            echo "<table class='tab_cadre_fixe'><tr><th>" . __('No item found') . "</th></tr></table>";
         }
 
-        TemplateRenderer::getInstance()->display('components/datatable.html.twig', [
-            'is_tab' => true,
-            'start' => $start,
-            'limit' => $_SESSION["glpilist_limit"],
-            'sort' => $sort,
-            'order' => $order,
-            'nofilter' => true,
-            'columns' => $columns,
-            'formatters' => [
-                'name' => 'raw_html',
-                '_affected' => 'raw_html',
-                'expire' => 'date',
-            ],
-            'footers' => [
-                ['', __('Total'), (($tot > 0) ? $tot . "" : __('Unlimited')), $tot_assoc, '', '', '', '', ''],
-            ],
-            'footer_class' => 'fw-bold',
-            'entries' => $entries,
-            'total_number' => $number,
-            'filtered_number' => $number,
-            'showmassiveactions' => $canedit,
-            'massiveactionparams' => [
-                'num_displayed' => count($entries),
-                'container'     => 'mass' . static::class . mt_rand(),
-                'extraparams' => [
-                    'options' => [
-                        'glpi_softwareversions.name' => [
-                            'condition' => ["glpi_softwareversions.softwares_id" => $softwares_id],
-                        ],
-                        'glpi_softwarelicenses.name' => ['itemlink_as_string' => true],
-                    ],
-                ],
-            ],
-        ]);
+        echo "</div>";
     }
+
+
+    /**
+     * Display debug information for current object
+     **/
+    public function showDebug()
+    {
+
+        $license = [
+            'softname'      => '',
+            'name'          => '',
+            'serial'        => '',
+            'expire'        => '',
+            'entities_id'   => '',
+        ];
+
+        $options['entities_id'] = $this->getEntityID();
+        $options['licenses']    = [$license];
+        NotificationEvent::debugEvent($this, $options);
+    }
+
 
     /**
      * Get fields to display in the unicity error message
@@ -1079,16 +1239,18 @@ TWIG, $twig_params);
      */
     public function getUnicityFieldsToDisplayInErrorMessage()
     {
-        return [
-            'id'           => __('ID'),
+
+        return ['id'           => __('ID'),
             'serial'       => __('Serial number'),
             'entities_id'  => Entity::getTypeName(1),
             'softwares_id' => _n('Software', 'Software', 1),
         ];
     }
 
+
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+
         if (!$withtemplate) {
             $nb = 0;
             switch (get_class($item)) {
@@ -1101,39 +1263,102 @@ TWIG, $twig_params);
                     }
                     return self::createTabEntry(
                         self::getTypeName(Session::getPluralNumber()),
-                        (($nb >= 0) ? $nb : '&infin;'),
-                        $item::class
+                        (($nb >= 0) ? $nb : '&infin;')
                     );
 
-                case self::class:
+                case SoftwareLicense::class:
                     if (!self::canView()) {
                         return '';
                     }
                     if ($_SESSION['glpishow_count_on_tabs']) {
                         $nb = countElementsInTable(
-                            static::getTable(),
+                            $this->getTable(),
                             ['softwarelicenses_id' => $item->getID()]
                         );
                     }
                     return self::createTabEntry(
                         self::getTypeName(Session::getPluralNumber()),
-                        (($nb >= 0) ? $nb : '&infin;'),
-                        $item::class
+                        (($nb >= 0) ? $nb : '&infin;')
                     );
             }
         }
         return '';
     }
 
+
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
     {
-        if ($item::class === Software::class && self::canView()) {
+
+        if ($item->getType() == 'Software' && self::canView()) {
             self::showForSoftware($item);
-        } elseif ($item::class === self::class && self::canView()) {
-            $item->showChildren();
-            return true;
+        } else {
+            if ($item->getType() == 'SoftwareLicense' && self::canView()) {
+                self::getSonsOf($item);
+                return true;
+            }
         }
         return true;
+    }
+
+
+    public static function getSonsOf($item)
+    {
+        /** @var \DBmysql $DB */
+        global $DB;
+        $entity_assign = $item->isEntityAssign();
+        $nb            = 0;
+        $ID            = $item->getID();
+
+        echo "<div class='spaced'>";
+        echo "<table class='tab_cadre_fixehov'>";
+        echo "<tr class='noHover'><th colspan='" . ($nb + 3) . "'>" . sprintf(
+            __('Sons of %s'),
+            $item->getTreeLink()
+        );
+        echo "</th></tr>";
+
+        $header = "<tr><th>" . __('Name') . "</th>";
+        if ($entity_assign) {
+            $header .= "<th>" . Entity::getTypeName(1) . "</th>";
+        }
+
+        $header .= "<th>" . __('Comments') . "</th>";
+        $header .= "</tr>\n";
+        echo $header;
+
+        $fk   = $item->getForeignKeyField();
+        $crit = [$fk     => $ID,
+            'ORDER' => 'name',
+        ];
+
+        if ($entity_assign) {
+            if ($fk == 'entities_id') {
+                $crit['id']  = $_SESSION['glpiactiveentities'];
+                $crit['id'] += $_SESSION['glpiparententities'];
+            } else {
+                foreach ($_SESSION['glpiactiveentities'] as $key => $value) {
+                    $crit['entities_id'][$key] = (string) $value;
+                }
+            }
+        }
+        $nb = 0;
+
+        foreach ($DB->request($item->getTable(), $crit) as $data) {
+            $nb++;
+            echo "<tr class='tab_bg_1'>";
+            echo "<td><a href='" . $item->getFormURL();
+            echo '?id=' . $data['id'] . "'>" . $data['name'] . "</a></td>";
+            if ($entity_assign) {
+                echo "<td>" . Dropdown::getDropdownName("glpi_entities", $data["entities_id"]) . "</td>";
+            }
+
+            echo "<td>" . $data['comment'] . "</td>";
+            echo "</tr>\n";
+        }
+        if ($nb) {
+            echo $header;
+        }
+        echo "</table></div>\n";
     }
 
     public static function getIcon()

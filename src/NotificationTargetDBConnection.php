@@ -33,30 +33,32 @@
  * ---------------------------------------------------------------------
  */
 
-/**
- * Class NotificationTarget
- *
- * @extends NotificationTarget<DBConnection>
- */
+// Class NotificationTarget
 class NotificationTargetDBConnection extends NotificationTarget
 {
-    #[Override]
+    /**
+     * Overwrite the function in NotificationTarget because there's only one target to be notified
+     *
+     * @see NotificationTarget::addNotificationTargets()
+     **/
     public function addNotificationTargets($entity)
     {
+
         $this->addProfilesToTargets();
         $this->addGroupsToTargets($entity);
         $this->addTarget(Notification::GLOBAL_ADMINISTRATOR, __('Administrator'));
     }
 
-    #[Override]
+
     public function getEvents()
     {
         return ['desynchronization' => __('Desynchronization SQL replica')];
     }
 
-    #[Override]
+
     public function addDataForTemplate($event, $options = [])
     {
+
         if ($options['diff'] > 1000000000) {
             $tmp = __("Can't connect to the database.");
         } else {
@@ -72,10 +74,12 @@ class NotificationTargetDBConnection extends NotificationTarget
         }
     }
 
-    #[Override]
+
     public function getTags()
     {
+
         $tags = ['dbconnection.delay' => __('Difference between main and replica')];
+
         foreach ($tags as $tag => $label) {
             $this->addTagToList(['tag'   => $tag,
                 'label' => $label,

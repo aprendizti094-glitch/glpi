@@ -35,7 +35,7 @@
       {{ my_items_dropdown|raw }}
       {{ all_items_dropdown|raw }}
       <a href="javascript:itemAction{{ rand }}('add');" class="btn btn-sm btn-outline-secondary">
-         <i class="ti ti-plus"></i>
+         <i class="fas fa-plus"></i>
          <span>{{ _x('button', 'Add') }}</span>
       </a>
    {% endif %}
@@ -52,7 +52,7 @@
       <i>{{ _n('%1$s item not saved', '%1$s items not saved', (count - usedcount))|format((count - usedcount)) }}</i>
    {% endif %}
    {% if params.id > 0 and usedcount > 5 %}
-      <i><a href="{{ itil_class|itemtype_form_path(params.id) }}&amp;forcetab={{ item_class }}$1">{{ __('Display all items') ~ '(' ~ usedcount ~ ')' }}</a></i>
+      <i><a href="{{ 'Ticket'|itemtype_form_path(params.id) }}&amp;forcetab=Item_Ticket$1">{{ __('Display all items') ~ '(' ~ usedcount ~ ')' }}</a></i>
    {% endif %}
    <script>
       function refreshItemCounter{{ rand }}() {
@@ -86,7 +86,7 @@
          }
          $.ajax({
             method: 'POST',
-            url: CFG_GLPI.root_doc + '/ajax/{{ item_class|lower }}.php',
+            url: CFG_GLPI.root_doc + '/ajax/itemTicket.php',
             dataType: 'html',
             data: {
                'action': action,

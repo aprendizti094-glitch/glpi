@@ -33,12 +33,14 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
-use Glpi\Exception\Http\BadRequestHttpException;
 
+/** @var \DBmysql $DB */
 global $DB;
+
+include('../inc/includes.php');
+
+Session::checkLoginUser();
 
 $fup = new ITILFollowup();
 
@@ -46,12 +48,10 @@ $redirect = null;
 $handled = false;
 
 if (!isset($_POST['itemtype']) || !class_exists($_POST['itemtype'])) {
-    throw new BadRequestHttpException();
+    Html::displayErrorAndDie('Lost');
 }
 $track = getItemForItemtype($_POST['itemtype']);
-if ($track === false) {
-    throw new BadRequestHttpException();
-}
+
 
 if (isset($_POST["add"])) {
     $fup->check(-1, CREATE, $_POST);
@@ -103,7 +103,7 @@ if (isset($_POST["add"])) {
     $handled = true;
 } elseif (isset($_POST["purge"])) {
     $fup->check($_POST['id'], PURGE);
-    $fup->delete($_POST, true);
+    $fup->delete($_POST, 1);
 
     Event::log(
         $fup->getField('items_id'),
@@ -117,6 +117,23 @@ if (isset($_POST["add"])) {
 }
 
 if ($handled) {
+    if (isset($_POST['kb_linked_id'])) {
+        //if followup should be linked to selected KB entry
+        $params = [
+            'knowbaseitems_id' => $_POST['kb_linked_id'],
+            'itemtype'         => $track->getType(),
+            'items_id'         => $track->getID(),
+        ];
+        $existing = $DB->request(
+            'glpi_knowbaseitems_items',
+            $params
+        );
+        if ($existing->numrows() == 0) {
+            $kb_item_item = new KnowbaseItem_Item();
+            $kb_item_item->add($params);
+        }
+    }
+
     if ($track->can($_POST["items_id"], READ)) {
         $toadd = '';
         // Copy followup to KB redirect to KB
@@ -126,7 +143,7 @@ if ($handled) {
         $redirect = $track->getLinkURL() . $toadd;
     } else {
         Session::addMessageAfterRedirect(
-            __s('You have been redirected because you no longer have access to this ticket'),
+            __('You have been redirected because you no longer have access to this ticket'),
             true,
             ERROR
         );
@@ -139,3 +156,5 @@ if (null == $redirect) {
 } else {
     Html::redirect($redirect);
 }
+
+Html::displayErrorAndDie('Lost');

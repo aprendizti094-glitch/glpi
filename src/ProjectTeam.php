@@ -33,9 +33,6 @@
  * ---------------------------------------------------------------------
  */
 
-use Glpi\DBAL\QueryExpression;
-use Glpi\DBAL\QuerySubQuery;
-use Glpi\DBAL\QueryUnion;
 use Glpi\Team\Team;
 
 //!  ProjectTeam Class
@@ -52,15 +49,14 @@ class ProjectTeam extends CommonDBRelation
     public $no_form_page               = true;
 
     // From CommonDBRelation
-    public static $itemtype_1 = Project::class;
+    public static $itemtype_1          = 'Project';
     public static $items_id_1          = 'projects_id';
 
     public static $itemtype_2          = 'itemtype';
     public static $items_id_2          = 'items_id';
     public static $checkItem_2_Rights  = self::DONT_CHECK_ITEM_RIGHTS;
 
-    /** @var class-string<CommonDBTM>[] */
-    public static $available_types     = [User::class, Group::class, Supplier::class, Contact::class];
+    public static $available_types     = ['User', 'Group', 'Supplier', 'Contact'];
 
 
     /**
@@ -71,15 +67,12 @@ class ProjectTeam extends CommonDBRelation
         return 'id';
     }
 
+
     public static function getTypeName($nb = 0)
     {
         return _n('Project team', 'Project teams', $nb);
     }
 
-    public static function getIcon()
-    {
-        return 'ti ti-users';
-    }
 
     public function getForbiddenStandardMassiveAction()
     {
@@ -89,6 +82,10 @@ class ProjectTeam extends CommonDBRelation
         return $forbidden;
     }
 
+
+    /**
+     * @see CommonGLPI::getTabNameForItem()
+     **/
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
 
@@ -99,7 +96,7 @@ class ProjectTeam extends CommonDBRelation
                     if ($_SESSION['glpishow_count_on_tabs']) {
                         $nb = $item->getTeamCount();
                     }
-                    return self::createTabEntry(self::getTypeName(1), $nb, $item::getType());
+                    return self::createTabEntry(self::getTypeName(1), $nb);
             }
         }
         return '';
@@ -126,6 +123,7 @@ class ProjectTeam extends CommonDBRelation
      */
     public static function expandTeamData(array $team)
     {
+        /** @var \DBmysql $DB */
         global $DB;
         $subqueries = [];
 
@@ -217,12 +215,13 @@ class ProjectTeam extends CommonDBRelation
     /**
      * Get team for a project
      *
-     * @param int $projects_id
+     * @param $projects_id
      * @param bool $expand If true, the team member data is expanded to include specific properties like firstname, realname, ...
-     * @return array<class-string<CommonDBTM>, array<array{id: int, projects_id: int, itemtype: class-string<CommonDBTM>, items_id: int, display_name?: string}>>
+     * @return array
      */
     public static function getTeamFor($projects_id, bool $expand = false)
     {
+        /** @var \DBmysql $DB */
         global $DB;
 
         $team = [];

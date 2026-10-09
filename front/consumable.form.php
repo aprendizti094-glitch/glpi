@@ -33,11 +33,11 @@
  * ---------------------------------------------------------------------
  */
 
-require_once(__DIR__ . '/_check_webserver_config.php');
-
 use Glpi\Event;
 
-Session::checkRightsOr(Consumable::$rightname, [READ, READ_ASSIGNED]);
+include('../inc/includes.php');
+
+Session::checkRight("consumable", READ);
 
 $con      = new Consumable();
 $constype = new ConsumableItem();
