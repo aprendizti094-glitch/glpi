@@ -1,5 +1,7 @@
 /config/*
 !/config/.gitkeep
+!/config/config_db.php
+!/config/glpicrypt.key
 /marketplace/*
 !/marketplace/.gitkeep
 /plugins/*
