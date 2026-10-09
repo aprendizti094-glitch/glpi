@@ -1,15 +1,16 @@
 @echo off
 chcp 65001 >nul
-title Otimizador de Alta Performance PHP - GLPI
+title Otimizador de Alta Performance Turbo - GLPI & Servidor
 
-echo ========================================================
-echo    APLICANDO OTIMIZACAO DE ALTA PERFORMANCE PHP / GLPI
-echo ========================================================
+echo ===================================================================
+echo     APLICANDO OTIMIZACAO TURBO TOTAL: PHP + MYSQL + APACHE + GLPI
+echo ===================================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\otimizar_php.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\otimizar_servidor_completo.ps1"
 
 echo.
-echo ========================================================
-echo Pressione qualquer tecla para finalizar...
-pause >nul
+echo ===================================================================
+echo Otimizacao finalizada! Reinicie seu navegador ou use Ctrl + F5.
+echo ===================================================================
+pause
