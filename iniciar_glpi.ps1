@@ -19,6 +19,9 @@ if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
     cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
 }
 
+# Limpa cache antigo de templates para evitar conflitos de versao
+Remove-Item -Path "$PSScriptRoot\files\_cache\*" -Recurse -Force -Exclude .gitkeep -ErrorAction SilentlyContinue
+
 # 1. Verificando Apache e MySQL
 Write-Host "1. Verificando servicos locais..." -ForegroundColor White
 
