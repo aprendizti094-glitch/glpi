@@ -1,5 +1,12 @@
 DirectoryIndex index.php index.html
 
+# Acesso via proxy/tunel (ngrok): o SSL termina no ngrok e o Apache recebe HTTP.
+# Sem isto o GLPI gera links http:// dentro de uma pagina https:// e o navegador
+# bloqueia CSS/JS (mixed content), deixando a tela "quebrada".
+<IfModule mod_setenvif.c>
+    SetEnvIf X-Forwarded-Proto "https" HTTPS=on
+</IfModule>
+
 # If you have problem with session.auto_start or session.use_trans_sid on install
 # you need to set these configuration values to 0 in php.ini or uncomment these lines
 #php_value session.auto_start 0
