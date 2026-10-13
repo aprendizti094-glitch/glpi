@@ -145,29 +145,16 @@ $(function() {
    var $appleActiveMenu = null;
 
    function positionAppleSubmenu($item, $menu) {
-       var rect = $item[0].getBoundingClientRect();
-       var menuHeight = $menu.outerHeight();
-       var winHeight = $(window).height();
-
-       // Alinhamento padrão ao lado do ícone
-       var targetTop = rect.top - 6;
-
-       // Se o menu for ultrapassar o rodapé (ex: Administração, Configuração, Gerência):
-       if (targetTop + menuHeight > winHeight - 16) {
-           targetTop = winHeight - menuHeight - 16;
-       }
-       // Evitar subir acima do topo
-       if (targetTop < 16) {
-           targetTop = 16;
-       }
-
+       // Posicionamento relativo ao ícone tratado nativamente via CSS puro (sem drift ou conflito)
        $menu.css({
-           'position': 'fixed',
-           'top': Math.round(targetTop) + 'px',
-           'left': '84px',
-           'bottom': 'auto',
-           'right': 'auto',
-           'z-index': '1080'
+           'position': '',
+           'top': '',
+           'left': '',
+           'bottom': '',
+           'right': '',
+           'z-index': '',
+           'display': '',
+           'visibility': ''
        });
    }
 
@@ -186,9 +173,7 @@ $(function() {
            $appleActiveMenu.closest('.nav-item').removeClass('apple-item-hover');
        }
 
-       $menu.css({ 'display': 'block', 'visibility': 'hidden' });
        positionAppleSubmenu($item, $menu);
-       $menu.css({ 'visibility': '' });
 
        $menu.addClass('apple-show');
        $item.addClass('apple-item-hover');

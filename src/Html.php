@@ -3033,7 +3033,7 @@ JS;
      *   - rand       : specific random value (default generated one)
      *   - required   : required field (will add required attribute)
      *   - on_change  : function to execute when date selection changed
-     * @return void
+     * @return int|string
      */
     public static function showTimeField($name, $options = [])
     {
@@ -4299,7 +4299,7 @@ JAVASCRIPT
             if ($item_type_output_param != 0) {
                 echo Html::hidden(
                     'item_type_param',
-                    ['value' => Toolbox::prepareArrayForInput($item_type_output_param)]
+                    ['value' => is_array($item_type_output_param) ? Toolbox::prepareArrayForInput($item_type_output_param) : $item_type_output_param]
                 );
             }
 
@@ -6906,7 +6906,7 @@ HTML;
 CSS;
             }
 
-            /** @var \Glpi\Console\Application $application */
+            /** @var Application $application */
             global $application;
             if ($application instanceof Application) {
                 throw $e;
@@ -6974,7 +6974,7 @@ CSS;
      *
      * @param string $root_dir
      *
-     * @return array
+     * @return string
      *
      * @TODO GLPI 10.1 Handle SCSS compiled directory in plugins.
      */

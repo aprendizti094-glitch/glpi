@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * ---------------------------------------------------------------------
@@ -632,7 +632,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria
      *
      * @since 0.83
      *
-     * @return Boolean
+     * @return bool
      **/
     public function isPubliclyVisible()
     {
@@ -1064,7 +1064,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria
      * @param $options array
      *     - target for the Form
      *
-     * @return void
+     * @return bool
      **/
     public function showForm($ID, array $options = [])
     {
@@ -1506,7 +1506,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria
      *
      * @param $options   $_GET
      *
-     * @return void
+     * @return bool|null
      **/
     public function searchForm($options)
     {
@@ -1553,7 +1553,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria
      *
      * @param $options   $_GET
      *
-     * @return void
+     * @return bool|null
      **/
     public function showBrowseForm($options)
     {
@@ -1610,7 +1610,7 @@ class KnowbaseItem extends CommonDBVisible implements ExtraVisibilityCriteria
      *
      * @param $options   $_GET
      *
-     * @return void
+     * @return bool|null
      **/
     public function showManageForm($options)
     {

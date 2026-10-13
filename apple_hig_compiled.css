@@ -289,12 +289,14 @@ body.navbar-collapsed aside.navbar-vertical.sidebar .reduce-menu .menu-label {
 body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-menu,
 body.navbar-collapsed aside.navbar-vertical.sidebar .nav-item .dropdown-menu,
 body.navbar-collapsed aside.navbar-vertical.sidebar .nav-item.show .dropdown-menu,
-body.navbar-collapsed aside.navbar-vertical.sidebar .nav-link + .dropdown-menu {
+body.navbar-collapsed aside.navbar-vertical.sidebar .nav-link + .dropdown-menu,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu {
     position: absolute !important;
     top: 0 !important;
     left: calc(100% + 14px) !important; /* Exatamente 14px ao lado do ícone, colado na cápsula */
     right: auto !important;
     bottom: auto !important;
+    height: auto !important;
     transform: none !important; /* Anula o deslocamento incorreto do Popper */
     margin: 0 !important;
     z-index: 1099 !important;
@@ -323,10 +325,12 @@ body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-menu::before {
     pointer-events: auto !important;
 }
 
-/* Se for um dos últimos itens da barra (ex: Configurações), abre alinhado por baixo */
-body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item:nth-last-child(-n+2) .dropdown-menu {
+/* Se for um dos últimos itens da barra (ex: Configurações, Administração), abre alinhado por baixo */
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item:nth-last-child(-n+2) > .dropdown-menu,
+body.navbar-collapsed #navbar-menu .nav-item:nth-last-child(-n+2) > .dropdown-menu {
     top: auto !important;
     bottom: 0 !important;
+    height: auto !important;
 }
 
 body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-menu-columns {

@@ -52,6 +52,23 @@ define('GLPI_MIN_PHP', '7.4.0'); // Must also be changed in top of index.php
 define('GLPI_MAX_PHP', '8.6.0'); // (Exclusive) Must also be changed in top of index.php
 define('GLPI_YEAR', '2026');
 
+// Core security and operation constants (defaults if not already defined in based_config)
+if (!defined('GLPI_DEMO_MODE')) {
+    define('GLPI_DEMO_MODE', false);
+}
+if (!defined('GLPI_USE_CSRF_CHECK')) {
+    define('GLPI_USE_CSRF_CHECK', true);
+}
+if (!defined('GLPI_CSRF_EXPIRES')) {
+    define('GLPI_CSRF_EXPIRES', 7200);
+}
+if (!defined('GLPI_CSRF_MAX_TOKENS')) {
+    define('GLPI_CSRF_MAX_TOKENS', 100);
+}
+if (!defined('GLPI_IDOR_EXPIRES')) {
+    define('GLPI_IDOR_EXPIRES', 7200);
+}
+
 //Define a global recipient address for email notifications
 //define('GLPI_FORCE_MAIL', 'me@localhost');
 

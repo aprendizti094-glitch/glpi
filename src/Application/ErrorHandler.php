@@ -157,7 +157,7 @@ class ErrorHandler
         static $instance = null;
 
         if ($instance === null) {
-            /** @var \Psr\Log\LoggerInterface $PHPLOGGER */
+            /** @var LoggerInterface $PHPLOGGER */
             global $PHPLOGGER;
             $instance = new self($PHPLOGGER);
         }
@@ -291,7 +291,7 @@ class ErrorHandler
      *
      * This handler is manually called by application when an error occurred during Twig template rendering.
      *
-     * @param \Twig\Error\Error $error
+     * @param Error $error
      *
      * @return void
      */

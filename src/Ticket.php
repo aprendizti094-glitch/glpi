@@ -715,6 +715,8 @@ class Ticket extends CommonITILObject
 
     /**
      * @see CommonITILObject::getDefaultActorRightSearch()
+     *
+     * @return string
      **/
     public function getDefaultActorRightSearch($type)
     {
@@ -895,6 +897,7 @@ class Ticket extends CommonITILObject
 
         switch (get_class($item)) {
             case self::class:
+                /** @var Ticket $item */
                 switch ($tabnum) {
                     case 3:
                         $satisfaction = new TicketSatisfaction();
@@ -4271,7 +4274,7 @@ JAVASCRIPT;
     {
         // show full create form only to tech users
         if ($ID <= 0 && Session::getCurrentInterface() !== "central") {
-            return;
+            return false;
         }
 
         if (isset($options['_add_fromitem']) && isset($options['itemtype'])) {
@@ -5407,7 +5410,7 @@ JAVASCRIPT;
      * @param CommonDBTM $item         CommonDBTM object
      * @param integer    $withtemplate (default 0)
      *
-     * @return void (display a table)
+     * @return bool|void (display a table)
      **/
     public static function showListForItem(CommonDBTM $item, $withtemplate = 0)
     {

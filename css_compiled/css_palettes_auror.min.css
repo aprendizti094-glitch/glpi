@@ -39289,8 +39289,9 @@ body.navbar-collapsed #navbar-menu .nav-item {
   position: relative !important;
 }
 body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu {
-  position: fixed !important;
-  left: 84px !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: calc(100% + 14px) !important;
   border-radius: 20px !important;
   background: rgba(255, 255, 255, 0.97) !important;
   backdrop-filter: blur(32px) saturate(190%) !important;

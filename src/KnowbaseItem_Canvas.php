@@ -31,7 +31,7 @@ class KnowbaseItem_Canvas extends CommonDBTM
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
-        return self::createTabEntry('Canvas', 0, $item::getType(), 'ti ti-layout-board');
+        return self::createTabEntry('Canvas', 0);
     }
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
@@ -40,10 +40,14 @@ class KnowbaseItem_Canvas extends CommonDBTM
         return true;
     }
 
+    /**
+     * @param CommonDBTM|CommonGLPI $item
+     */
     public static function showCanvas(CommonGLPI $item)
     {
         global $CFG_GLPI;
 
+        /** @var CommonDBTM $item */
         $id = (int)$item->getID();
         $isTicket = $item instanceof Ticket;
         $contextId = $isTicket ? 'ticket_' . $id : 'kb_' . $id;

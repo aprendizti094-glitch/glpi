@@ -15,12 +15,34 @@ $xamppDir = "C:\xampp"
 if (-not (Test-Path "$xamppDir\htdocs")) {
     New-Item -ItemType Directory -Path "$xamppDir\htdocs" -Force | Out-Null
 }
-if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
-    cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
+$glpiHtdocs = "$xamppDir\htdocs\glpi"
+if (Test-Path $glpiHtdocs) {
+    $item = Get-Item $glpiHtdocs -Force
+    if ($item.LinkType -ne "Junction" -or ($item.Target -ne $PSScriptRoot -and $item.Target -notcontains $PSScriptRoot)) {
+        Write-Host "   - Ajustando link simbolico do GLPI no htdocs..." -ForegroundColor Yellow
+        if (-not $item.LinkType) {
+            Move-Item -Path $glpiHtdocs -Destination "$glpiHtdocs`_backup_$(Get-Date -Format 'yyyyMMddHHmmss')" -Force
+        } else {
+            Remove-Item -Path $glpiHtdocs -Force
+        }
+        cmd /c "mklink /J `"$glpiHtdocs`" `"$PSScriptRoot`"" | Out-Null
+    }
+} else {
+    cmd /c "mklink /J `"$glpiHtdocs`" `"$PSScriptRoot`"" | Out-Null
 }
 
 # Limpa cache antigo de templates para evitar conflitos de versao
 Remove-Item -Path "$PSScriptRoot\files\_cache\*" -Recurse -Force -Exclude .gitkeep -ErrorAction SilentlyContinue
+
+# Garante ThreadStackSize adequado para PHP no Apache Windows (evita crash 0xC00000FD / Stack Overflow)
+$mpmConf = "$xamppDir\apache\conf\extra\httpd-mpm.conf"
+if (Test-Path $mpmConf) {
+    $mpmContent = Get-Content $mpmConf -Raw
+    if ($mpmContent -notmatch "ThreadStackSize\s+8388608") {
+        $mpmContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
+        Set-Content $mpmConf -Value $mpmContent -Encoding UTF8
+    }
+}
 
 # 1. Verificando Apache e MySQL
 Write-Host "1. Verificando servicos locais..." -ForegroundColor White

@@ -39,6 +39,8 @@ use Glpi\Toolbox\Sanitizer;
 
 /**
  *  Common GLPI object
+ *
+ *  @property array $fields
  **/
 class CommonGLPI implements CommonGLPIInterface
 {
