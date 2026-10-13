@@ -57,10 +57,13 @@ if (Test-Path $apLog) {
     Get-Content $apLog | Where-Object { $_ -notmatch 'ssl:warn|oci8|already loaded|Unable to load dynamic' } | Select-Object -Last 15
 } else { "$apLog nao encontrado" }
 
-Section "Ultimos erros do PHP/GLPI"
-foreach ($p in "$PSScriptRoot\files\_log\php-errors.log", "$PSScriptRoot\files\_log\php-errors.log") {
-    if (Test-Path $p) { Get-Content $p -Tail 15; break }
-}
+Section "Ultimos erros do PHP/GLPI (php-errors.log)"
+$phpLog = "$PSScriptRoot\files\_log\php-errors.log"
+if (Test-Path $phpLog) { Get-Content $phpLog -Tail 25 } else { "$phpLog nao encontrado" }
+
+Section "Ultimos erros de SQL/GLPI (sql-errors.log)"
+$sqlLog = "$PSScriptRoot\files\_log\sql-errors.log"
+if (Test-Path $sqlLog) { Get-Content $sqlLog -Tail 25 } else { "$sqlLog nao encontrado" }
 
 Stop-Transcript | Out-Null
 Write-Host ""

@@ -985,7 +985,13 @@ HTML;
 
             $execution_time = round(microtime(true) - $start, 3);
         } catch (\Throwable $e) {
-            $html = $render_error_html;
+            $err_msg = htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+            $html = "<div class='empty-card card-error'>" .
+                "<i class='fas fa-exclamation-triangle'></i>" .
+                __('Error rendering card!') . "<br>" .
+                "<strong>" . htmlspecialchars($card_id, ENT_QUOTES, 'UTF-8') . "</strong><br>" .
+                "<small style='font-size:11px;word-break:break-word;color:#a00;display:block;margin-top:6px;'>" . $err_msg . "</small>" .
+                "</div>";
             $execution_time = round(microtime(true) - $start, 3);
             // Log the error message without exiting
             /** @var \GLPI $GLPI */
