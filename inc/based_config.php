@@ -50,6 +50,7 @@ if (!empty($tz)) {
 }
 
 include_once(GLPI_ROOT . "/inc/autoload.function.php");
+include_once(GLPI_ROOT . "/inc/normalizer_polyfill.php");
 
 (function () {
     // Define GLPI_* constants that can be customized by admin.
