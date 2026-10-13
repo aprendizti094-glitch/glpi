@@ -44,14 +44,27 @@ Remove-Item -Path "$PSScriptRoot\files\_cache\*" -Recurse -Force -Exclude .gitke
 # Garante ThreadStackSize adequado para PHP no Apache Windows (evita crash 0xC00000FD / Stack Overflow)
 $mpmConf = "$xamppDir\apache\conf\extra\httpd-mpm.conf"
 if (Test-Path $mpmConf) {
-    try {
-        $mpmContent = Get-Content $mpmConf -Raw -ErrorAction Stop
-        if ($mpmContent -notmatch "ThreadStackSize\s+8388608") {
-            $mpmContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
-            Set-Content $mpmConf -Value $mpmContent -Encoding UTF8 -ErrorAction Stop
+    $mpmContent = Get-Content $mpmConf -Raw -ErrorAction SilentlyContinue
+    if ($mpmContent -and $mpmContent -notmatch "ThreadStackSize\s+8388608") {
+        $newContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
+        try {
+            Set-Content $mpmConf -Value $newContent -Encoding UTF8 -ErrorAction Stop
+        } catch {
+            Write-Host "   - Sem permissao para editar httpd-mpm.conf. Pedindo permissao de Administrador (clique SIM na janela do Windows)..." -ForegroundColor Yellow
+            $tmp = Join-Path $env:TEMP 'httpd-mpm.new'
+            Set-Content $tmp -Value $newContent -Encoding UTF8
+            $cmd = "Copy-Item -LiteralPath '$tmp' -Destination '$mpmConf' -Force; Get-Process httpd -ErrorAction SilentlyContinue | Stop-Process -Force"
+            try {
+                Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-Command',$cmd
+                if ((Get-Content $mpmConf -Raw) -match "ThreadStackSize\s+8388608") {
+                    Write-Host "   - ThreadStackSize aplicado (Apache sera reiniciado abaixo)." -ForegroundColor Green
+                } else {
+                    Write-Host "   - [AVISO] Nao foi possivel aplicar ThreadStackSize; o Apache pode cair em paginas pesadas." -ForegroundColor Yellow
+                }
+            } catch {
+                Write-Host "   - [AVISO] Permissao negada; o Apache pode cair em paginas pesadas." -ForegroundColor Yellow
+            }
         }
-    } catch {
-        Write-Host "   - Aviso: sem permissao para editar httpd-mpm.conf (execute como Administrador uma vez para aplicar ThreadStackSize). Continuando..." -ForegroundColor Yellow
     }
 }
 

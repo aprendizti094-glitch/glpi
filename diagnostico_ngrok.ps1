@@ -11,7 +11,10 @@ function Section($t) { Write-Host ""; Write-Host "=== $t ===" -ForegroundColor C
 
 Section "Ambiente"
 "Pasta do GLPI : $PSScriptRoot"
-"PHP           : " + ((& php -v 2>&1 | Select-Object -First 1) -join '')
+$phpExe = if (Test-Path 'C:\xampp\php\php.exe') { 'C:\xampp\php\php.exe' } else { 'php' }
+"PHP           : " + ((& $phpExe -v 2>&1 | Select-Object -First 1) -join '')
+$mpm = 'C:\xampp\apache\conf\extra\httpd-mpm.conf'
+"ThreadStackSize aplicado: " + [bool]((Test-Path $mpm) -and ((Get-Content $mpm -Raw) -match 'ThreadStackSize\s+8388608'))
 "Git commit    : " + ((& git -C $PSScriptRoot log -1 --oneline 2>&1) -join '')
 
 Section "Tunel ngrok"
@@ -45,10 +48,14 @@ if ($public) {
     } catch { "Erro ao abrir a pagina: $($_.Exception.Message)" }
 }
 
-Section "Ultimos erros do Apache"
-foreach ($p in 'C:\xampp\apache\logs\error.log') {
-    if (Test-Path $p) { Get-Content $p -Tail 15 } else { "$p nao encontrado" }
-}
+Section "Apache: quedas do processo (status 3221225725 = stack overflow)"
+$apLog = 'C:\xampp\apache\logs\error.log'
+if (Test-Path $apLog) {
+    $crash = Select-String -Path $apLog -Pattern 'AH00428|3221225725|3221225477|exited with status' | Select-Object -Last 10
+    if ($crash) { $crash | ForEach-Object { $_.Line } } else { 'Nenhuma queda registrada.' }
+    Section "Apache: ultimas linhas que NAO sao aviso de ssl/oci8"
+    Get-Content $apLog | Where-Object { $_ -notmatch 'ssl:warn|oci8|already loaded|Unable to load dynamic' } | Select-Object -Last 15
+} else { "$apLog nao encontrado" }
 
 Section "Ultimos erros do PHP/GLPI"
 foreach ($p in "$PSScriptRoot\files\_log\php-errors.log", "$PSScriptRoot\files\_log\php-errors.log") {
