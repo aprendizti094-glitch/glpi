@@ -38,33 +38,17 @@ if (-not (Test-Path "$xamppDir\htdocs\glpi")) {
     cmd /c "mklink /J `"$xamppDir\htdocs\glpi`" `"$PSScriptRoot`"" | Out-Null
 }
 
-# Limpa cache antigo de templates para evitar conflitos de versao
+# 1.1 Cache de templates
 Remove-Item -Path "$PSScriptRoot\files\_cache\*" -Recurse -Force -Exclude .gitkeep -ErrorAction SilentlyContinue
 
-# Garante ThreadStackSize adequado para PHP no Apache Windows (evita crash 0xC00000FD / Stack Overflow)
+# Informa sobre o ThreadStackSize sem reiniciar nem parar o Apache compartilhado
 $mpmConf = "$xamppDir\apache\conf\extra\httpd-mpm.conf"
 if (Test-Path $mpmConf) {
     $mpmContent = Get-Content $mpmConf -Raw -ErrorAction SilentlyContinue
-    if ($mpmContent -and $mpmContent -notmatch "ThreadStackSize\s+8388608") {
-        $newContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
-        try {
-            Set-Content $mpmConf -Value $newContent -Encoding UTF8 -ErrorAction Stop
-        } catch {
-            Write-Host "   - Sem permissao para editar httpd-mpm.conf. Pedindo permissao de Administrador (clique SIM na janela do Windows)..." -ForegroundColor Yellow
-            $tmp = Join-Path $env:TEMP 'httpd-mpm.new'
-            Set-Content $tmp -Value $newContent -Encoding UTF8
-            $cmd = "Copy-Item -LiteralPath '$tmp' -Destination '$mpmConf' -Force; Get-Process httpd -ErrorAction SilentlyContinue | Stop-Process -Force"
-            try {
-                Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-Command',$cmd
-                if ((Get-Content $mpmConf -Raw) -match "ThreadStackSize\s+8388608") {
-                    Write-Host "   - ThreadStackSize aplicado (Apache sera reiniciado abaixo)." -ForegroundColor Green
-                } else {
-                    Write-Host "   - [AVISO] Nao foi possivel aplicar ThreadStackSize; o Apache pode cair em paginas pesadas." -ForegroundColor Yellow
-                }
-            } catch {
-                Write-Host "   - [AVISO] Permissao negada; o Apache pode cair em paginas pesadas." -ForegroundColor Yellow
-            }
-        }
+    if ($mpmContent -and $mpmContent -match "ThreadStackSize\s+8388608") {
+        Write-Host "   - Apache configurado com ThreadStackSize 8MB." -ForegroundColor Green
+    } else {
+        Write-Host "   - [INFO] Apache rodando com configuracao padrao (ThreadStackSize pode ser ajustado fora do horario comercial)." -ForegroundColor Gray
     }
 }
 
