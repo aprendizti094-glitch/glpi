@@ -44,10 +44,14 @@ Remove-Item -Path "$PSScriptRoot\files\_cache\*" -Recurse -Force -Exclude .gitke
 # Garante ThreadStackSize adequado para PHP no Apache Windows (evita crash 0xC00000FD / Stack Overflow)
 $mpmConf = "$xamppDir\apache\conf\extra\httpd-mpm.conf"
 if (Test-Path $mpmConf) {
-    $mpmContent = Get-Content $mpmConf -Raw
-    if ($mpmContent -notmatch "ThreadStackSize\s+8388608") {
-        $mpmContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
-        Set-Content $mpmConf -Value $mpmContent -Encoding UTF8
+    try {
+        $mpmContent = Get-Content $mpmConf -Raw -ErrorAction Stop
+        if ($mpmContent -notmatch "ThreadStackSize\s+8388608") {
+            $mpmContent = $mpmContent -replace "(?s)(<IfModule mpm_winnt_module>[\s\r\n]*ThreadsPerChild\s+\d+)", "`$1`r`n    ThreadStackSize        8388608"
+            Set-Content $mpmConf -Value $mpmContent -Encoding UTF8 -ErrorAction Stop
+        }
+    } catch {
+        Write-Host "   - Aviso: sem permissao para editar httpd-mpm.conf (execute como Administrador uma vez para aplicar ThreadStackSize). Continuando..." -ForegroundColor Yellow
     }
 }
 
