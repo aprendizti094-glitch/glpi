@@ -2795,7 +2795,17 @@ HTML;
 
         $value = json_encode($p['value']);
 
-        $locale = Locale::parseLocale($_SESSION['glpilanguage']);
+        $user_lang = $_SESSION['glpilanguage'] ?? 'en_GB';
+        $locale = class_exists('Locale') ? Locale::parseLocale($user_lang) : null;
+        if (!is_array($locale)) {
+            $parts = explode('_', str_replace('-', '_', (string)$user_lang));
+            $locale = [
+                'language' => strtolower($parts[0] ?? 'en'),
+                'region'   => strtoupper($parts[1] ?? ''),
+            ];
+        }
+        $locale['language'] = $locale['language'] ?? 'en';
+        $locale['region']   = $locale['region'] ?? '';
         $js = <<<JS
       $(function() {
          $("#showdate{$p['rand']}").flatpickr({
@@ -2980,7 +2990,17 @@ HTML;
          ? "maxDate: '{$p['maxdate']}',"
          : "";
 
-        $locale = Locale::parseLocale($_SESSION['glpilanguage']);
+        $user_lang = $_SESSION['glpilanguage'] ?? 'en_GB';
+        $locale = class_exists('Locale') ? Locale::parseLocale($user_lang) : null;
+        if (!is_array($locale)) {
+            $parts = explode('_', str_replace('-', '_', (string)$user_lang));
+            $locale = [
+                'language' => strtolower($parts[0] ?? 'en'),
+                'region'   => strtoupper($parts[1] ?? ''),
+            ];
+        }
+        $locale['language'] = $locale['language'] ?? 'en';
+        $locale['region']   = $locale['region'] ?? '';
         $js = <<<JS
       $(function() {
          $("#showdate{$p['rand']}").flatpickr({
@@ -3107,7 +3127,17 @@ JS;
             $clear
          </div>
 HTML;
-        $locale = Locale::parseLocale($_SESSION['glpilanguage']);
+        $user_lang = $_SESSION['glpilanguage'] ?? 'en_GB';
+        $locale = class_exists('Locale') ? Locale::parseLocale($user_lang) : null;
+        if (!is_array($locale)) {
+            $parts = explode('_', str_replace('-', '_', (string)$user_lang));
+            $locale = [
+                'language' => strtolower($parts[0] ?? 'en'),
+                'region'   => strtoupper($parts[1] ?? ''),
+            ];
+        }
+        $locale['language'] = $locale['language'] ?? 'en';
+        $locale['region']   = $locale['region'] ?? '';
         $js = <<<JS
       $(function() {
          $("#showtime{$p['rand']}").flatpickr({

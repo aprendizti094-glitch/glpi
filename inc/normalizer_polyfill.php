@@ -132,3 +132,88 @@ if (!function_exists('grapheme_extract')) {
         return $extracted;
     }
 }
+
+// ==========================================
+// Polyfill da classe Locale da ext-intl
+// ==========================================
+
+if (!class_exists('Locale', false)) {
+    class Locale
+    {
+        public const ACTUAL_LOCALE = 0;
+        public const VALID_LOCALE  = 1;
+
+        private static string $defaultLocale = 'pt_BR';
+
+        public static function setDefault(string $locale): bool
+        {
+            self::$defaultLocale = $locale;
+            return true;
+        }
+
+        public static function getDefault(): string
+        {
+            return self::$defaultLocale;
+        }
+
+        public static function parseLocale(?string $locale): ?array
+        {
+            if ($locale === null || $locale === '') {
+                $locale = self::$defaultLocale;
+            }
+
+            $normalized = str_replace('-', '_', $locale);
+            $parts = explode('_', $normalized);
+
+            $result = [
+                'language' => strtolower($parts[0] ?? 'pt'),
+            ];
+
+            if (isset($parts[1]) && $parts[1] !== '') {
+                $result['region'] = strtoupper($parts[1]);
+            } else {
+                $result['region'] = '';
+            }
+
+            return $result;
+        }
+
+        public static function getPrimaryLanguage(?string $locale): ?string
+        {
+            $parsed = self::parseLocale($locale);
+            return $parsed['language'] ?? null;
+        }
+
+        public static function getRegion(?string $locale): ?string
+        {
+            $parsed = self::parseLocale($locale);
+            return $parsed['region'] ?? null;
+        }
+
+        public static function getDisplayLanguage(?string $locale, ?string $in_locale = null): string|false
+        {
+            return self::getPrimaryLanguage($locale) ?? false;
+        }
+
+        public static function getDisplayRegion(?string $locale, ?string $in_locale = null): string|false
+        {
+            return self::getRegion($locale) ?? false;
+        }
+
+        public static function getDisplayName(?string $locale, ?string $in_locale = null): string|false
+        {
+            return $locale ?? false;
+        }
+
+        public static function acceptFromHttp(?string $header): string|false
+        {
+            if (empty($header)) {
+                return self::$defaultLocale;
+            }
+            $parts = explode(',', $header);
+            $primary = trim(explode(';', $parts[0])[0]);
+            return str_replace('-', '_', $primary);
+        }
+    }
+}
+

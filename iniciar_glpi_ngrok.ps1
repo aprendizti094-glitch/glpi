@@ -52,6 +52,20 @@ if (Test-Path $mpmConf) {
     }
 }
 
+# 1.2 Verificar e ativar extensao intl no php.ini do XAMPP caso esteja comentada (;extension=intl)
+$phpIni = "$xamppDir\php\php.ini"
+if (Test-Path $phpIni) {
+    try {
+        $iniContent = Get-Content $phpIni -Raw -ErrorAction SilentlyContinue
+        if ($iniContent -and $iniContent -match ";\s*extension\s*=\s*intl") {
+            Write-Host "   - Ativando extensao PHP intl no php.ini do XAMPP..." -ForegroundColor Yellow
+            $newIni = $iniContent -replace ";\s*extension\s*=\s*intl", "extension=intl"
+            Set-Content -Path $phpIni -Value $newIni -Force -ErrorAction SilentlyContinue
+            Write-Host "   [OK] extension=intl ativada com sucesso no php.ini!" -ForegroundColor Green
+        }
+    } catch {}
+}
+
 # 2. Detectar porta correta (lendo do httpd.conf do Apache ou testando portas)
 $targetPort = 80
 if ($Port -gt 0) {
