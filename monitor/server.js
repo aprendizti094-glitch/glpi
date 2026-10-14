@@ -215,13 +215,14 @@ async function startApache(apachePort) {
         if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
     } catch (e) {}
 
-    // Inicia processo desanexado do console usando PowerShell oficial
-    const psCmd = `powershell.exe -NoProfile -Command "Start-Process -FilePath '${httpdExe}' -WorkingDirectory '${path.join(XAMPP_DIR, 'apache')}' -WindowStyle Hidden"`;
+    // Inicia processo minimizado e 100% desacoplado via cmd start nativo do Windows
+    const apacheDir = path.join(XAMPP_DIR, 'apache');
+    const cmd = `start "Apache" /min "${httpdExe}" -d "${apacheDir}"`;
     
     return new Promise((resolve) => {
-        exec(psCmd, (err) => {
+        exec(cmd, { cwd: apacheDir, shell: 'cmd.exe' }, (err) => {
             if (err) addLog(`[AVISO] Erro ao disparar httpd: ${err.message}`, 'warning');
-            setTimeout(resolve, 2500);
+            setTimeout(resolve, 2000);
         });
     });
 }
@@ -234,13 +235,14 @@ async function startMysql() {
     }
 
     addLog('Iniciando MySQL (mysqld.exe)...', 'action');
-    const myIni = path.join(XAMPP_DIR, 'mysql', 'bin', 'my.ini');
-    const psCmd = `powershell.exe -NoProfile -Command "Start-Process -FilePath '${mysqlExe}' -WorkingDirectory '${path.join(XAMPP_DIR, 'mysql')}' -ArgumentList '--defaults-file=\\\"${myIni}\\\"', '--standalone' -WindowStyle Hidden"`;
+    const mysqlDir = path.join(XAMPP_DIR, 'mysql');
+    const myIni = path.join(mysqlDir, 'bin', 'my.ini');
+    const cmd = `start "MySQL" /min "${mysqlExe}" --defaults-file="${myIni}" --standalone`;
 
     return new Promise((resolve) => {
-        exec(psCmd, (err) => {
+        exec(cmd, { cwd: mysqlDir, shell: 'cmd.exe' }, (err) => {
             if (err) addLog(`[AVISO] Erro ao disparar mysqld: ${err.message}`, 'warning');
-            setTimeout(resolve, 2000);
+            setTimeout(resolve, 1500);
         });
     });
 }
@@ -252,18 +254,17 @@ async function startNgrok(targetPort) {
         return;
     }
 
-    // Verifica se já há uma sessão Ngrok ativa
+    // Verifica se já há uma sessão Ngrok ativa respondendo na porta 4040
     const activeUrl = await fetchNgrokPublicUrl();
     if (activeUrl) {
-        addLog(`Ngrok já ativo: ${activeUrl}`, 'success');
+        addLog(`Ngrok já ativo com túnel: ${activeUrl}`, 'success');
         return;
     }
 
     addLog(`Iniciando Túnel Ngrok oficial para a porta ${targetPort}...`, 'action');
 
-    // Executa ngrok em segundo plano de forma estável
-    const psCmd = `powershell.exe -NoProfile -Command "Start-Process -FilePath '${ngrokExe}' -WorkingDirectory '${GLPI_DIR}' -ArgumentList 'http', '127.0.0.1:${targetPort}' -WindowStyle Hidden"`;
-    exec(psCmd, (err) => {
+    const cmd = `start "Ngrok" /min "${ngrokExe}" http 127.0.0.1:${targetPort}`;
+    exec(cmd, { cwd: GLPI_DIR, shell: 'cmd.exe' }, (err) => {
         if (err) addLog(`[AVISO] Erro ao disparar ngrok: ${err.message}`, 'warning');
     });
 
@@ -277,7 +278,7 @@ async function startNgrok(targetPort) {
             addLog(`Túnel Ngrok gerado com sucesso: ${url}`, 'success');
         } else if (attempts >= 10) {
             clearInterval(interval);
-            addLog(`[NGROK ALERTA] Túnel ainda gerando ou aguardando authtoken.`, 'warning');
+            addLog(`[NGROK ALERTA] Túnel ainda gerando. Verifique seu token com: ngrok config add-authtoken <token>`, 'warning');
         }
     }, 1500);
 }

@@ -971,18 +971,60 @@
     }
 
     async function actionStart() {
-      await fetch('/api/start', { method: 'POST' });
-      fetchStatus();
+      const btn = document.querySelector('.btn-start');
+      if (btn) {
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '<span>⏳</span> Iniciando...';
+      }
+      try {
+        await fetch('/api/start', { method: 'POST' });
+      } finally {
+        setTimeout(() => {
+          if (btn) {
+            btn.style.opacity = '1';
+            btn.innerHTML = '<span>▶</span> Iniciar Sistema';
+          }
+          fetchStatus();
+        }, 2500);
+      }
     }
 
     async function actionStop() {
-      await fetch('/api/stop', { method: 'POST' });
-      fetchStatus();
+      const btn = document.querySelector('.btn-stop');
+      if (btn) {
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '<span>⏳</span> Parando...';
+      }
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+      } finally {
+        setTimeout(() => {
+          if (btn) {
+            btn.style.opacity = '1';
+            btn.innerHTML = '<span>■</span> Parar';
+          }
+          fetchStatus();
+        }, 1500);
+      }
     }
 
     async function actionRestart() {
-      await fetch('/api/restart', { method: 'POST' });
-      fetchStatus();
+      const btn = document.querySelector('.btn-restart');
+      if (btn) {
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '<span>⏳</span> Reiniciando...';
+      }
+      try {
+        await fetch('/api/restart', { method: 'POST' });
+      } finally {
+        setTimeout(() => {
+          if (btn) {
+            btn.style.opacity = '1';
+            btn.innerHTML = '<span>↻</span> Reiniciar';
+          }
+          fetchStatus();
+        }, 3000);
+      }
     }
 
     async function toggleAutoRecover() {
