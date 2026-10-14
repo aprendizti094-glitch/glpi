@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
@@ -19,7 +20,7 @@ function findXamppDir() {
 const XAMPP_DIR = findXamppDir();
 
 let logs = [];
-let autoRecover = true;
+let autoRecover = false; // Inicia em falso para evitar auto-reinicializações intempestivas
 let isStarting = false;
 let lastPublicUrl = null;
 let cooldownUntil = 0;
@@ -38,7 +39,7 @@ function addLog(msg, type = 'info') {
     console.log(`[${time}] [${type.toUpperCase()}] ${msg}`);
 }
 
-addLog('Iniciando Painel Guardião GLPI com Túnel Ngrok (Obrigatório)...', 'info');
+addLog('Painel Guardião GLPI pronto (Ngrok obrigatório, sem auto-abertura de abas).', 'info');
 
 // Detecta a porta real configurada no httpd.conf do Apache
 function getApacheConfiguredPort() {
@@ -101,15 +102,15 @@ function getListeningPorts(apachePort) {
             const lines = stdout.split(/\r?\n/);
             for (const line of lines) {
                 if (line.includes('LISTENING')) {
-                    if (line.includes(`:${apachePort} `) || line.includes(`:${apachePort}\t`)) {
+                    if (new RegExp(`:${apachePort}\\b`).test(line)) {
                         const m = line.trim().match(/\s+(\d+)$/);
                         if (m) ports.apache = parseInt(m[1], 10);
                     }
-                    if (line.includes(':3306 ') || line.includes(':3306\t')) {
+                    if (/:3306\b/.test(line)) {
                         const m = line.trim().match(/\s+(\d+)$/);
                         if (m) ports.mysql = parseInt(m[1], 10);
                     }
-                    if (line.includes(':4040 ') || line.includes(':4040\t')) {
+                    if (/:4040\b/.test(line)) {
                         const m = line.trim().match(/\s+(\d+)$/);
                         if (m) ports.ngrok = parseInt(m[1], 10);
                     }
@@ -120,9 +121,10 @@ function getListeningPorts(apachePort) {
     });
 }
 
-// Consulta a API interna do Ngrok (porta 4040) para obter a URL pública ativa
+// Consulta a API interna do Ngrok (porta 4040) ou testa a URL pública
 function fetchNgrokPublicUrl() {
     return new Promise((resolve) => {
+        // 1. Tenta API local do Ngrok na porta 4040 (127.0.0.1)
         const req = http.get('http://127.0.0.1:4040/api/tunnels', { timeout: 2000 }, (res) => {
             let body = '';
             res.on('data', chunk => body += chunk);
@@ -136,15 +138,39 @@ function fetchNgrokPublicUrl() {
                         return resolve(url);
                     }
                 } catch (e) {}
-                resolve(lastPublicUrl);
+                checkKnownPublicEndpoint(resolve);
             });
         });
-        req.on('error', () => resolve(null));
+        req.on('error', () => checkKnownPublicEndpoint(resolve));
         req.on('timeout', () => {
             req.destroy();
-            resolve(null);
+            checkKnownPublicEndpoint(resolve);
         });
     });
+}
+
+// Fallback: se a API 4040 não responder (ex: ngrok em outra sessão/usuário),
+// verifica se o endpoint público reservado está respondendo com 200/302
+function checkKnownPublicEndpoint(resolve) {
+    const candidateUrl = lastPublicUrl || 'https://erupt-stony-briskly.ngrok-free.dev/glpi/';
+    try {
+        const u = new URL(candidateUrl);
+        const client = u.protocol === 'https:' ? https : http;
+        const testReq = client.get(candidateUrl, { timeout: 3000 }, (res) => {
+            if (res.statusCode >= 200 && res.statusCode < 400) {
+                lastPublicUrl = candidateUrl;
+                return resolve(candidateUrl);
+            }
+            resolve(lastPublicUrl);
+        });
+        testReq.on('error', () => resolve(lastPublicUrl));
+        testReq.on('timeout', () => {
+            testReq.destroy();
+            resolve(lastPublicUrl);
+        });
+    } catch (e) {
+        resolve(lastPublicUrl);
+    }
 }
 
 async function getSystemStatus() {
@@ -201,7 +227,7 @@ async function getSystemStatus() {
                 running: isNgrokRunning,
                 pids: ngrokPids,
                 url: effectivePublicUrl,
-                statusText: isNgrokRunning ? `Rodando (PID: ${ngrokPids.join(', ') || 'Ativo'})` : 'Parado'
+                statusText: isNgrokRunning ? (ngrokPids.length > 0 ? `Rodando (PID: ${ngrokPids.join(', ')})` : 'Rodando (Túnel Ativo)') : 'Parado'
             }
         },
         autoRecover,
@@ -210,36 +236,54 @@ async function getSystemStatus() {
     };
 }
 
-// Inicia os serviços disparando diretamente o iniciar_glpi_ngrok.bat validado
+// Restaura somente o túnel Ngrok (sem mexer em Apache ou MySQL)
+async function restartNgrokOnly() {
+    addLog('Restaurando apenas o túnel Ngrok (mantendo Apache e MySQL intactos)...', 'warning');
+    exec('taskkill /F /IM ngrok.exe', () => {
+        setTimeout(() => {
+            const ngrokExe = findNgrokExe();
+            const apachePort = getApacheConfiguredPort();
+            if (fs.existsSync(ngrokExe)) {
+                exec(`start "Ngrok-Tunnel" /B "${ngrokExe}" http 127.0.0.1:${apachePort}`, { cwd: GLPI_DIR }, (err) => {
+                    if (err) addLog(`[AVISO] Erro ao iniciar ngrok: ${err.message}`, 'warning');
+                    else addLog('Túnel Ngrok relançado em segundo plano.', 'success');
+                });
+            }
+        }, 1500);
+    });
+}
+
+// Inicia os serviços disparando o iniciar_glpi_ngrok.ps1 sem abrir abas
 async function startSystem() {
     if (isStarting) return;
     isStarting = true;
-    cooldownUntil = Date.now() + 30000; // 30s de carência para a auditoria
+    cooldownUntil = Date.now() + 45000; // 45s de carência para a auditoria
 
-    addLog('Disparando iniciar_glpi_ngrok.bat oficial validado...', 'info');
+    addLog('Iniciando serviços do GLPI com Ngrok...', 'info');
 
     // Mata qualquer vestígio antigo do Cloudflare
     exec('taskkill /F /IM cloudflared.exe', () => {});
 
-    const batPath = path.join(GLPI_DIR, 'iniciar_glpi_ngrok.bat');
-    if (fs.existsSync(batPath)) {
-        addLog(`Iniciando ${batPath}...`, 'action');
-        exec(`start "GLPI-Ngrok-Runner" cmd.exe /c "${batPath}"`, { cwd: GLPI_DIR, shell: 'cmd.exe' }, (err) => {
-            if (err) addLog(`[AVISO] Erro ao disparar bat: ${err.message}`, 'warning');
+    const ps1Path = path.join(GLPI_DIR, 'iniciar_glpi_ngrok.ps1');
+    if (fs.existsSync(ps1Path)) {
+        addLog('Executando iniciar_glpi_ngrok.ps1 em segundo plano...', 'action');
+        exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${ps1Path}"`, { cwd: GLPI_DIR }, (err) => {
+            if (err) addLog(`[AVISO] Inicializador retornou aviso: ${err.message}`, 'warning');
+            else addLog('Inicializador executado com sucesso.', 'success');
         });
     } else {
-        addLog(`[ERRO] Arquivo não encontrado: ${batPath}`, 'error');
+        addLog(`[ERRO] Arquivo não encontrado: ${ps1Path}`, 'error');
     }
 
-    // Monitora a geração do link público do Ngrok
+    // Monitora a confirmação do túnel
     let attempts = 0;
     const interval = setInterval(async () => {
         attempts++;
         const url = await fetchNgrokPublicUrl();
         if (url) {
             clearInterval(interval);
-            addLog(`Túnel Ngrok detectado: ${url}`, 'success');
-        } else if (attempts >= 15) {
+            addLog(`Túnel Ngrok confirmado ativo: ${url}`, 'success');
+        } else if (attempts >= 10) {
             clearInterval(interval);
         }
     }, 2000);
@@ -251,61 +295,72 @@ async function startSystem() {
 
 async function stopSystem() {
     addLog('Encerrando processos httpd, mysqld, ngrok e cloudflared...', 'warning');
-    cooldownUntil = Date.now() + 20000; // Bloqueia auditoria durante parada intencional
+    cooldownUntil = Date.now() + 25000; // Bloqueia auditoria durante parada intencional
     consecutiveFails = { apache: 0, mysql: 0, ngrok: 0 };
     exec('taskkill /F /IM httpd.exe /IM mysqld.exe /IM ngrok.exe /IM cloudflared.exe', () => {
         addLog('Processos finalizados com sucesso.', 'warning');
     });
 }
 
-// Auditoria automática de queda a cada 10 segundos com debounce (evita falso-positivos)
+// Auditoria automática de queda a cada 15 segundos com proteção contra loops
 setInterval(async () => {
     if (!autoRecover || isStarting || Date.now() < cooldownUntil) return;
 
     try {
         const st = await getSystemStatus();
-        let triggerRecovery = false;
 
-        // Auditoria Apache
+        // 1. Se Apache e MySQL estão rodando saudáveis, NUNCA reinicie o GLPI!
+        if (st.services.apache.running && st.services.mysql.running) {
+            consecutiveFails.apache = 0;
+            consecutiveFails.mysql = 0;
+
+            // Se apenas o Ngrok estiver fora
+            if (!st.services.ngrok.running) {
+                consecutiveFails.ngrok++;
+                if (consecutiveFails.ngrok >= 4) { // Requer 4 falhas seguidas (60s)
+                    consecutiveFails.ngrok = 0;
+                    cooldownUntil = Date.now() + 60000;
+                    addLog('[AUDITORIA] Ngrok fora do ar. Restaurando apenas o túnel...', 'warning');
+                    await restartNgrokOnly();
+                }
+            } else {
+                consecutiveFails.ngrok = 0;
+            }
+            return;
+        }
+
+        // 2. Se Apache OU MySQL caíram de verdade:
+        let webCrashed = false;
         if (!st.services.apache.running) {
             consecutiveFails.apache++;
-            if (consecutiveFails.apache >= 2) {
-                addLog('[AUDITORIA] Apache fora do ar detectado. Restaurando...', 'error');
-                triggerRecovery = true;
+            if (consecutiveFails.apache >= 3) {
+                addLog('[AUDITORIA] Apache Web (GLPI) caiu! Restaurando serviço...', 'error');
+                webCrashed = true;
             }
         } else {
             consecutiveFails.apache = 0;
         }
 
-        // Auditoria MySQL
         if (!st.services.mysql.running) {
             consecutiveFails.mysql++;
-            if (consecutiveFails.mysql >= 2) {
-                addLog('[AUDITORIA] MySQL fora do ar detectado. Restaurando...', 'error');
-                triggerRecovery = true;
+            if (consecutiveFails.mysql >= 3) {
+                addLog('[AUDITORIA] Banco MySQL caiu! Restaurando serviço...', 'error');
+                webCrashed = true;
             }
         } else {
             consecutiveFails.mysql = 0;
         }
 
-        // Auditoria Ngrok
-        if (!st.services.ngrok.running) {
-            consecutiveFails.ngrok++;
-            if (consecutiveFails.ngrok >= 2) {
-                addLog('[AUDITORIA] Ngrok fora do ar detectado. Restaurando...', 'error');
-                triggerRecovery = true;
-            }
-        } else {
-            consecutiveFails.ngrok = 0;
-        }
-
-        if (triggerRecovery) {
+        if (webCrashed) {
+            consecutiveFails.apache = 0;
+            consecutiveFails.mysql = 0;
+            cooldownUntil = Date.now() + 60000;
             await startSystem();
         }
     } catch (err) {
         console.error('Erro na auditoria:', err);
     }
-}, 10000);
+}, 15000);
 
 // Anti-inatividade (Keep-Alive Reposit via WScript a cada 45s)
 setInterval(() => {
@@ -348,7 +403,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.url === '/api/toggle-autorecover' && req.method === 'POST') {
         autoRecover = !autoRecover;
-        addLog(`Auto-recuperação ${autoRecover ? 'LIGADA' : 'DESLIGADA'}`, autoRecover ? 'success' : 'warning');
+        addLog(`Auto-recuperação ${autoRecover ? 'LIGADA' : 'PAUSADA'}`, autoRecover ? 'success' : 'warning');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ autoRecover }));
     }

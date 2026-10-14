@@ -179,40 +179,49 @@ if (-not $hasToken) {
     }
 }
 
-# 6. Encerrar instancias antigas do Ngrok
-Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-# 7. Iniciar Ngrok apontando para a porta 127.0.0.1:$targetPort
-Write-Host ""
-Write-Host "4. Conectando Ngrok a porta $targetPort e gerando Link Publico..." -ForegroundColor White
-Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
-
-$ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$targetPort" -PassThru -WindowStyle Hidden
-
-# 8. Obter Link Publico da API local do Ngrok (porta 4040)
+# 6. Verificar se o Ngrok ja esta ativo e online
 $publicUrl = $null
-for ($i = 0; $i -lt 25; $i++) {
-    Start-Sleep -Seconds 1
-    Write-Host "." -NoNewline -ForegroundColor Cyan
+try {
+    $existingRes = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
+    if ($existingRes.tunnels -and $existingRes.tunnels.Count -gt 0) {
+        $httpsTunnel = $existingRes.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+        $publicUrl = if ($httpsTunnel) { $httpsTunnel.public_url } else { $existingRes.tunnels[0].public_url }
+        Write-Host "   [OK] Tunel Ngrok ja esta ativo e respondendo na porta 4040!" -ForegroundColor Green
+    }
+} catch {}
 
-    try {
-        $res = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
-        if ($res.tunnels -and $res.tunnels.Count -gt 0) {
-            $httpsTunnel = $res.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
-            if ($httpsTunnel) {
-                $publicUrl = $httpsTunnel.public_url
-            } else {
-                $publicUrl = $res.tunnels[0].public_url
+if (-not $publicUrl) {
+    # Encerrar processos orfaos antigos do Ngrok caso nao haja tunel ativo
+    Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+
+    # 7. Iniciar Ngrok apontando para a porta 127.0.0.1:$targetPort em segundo plano independente
+    Write-Host ""
+    Write-Host "4. Conectando Ngrok a porta $targetPort e gerando Link Publico..." -ForegroundColor White
+    Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
+
+    $ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$targetPort" -PassThru -WindowStyle Hidden
+
+    # 8. Obter Link Publico da API local do Ngrok (porta 4040)
+    for ($i = 0; $i -lt 15; $i++) {
+        Start-Sleep -Seconds 1
+        Write-Host "." -NoNewline -ForegroundColor Cyan
+
+        try {
+            $res = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
+            if ($res.tunnels -and $res.tunnels.Count -gt 0) {
+                $httpsTunnel = $res.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+                $publicUrl = if ($httpsTunnel) { $httpsTunnel.public_url } else { $res.tunnels[0].public_url }
+                break
             }
+        } catch {}
+
+        if ($ngrokProc.HasExited) {
             break
         }
-    } catch {}
-
-    if ($ngrokProc.HasExited) {
-        break
     }
+    Write-Host ""
 }
-Write-Host ""
 
 if ($publicUrl) {
     $subPath = "glpi/"
@@ -244,35 +253,15 @@ if ($publicUrl) {
     if ($copied) {
         Write-Host "  [OK] Link publico copiado para a area de transferencia (Ctrl + V)!" -ForegroundColor Green
     }
-    Write-Host "  [OK] Abrindo o Link Publico no seu navegador agora..." -ForegroundColor Green
-    Write-Host "=====================================================================" -ForegroundColor Green
-    Write-Host "  ATENCAO: Mantenha esta janela aberta para manter o GLPI online!" -ForegroundColor Yellow
+    Write-Host "  [OK] Tunel rodando em segundo plano de forma autonoma." -ForegroundColor Green
     Write-Host "=====================================================================" -ForegroundColor Green
     Write-Host ""
-
-    Start-Sleep -Seconds 1
-    Start-Process $glpiPublicUrl
-
-    try {
-        Write-Host "Pressione qualquer tecla nesta janela para encerrar o tunel quando terminar..." -ForegroundColor Gray
-        if ([Environment]::UserInteractive) {
-            $null = [Console]::ReadKey($true)
-        } else {
-            $ngrokProc.WaitForExit()
-        }
-    } catch {
-        $ngrokProc.WaitForExit()
-    }
-
-    Write-Host "`nEncerrando tunel Ngrok..." -ForegroundColor Yellow
-    Stop-Process -Id $ngrokProc.Id -Force -ErrorAction SilentlyContinue
-    Write-Host "Tunel encerrado com sucesso." -ForegroundColor Green
 } else {
     Write-Host ""
-    Write-Host "[ERRO] Nao foi possivel obter o link publico do Ngrok." -ForegroundColor Red
-    Write-Host "Verifique se o seu Authtoken e valido ou se o servidor web esta respondendo na porta $targetPort." -ForegroundColor Yellow
-    Write-Host "Tentando abrir localmente: http://localhost:$targetPort/glpi/" -ForegroundColor Gray
-    Start-Process "http://localhost:$targetPort/glpi/"
-    Write-Host "`nPressione ENTER para sair..." -ForegroundColor Gray
-    Read-Host
+    Write-Host "[AVISO] Nao foi possivel obter o link da API local do Ngrok (porta 4040)." -ForegroundColor Yellow
+    Write-Host "Se o tunel ja estiver ativo em outra sessao ou com dominio reservado," -ForegroundColor Gray
+    Write-Host "o GLPI continuara online e pode ser monitorado pelo Guardian." -ForegroundColor Gray
+    Write-Host "Acesso local: http://localhost:$targetPort/glpi/" -ForegroundColor Cyan
+    Write-Host ""
 }
+
