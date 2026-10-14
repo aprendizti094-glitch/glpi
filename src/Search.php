@@ -2593,7 +2593,7 @@ class Search
             $main_block_class = "sub_criteria";
             $card_class = 'border d-inline-block ms-1';
         }
-        $display = $_SESSION['glpifold_search'] ? 'style="display: none;"' : '';
+        $display = !empty($_SESSION['glpifold_search']) ? 'style="display: none;"' : '';
         echo "<div class='$card_class' $display>";
 
         echo "<div id='searchcriteria$rand_criteria' class='$main_block_class' >";

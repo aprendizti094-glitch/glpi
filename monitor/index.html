@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLPI Guardian — Monitor & Auto-Recuperação</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-yellow: #eab308;
+      --btn-purple: #6366f1;
+      --btn-purple-hover: #4f46e5;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+    }
+
+    .top-header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+    }
+
+    .badge-auto {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .badge-auto.disabled {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    /* Grid dos dois blocos principais */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.95rem;
+    }
+
+    .item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #cbd5e1;
+    }
+
+    .indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .indicator.ok {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+
+    .indicator.bad {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+
+    .item-val {
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #f1f5f9;
+    }
+
+    .val-active {
+      color: #4ade80;
+    }
+    .val-stopped {
+      color: #f87171;
+    }
+
+    .card-footer {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Ações */
+    .actions-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      color: white;
+      text-decoration: none;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-start {
+      background: var(--btn-purple);
+    }
+    .btn-start:hover {
+      background: var(--btn-purple-hover);
+    }
+
+    .btn-stop {
+      background: #f43f5e;
+    }
+    .btn-stop:hover {
+      background: #e11d48;
+    }
+
+    .btn-restart {
+      background: #475569;
+    }
+    .btn-restart:hover {
+      background: #334155;
+    }
+
+    .btn-open {
+      background: #059669;
+      margin-left: auto;
+    }
+    .btn-open:hover {
+      background: #047857;
+    }
+
+    /* Logs */
+    .logs-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 280px;
+    }
+
+    .logs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .btn-clear {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-clear:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    .logs-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.85rem;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 12px;
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: #64748b;
+      user-select: none;
+    }
+
+    .log-msg.info { color: #38bdf8; }
+    .log-msg.success { color: #4ade80; }
+    .log-msg.warning { color: #fbbf24; }
+    .log-msg.error { color: #f87171; }
+    .log-msg.action { color: #c084fc; }
+  </style>
+</head>
+<body>
+
+  <div class="top-header">
+    <h1>🛡️ GLPI Guardian & Auto-Recuperação</h1>
+    <div id="autoRecoverBadge" class="badge-auto" onclick="toggleAutoRecover()">
+      Auto-Recuperação: LIGADA
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Bloco Pré-requisitos -->
+    <div class="card">
+      <div class="card-title">⚙️ PRÉ-REQUISITOS</div>
+      <div class="status-list" id="prereqsList">
+        <div class="status-item">
+          <div class="item-left"><div class="indicator ok">✓</div> Node.js</div>
+          <div class="item-val">Detectado</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left"><div class="indicator ok">✓</div> XAMPP</div>
+          <div class="item-val">C:\xampp</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left"><div class="indicator ok">✓</div> Apache (httpd.exe)</div>
+          <div class="item-val">Presente</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left"><div class="indicator ok">✓</div> MySQL (mysqld.exe)</div>
+          <div class="item-val">Presente</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left"><div class="indicator ok">✓</div> Cloudflare Tunnel</div>
+          <div class="item-val">C:\xampp\cloudflared.exe</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bloco Serviços -->
+    <div class="card">
+      <div class="card-title">🖥️ SERVIÇOS & PROCESSOS</div>
+      <div class="status-list" id="servicesList">
+        <div class="status-item">
+          <div class="item-left">
+            <div id="ind-mysql" class="indicator bad">✕</div> MySQL
+          </div>
+          <div class="item-val" id="val-mysql">Verificando...</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left">
+            <div id="ind-apache" class="indicator bad">✕</div> Apache (GLPI Web)
+          </div>
+          <div class="item-val" id="val-apache">Verificando...</div>
+        </div>
+        <div class="status-item">
+          <div class="item-left">
+            <div id="ind-cf" class="indicator bad">✕</div> Cloudflare Tunnel
+          </div>
+          <div class="item-val" id="val-cf">Verificando...</div>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <div class="footer-row">
+          <span>Portas Locais</span>
+          <span style="color:#f1f5f9; font-family:monospace;" id="portsDisplay">80 (Apache), 3306 (MySQL)</span>
+        </div>
+        <div class="footer-row">
+          <span>PIDs Ativos</span>
+          <span style="color:#f1f5f9; font-family:monospace;" id="pidsDisplay">—</span>
+        </div>
+        <div class="footer-row">
+          <span>Anti-Ociosidade (Keep-Alive)</span>
+          <span style="color:#4ade80;">Ativo (a cada 45s)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra de Ações -->
+  <div class="actions-bar">
+    <button class="btn btn-start" onclick="actionStart()">▶ Iniciar Sistema</button>
+    <button class="btn btn-stop" onclick="actionStop()">■ Parar</button>
+    <button class="btn btn-restart" onclick="actionRestart()">↻ Reiniciar</button>
+    <a id="btnOpen" href="#" target="_blank" class="btn btn-open" style="display:none;">↗ Abrir GLPI Público</a>
+    <a href="http://localhost/glpi/" target="_blank" class="btn btn-restart">↗ Abrir GLPI Local</a>
+  </div>
+
+  <!-- Logs em tempo real -->
+  <div class="logs-card">
+    <div class="logs-header">
+      <div class="card-title" style="margin-bottom:0;">📄 LOGS EM TEMPO REAL</div>
+      <button class="btn-clear" onclick="clearLogs()">Limpar</button>
+    </div>
+    <div class="logs-box" id="logsBox">
+      <!-- Logs inseridos dinamicamente -->
+    </div>
+  </div>
+
+  <script>
+    let currentData = null;
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        currentData = data;
+        render(data);
+      } catch (e) {
+        console.error('Falha ao obter status:', e);
+      }
+    }
+
+    function render(data) {
+      // 1. Atualizar serviços
+      const mysql = data.services.mysql;
+      const apache = data.services.apache;
+      const cf = data.services.cloudflared;
+
+      updateServiceUI('mysql', mysql.running, mysql.statusText);
+      updateServiceUI('apache', apache.running, apache.statusText);
+      updateServiceUI('cf', cf.running, cf.statusText);
+
+      // PIDs
+      const allPids = [
+        mysql.pids.join(','),
+        apache.pids.join(','),
+        cf.pids.join(',')
+      ].filter(Boolean).join(' / ');
+      document.getElementById('pidsDisplay').innerText = allPids || 'Nenhum processo ativo';
+
+      // Link público
+      const btnOpen = document.getElementById('btnOpen');
+      if (data.publicUrl) {
+        btnOpen.href = data.publicUrl;
+        btnOpen.style.display = 'inline-flex';
+        btnOpen.innerText = '↗ Abrir ' + data.publicUrl.replace('https://', '').slice(0, 22) + '...';
+      } else {
+        btnOpen.style.display = 'none';
+      }
+
+      // Auto-recover badge
+      const badge = document.getElementById('autoRecoverBadge');
+      if (data.autoRecover) {
+        badge.className = 'badge-auto';
+        badge.innerText = 'Auto-Recuperação: LIGADA';
+      } else {
+        badge.className = 'badge-auto disabled';
+        badge.innerText = 'Auto-Recuperação: DESLIGADA';
+      }
+
+      // Logs
+      renderLogs(data.logs || []);
+    }
+
+    function updateServiceUI(id, isRunning, text) {
+      const ind = document.getElementById('ind-' + id);
+      const val = document.getElementById('val-' + id);
+      if (isRunning) {
+        ind.className = 'indicator ok';
+        ind.innerText = '✓';
+        val.className = 'item-val val-active';
+      } else {
+        ind.className = 'indicator bad';
+        ind.innerText = '✕';
+        val.className = 'item-val val-stopped';
+      }
+      val.innerText = text;
+    }
+
+    function renderLogs(logs) {
+      const box = document.getElementById('logsBox');
+      const shouldScroll = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+      box.innerHTML = logs.map(l => `
+        <div class="log-line">
+          <span class="log-time">${l.time}</span>
+          <span class="log-msg ${l.type}">${l.msg}</span>
+        </div>
+      `).join('');
+      if (shouldScroll) {
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+
+    async function actionStart() {
+      await fetch('/api/start', { method: 'POST' });
+      fetchStatus();
+    }
+
+    async function actionStop() {
+      await fetch('/api/stop', { method: 'POST' });
+      fetchStatus();
+    }
+
+    async function actionRestart() {
+      await fetch('/api/restart', { method: 'POST' });
+      fetchStatus();
+    }
+
+    async function toggleAutoRecover() {
+      await fetch('/api/toggle-autorecover', { method: 'POST' });
+      fetchStatus();
+    }
+
+    async function clearLogs() {
+      await fetch('/api/clear-logs', { method: 'POST' });
+      fetchStatus();
+    }
+
+    // Polling a cada 2 segundos
+    setInterval(fetchStatus, 2000);
+    fetchStatus();
+  </script>
+</body>
+</html>
