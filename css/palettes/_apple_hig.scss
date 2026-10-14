@@ -456,51 +456,67 @@ body.helpdesk header.navbar[data-testid="main-header"] {
 }
 
 /* Inner header container */
+header.navbar .container-fluid,
+header.navbar .header-container,
 header.navbar[data-testid="main-header"] .header-container,
 html[data-glpi-theme="apple_hig"] .header-container {
     height: 100% !important;
     display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: space-between !important;
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    gap: 10px !important;
+    gap: 8px !important;
+    overflow: visible !important;
 }
 
 /* Breadcrumbs (Apple HIG Dock Segment) */
+header.navbar nav[aria-label="breadcrumbs"],
+header.navbar nav[aria-label="Breadcrumbs"],
+header.navbar ol.breadcrumb,
 header.navbar[data-testid="main-header"] nav[aria-label="Breadcrumbs"],
-html[data-glpi-theme="apple_hig"] nav[aria-label="Breadcrumbs"] {
-    display: flex !important;
-    align-items: center !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
+html[data-glpi-theme="apple_hig"] nav[aria-label="Breadcrumbs"],
 html[data-glpi-theme="apple_hig"] .breadcrumb {
     margin-bottom: 0 !important;
     display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
     align-items: center !important;
     background: rgba(0, 0, 0, 0.035) !important;
     border: 1px solid rgba(0, 0, 0, 0.03) !important;
     border-radius: 9999px !important;
     padding: 3px 6px 3px 10px !important;
     gap: 3px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    flex-shrink: 0 !important;
 }
 
+header.navbar .breadcrumb-item,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item {
     font-size: 0.84rem !important;
     font-weight: 500 !important;
     color: #6E6E73 !important;
     display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
+    white-space: nowrap !important;
     gap: 4px !important;
     padding: 0 !important;
     margin: 0 !important;
+    line-height: 1 !important;
+    flex-shrink: 1 !important;
 }
 
+header.navbar .breadcrumb-item + .breadcrumb-item::before,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item + .breadcrumb-item::before {
     content: "›" !important;
     color: #A1A1A6 !important;
@@ -509,6 +525,7 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item + .breadcrumb-item::before {
     line-height: 1 !important;
 }
 
+header.navbar .breadcrumb-item a,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item a {
     color: #6E6E73 !important;
     text-decoration: none !important;
@@ -518,6 +535,10 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item a {
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
+    max-width: 130px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
 
     i {
         font-size: 0.95rem !important;
@@ -531,6 +552,8 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item a {
 }
 
 /* Active / Current Breadcrumb Item (Elevated Pure White Squircle/Pill) */
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item.active,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item:last-child {
     background: #FFFFFF !important;
@@ -543,12 +566,20 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item:last-child {
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
+    white-space: nowrap !important;
+    max-width: 140px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 
     a {
         color: #1D1D1F !important;
         font-weight: 600 !important;
         padding: 0 !important;
         background: transparent !important;
+        max-width: 120px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
     i {
@@ -557,19 +588,46 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item:last-child {
 }
 
 /* Quick Action Links (Divider + Buttons) */
+header.navbar ul.navbar-nav.flex-row,
+header.navbar .nav.navbar-nav.flex-row,
 header.navbar[data-testid="main-header"] .nav.navbar-nav.flex-row,
 html[data-glpi-theme="apple_hig"] .header-container ul.navbar-nav.flex-row {
-    display: flex !important;
+    display: inline-flex !important;
     flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
     gap: 6px !important;
     margin: 0 !important;
     padding-left: 10px !important;
     border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
     border-right: none !important;
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+
+    &::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    .nav-item {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+    }
 }
 
 /* Add (+) Button in Dock */
+header.navbar a[title*="Add"],
+header.navbar a[title*="Adicionar"],
+header.navbar .btn-primary:has(.ti-plus),
+header.navbar .btn-secondary:has(.ti-plus),
 header.navbar[data-testid="main-header"] a[title*="Add"],
 header.navbar[data-testid="main-header"] a[title*="Adicionar"],
 header.navbar[data-testid="main-header"] .btn-primary:has(.ti-plus),
@@ -595,6 +653,7 @@ html[data-glpi-theme="apple_hig"] .header-container a.btn-secondary:has(.ti-plus
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     white-space: nowrap !important;
     text-decoration: none !important;
+    flex-shrink: 0 !important;
 
     i, .ti, .ti-plus {
         font-size: 1rem !important;
@@ -624,6 +683,8 @@ html[data-glpi-theme="apple_hig"] .header-container a.btn-secondary:has(.ti-plus
 }
 
 /* Other Quick Action Buttons (Search, Star, Views, Templates) */
+header.navbar ul.navbar-nav.flex-row .btn,
+header.navbar ul.navbar-nav.flex-row .btn:not(.btn-primary):not(:has(.ti-plus)),
 header.navbar[data-testid="main-header"] .header-container .btn-ghost-secondary,
 header.navbar[data-testid="main-header"] .header-container .btn-outline-secondary,
 header.navbar[data-testid="main-header"] .header-container .btn-icon,
@@ -638,7 +699,8 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(.btn-pr
     max-height: 32px !important;
     width: auto !important;
     min-width: 32px !important;
-    padding: 0 14px 0 10px !important;
+    max-width: 220px !important;
+    padding: 0 12px 0 10px !important;
     margin: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -648,6 +710,10 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(.btn-pr
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     white-space: nowrap !important;
     text-decoration: none !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
 
     i, .ti {
         font-size: 0.95rem !important;
@@ -662,6 +728,10 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(.btn-pr
         font-weight: 500 !important;
         color: #1D1D1F !important;
         line-height: 1 !important;
+        max-width: 140px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
     &:hover {
@@ -675,15 +745,30 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(.btn-pr
     }
 }
 
-@media (max-width: 1399.98px) {
-    header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn {
+/* Responsiveness: Collapse secondary context buttons into 32px icon pills when width is <= 1600px */
+@media (max-width: 1599.98px) {
+    header.navbar ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) span,
+    html[data-glpi-theme="apple_hig"] .header-container ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) span {
+        display: none !important;
+    }
+    header.navbar ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)),
+    html[data-glpi-theme="apple_hig"] .header-container ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) {
         width: 32px !important;
         min-width: 32px !important;
         padding: 0 !important;
+    }
+}
 
-        span {
-            display: none !important;
-        }
+@media (max-width: 1199.98px) {
+    header.navbar ul.navbar-nav.flex-row .btn span,
+    html[data-glpi-theme="apple_hig"] .header-container ul.navbar-nav.flex-row .btn span {
+        display: none !important;
+    }
+    header.navbar ul.navbar-nav.flex-row .btn,
+    html[data-glpi-theme="apple_hig"] .header-container ul.navbar-nav.flex-row .btn {
+        width: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
     }
 }
 

@@ -373,27 +373,113 @@ body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-item:hover i {
 /* ==========================================================================
    HEADER CONTEXT LINKS (Adicionar, Pesquisar, Listas, Modelos) - APPLE HIG PILLS
    ========================================================================== */
-header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row,
-.header-container ul.navbar-nav.flex-row,
-header.navbar ul.navbar-nav.border-start.flex-row {
+header.navbar,
+header.navbar[data-testid="main-header"],
+header.navbar.sticky-lg-top {
+  min-height: 56px !important;
+  max-height: 56px !important;
+  height: 56px !important;
+  box-sizing: border-box !important;
+}
+
+header.navbar .container-fluid,
+header.navbar .header-container,
+.header-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  height: 100% !important;
+  gap: 8px !important;
+  overflow: visible !important;
+}
+
+/* Breadcrumbs: 1 linha única estrita, sem quebrar para fora da cápsula */
+header.navbar nav[aria-label="breadcrumbs"],
+header.navbar nav[aria-label="Breadcrumbs"],
+.breadcrumb,
+header.navbar .breadcrumb {
   display: inline-flex !important;
   flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  align-items: center !important;
+  margin: 0 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  flex-shrink: 0 !important;
+}
+
+.breadcrumb-item,
+header.navbar .breadcrumb-item {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+.breadcrumb-item a,
+header.navbar .breadcrumb-item a {
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  max-width: 130px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.breadcrumb-item.active,
+.breadcrumb-item:last-child {
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  max-width: 140px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Context Buttons (Adicionar, Pesquisar, Listas, etc) - NUNCA QUEBRAR */
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row,
+.header-container ul.navbar-nav.flex-row,
+header.navbar ul.navbar-nav.border-start.flex-row,
+header.navbar .nav.navbar-nav.flex-row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
   align-items: center !important;
   gap: 6px !important;
   margin: 0 !important;
   padding: 0 0 0 10px !important;
   border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-right: none !important;
+  flex-shrink: 1 !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
+header.navbar ul.navbar-nav.flex-row::-webkit-scrollbar,
+.header-container ul.navbar-nav.flex-row::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+header.navbar ul.navbar-nav.flex-row .nav-item,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .nav-item,
 .header-container ul.navbar-nav.flex-row .nav-item {
   margin: 0 !important;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
+  flex-shrink: 0 !important;
 }
 
+header.navbar ul.navbar-nav.flex-row .btn,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
 .header-container ul.navbar-nav.flex-row .btn {
   height: 32px !important;
@@ -401,14 +487,16 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
   max-height: 32px !important;
   width: auto !important;
   min-width: 32px !important;
-  max-width: none !important;
+  max-width: 220px !important;
   border-radius: 9999px !important;
-  padding: 0 14px 0 10px !important;
+  padding: 0 12px 0 10px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
   white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
   font-size: 0.82rem !important;
   font-weight: 500 !important;
   margin: 0 !important;
@@ -417,16 +505,24 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   box-shadow: none !important;
   box-sizing: border-box !important;
+  flex-shrink: 0 !important;
 }
 
+header.navbar ul.navbar-nav.flex-row .btn span,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn span,
 .header-container ul.navbar-nav.flex-row .btn span {
   font-size: 0.82rem !important;
   font-weight: 500 !important;
   line-height: 1 !important;
   display: inline-block !important;
+  max-width: 140px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
+header.navbar ul.navbar-nav.flex-row .btn i,
+header.navbar ul.navbar-nav.flex-row .btn .ti,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn i,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn .ti,
 .header-container ul.navbar-nav.flex-row .btn i,
@@ -438,6 +534,10 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn .ti,
 }
 
 /* Adicionar - Black Pill */
+header.navbar ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
@@ -450,6 +550,9 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
 }
 
+header.navbar ul.navbar-nav.flex-row a[title*="Add"] *,
+header.navbar ul.navbar-nav.flex-row a[title*="Adicionar"] *,
+header.navbar ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus) *,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"] *,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"] *,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus) *,
@@ -458,6 +561,9 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:h
   color: #FFFFFF !important;
 }
 
+header.navbar ul.navbar-nav.flex-row a[title*="Add"]:hover,
+header.navbar ul.navbar-nav.flex-row a[title*="Adicionar"]:hover,
+header.navbar ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus):hover,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"]:hover,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"]:hover,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus):hover {
@@ -468,6 +574,8 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:h
 }
 
 /* Pesquisar, Listas, Modelos - Soft Gray Pills */
+header.navbar ul.navbar-nav.flex-row .btn-outline-secondary,
+header.navbar ul.navbar-nav.flex-row .btn-ghost-secondary,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary,
 .header-container ul.navbar-nav.flex-row .btn-outline-secondary,
@@ -477,6 +585,8 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secon
   border: 1px solid rgba(0, 0, 0, 0.04) !important;
 }
 
+header.navbar ul.navbar-nav.flex-row .btn-outline-secondary *,
+header.navbar ul.navbar-nav.flex-row .btn-ghost-secondary *,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary *,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary *,
 .header-container ul.navbar-nav.flex-row .btn-outline-secondary *,
@@ -484,6 +594,8 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secon
   color: #1D1D1F !important;
 }
 
+header.navbar ul.navbar-nav.flex-row .btn-outline-secondary:hover,
+header.navbar ul.navbar-nav.flex-row .btn-ghost-secondary:hover,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary:hover,
 header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary:hover,
 .header-container ul.navbar-nav.flex-row .btn-outline-secondary:hover,
@@ -493,15 +605,38 @@ header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secon
   transform: translateY(-1px) !important;
 }
 
-@media (max-width: 1399.98px) {
+/* Search bar and user profile must never shrink or cause wrap */
+header.navbar .ms-lg-auto,
+header.navbar .ms-md-4 {
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 1599.98px) {
+  header.navbar ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) span,
+  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) span,
+  .header-container ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) span {
+    display: none !important;
+  }
+  header.navbar ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)),
+  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)),
+  .header-container ul.navbar-nav.flex-row .btn:not(a[title*="Add"]):not(a[title*="Adicionar"]):not(.btn-secondary:has(.ti-plus)) {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  header.navbar ul.navbar-nav.flex-row .btn span,
+  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn span,
+  .header-container ul.navbar-nav.flex-row .btn span {
+    display: none !important;
+  }
+  header.navbar ul.navbar-nav.flex-row .btn,
   header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
   .header-container ul.navbar-nav.flex-row .btn {
     width: 32px !important;
     min-width: 32px !important;
     padding: 0 !important;
-  }
-  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn span,
-  .header-container ul.navbar-nav.flex-row .btn span {
-    display: none !important;
   }
 }
