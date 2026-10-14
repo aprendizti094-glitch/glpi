@@ -20,7 +20,7 @@ function findXamppDir() {
 const XAMPP_DIR = findXamppDir();
 
 let logs = [];
-let autoRecover = false; // Inicia em falso para evitar auto-reinicializações intempestivas
+let autoRecover = true; // Auto-recuperação ativa por padrão para restaurar serviços se caírem
 let isStarting = false;
 let lastPublicUrl = null;
 let cooldownUntil = 0;
@@ -39,7 +39,7 @@ function addLog(msg, type = 'info') {
     console.log(`[${time}] [${type.toUpperCase()}] ${msg}`);
 }
 
-addLog('Painel Guardião GLPI pronto (Ngrok obrigatório, sem auto-abertura de abas).', 'info');
+addLog('Painel Guardião GLPI pronto (Auto-Recuperação LIGADA & Ngrok obrigatório).', 'info');
 
 // Detecta a porta real configurada no httpd.conf do Apache
 function getApacheConfiguredPort() {
