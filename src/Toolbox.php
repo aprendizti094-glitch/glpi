@@ -2744,7 +2744,17 @@ class Toolbox
      */
     public static function slugify($string, $prefix = 'slug_')
     {
-        $string = transliterator_transliterate("Any-Latin; Latin-ASCII; [^a-zA-Z0-9\.\ -_] Remove;", $string);
+        if (function_exists('transliterator_transliterate')) {
+            $string = transliterator_transliterate("Any-Latin; Latin-ASCII; [^a-zA-Z0-9\.\ -_] Remove;", $string);
+        } else {
+            if (function_exists('iconv')) {
+                $trans = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $string);
+                if ($trans !== false) {
+                    $string = $trans;
+                }
+            }
+            $string = preg_replace('/[^a-zA-Z0-9\.\ \-_]/', '', $string);
+        }
         $string = str_replace(' ', '-', self::strtolower($string));
         $string = preg_replace('~[^0-9a-z_\.]+~i', '-', $string);
         $string = trim($string, '-');

@@ -217,3 +217,206 @@ if (!class_exists('Locale', false)) {
     }
 }
 
+// ==========================================
+// Polyfill de transliterator_transliterate e Transliterator
+// ==========================================
+
+if (!function_exists('transliterator_transliterate')) {
+    function transliterator_transliterate($transliterator, string $string, int $start = 0, int $end = -1): string|false
+    {
+        if ($start !== 0 || $end !== -1) {
+            $len = ($end === -1) ? null : ($end - $start);
+            $string = substr($string, $start, $len);
+        }
+
+        static $charmap = [
+            'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'AE', 'Ç'=>'C',
+            'È'=>'E', 'É'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I',
+            'Ð'=>'D', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O', 'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O',
+            'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'TH', 'ß'=>'ss',
+            'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'ae', 'ç'=>'c',
+            'è'=>'e', 'é'=>'e', 'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i',
+            'ð'=>'d', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o', 'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o',
+            'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ü'=>'u', 'ý'=>'y', 'þ'=>'th', 'ÿ'=>'y',
+            'Ā'=>'A', 'ā'=>'a', 'Ă'=>'A', 'ă'=>'a', 'Ą'=>'A', 'ą'=>'a',
+            'Ć'=>'C', 'ć'=>'c', 'Ĉ'=>'C', 'ĉ'=>'c', 'Ċ'=>'C', 'ċ'=>'c', 'Č'=>'C', 'č'=>'c',
+            'Ď'=>'D', 'ď'=>'d', 'Đ'=>'D', 'đ'=>'d',
+            'Ē'=>'E', 'ē'=>'e', 'Ĕ'=>'E', 'ĕ'=>'e', 'Ė'=>'E', 'ė'=>'e', 'Ę'=>'E', 'ę'=>'e', 'Ě'=>'E', 'ě'=>'e',
+            'Ĝ'=>'G', 'ĝ'=>'g', 'Ğ'=>'G', 'ğ'=>'g', 'Ġ'=>'G', 'ġ'=>'g', 'Ģ'=>'G', 'ģ'=>'g',
+            'Ĥ'=>'H', 'ĥ'=>'h', 'Ħ'=>'H', 'ħ'=>'h',
+            'Ĩ'=>'I', 'ĩ'=>'i', 'Ī'=>'I', 'ī'=>'i', 'Ĭ'=>'I', 'ĭ'=>'i', 'Į'=>'I', 'į'=>'i', 'İ'=>'I', 'ı'=>'i',
+            'Ĳ'=>'IJ', 'ĳ'=>'ij', 'Ĵ'=>'J', 'ĵ'=>'j',
+            'Ķ'=>'K', 'ķ'=>'k', 'ĸ'=>'k',
+            'Ĺ'=>'L', 'ĺ'=>'l', 'Ļ'=>'L', 'ļ'=>'l', 'Ľ'=>'L', 'ľ'=>'l', 'Ŀ'=>'L', 'ŀ'=>'l', 'Ł'=>'L', 'ł'=>'l',
+            'Ń'=>'N', 'ń'=>'n', 'Ņ'=>'N', 'ņ'=>'n', 'Ň'=>'N', 'ň'=>'n', 'ŉ'=>'n', 'Ŋ'=>'N', 'ŋ'=>'n',
+            'Ō'=>'O', 'ō'=>'o', 'Ŏ'=>'O', 'ŏ'=>'o', 'Ő'=>'O', 'ő'=>'o', 'Œ'=>'OE', 'œ'=>'oe',
+            'Ŕ'=>'R', 'ŕ'=>'r', 'Ŗ'=>'R', 'ŗ'=>'r', 'Ř'=>'R', 'ř'=>'r',
+            'Ś'=>'S', 'ś'=>'s', 'Ŝ'=>'S', 'ŝ'=>'s', 'Ş'=>'S', 'ş'=>'s', 'Š'=>'S', 'š'=>'s',
+            'Ţ'=>'T', 'ţ'=>'t', 'Ť'=>'T', 'ť'=>'t', 'Ŧ'=>'T', 'ŧ'=>'t',
+            'Ũ'=>'U', 'ũ'=>'u', 'Ū'=>'U', 'ū'=>'u', 'Ŭ'=>'U', 'ŭ'=>'u', 'Ů'=>'U', 'ů'=>'u', 'Ű'=>'U', 'ű'=>'u', 'Ų'=>'U', 'ų'=>'u',
+            'Ŵ'=>'W', 'ŵ'=>'w',
+            'Ŷ'=>'Y', 'ŷ'=>'y', 'Ÿ'=>'Y',
+            'Ź'=>'Z', 'ź'=>'z', 'Ż'=>'Z', 'ż'=>'z', 'Ž'=>'Z', 'ž'=>'z',
+        ];
+        $string = strtr($string, $charmap);
+
+        if (function_exists('iconv')) {
+            $trans = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $string);
+            if ($trans !== false) {
+                $string = $trans;
+            }
+        }
+
+        if (is_string($transliterator) && str_contains($transliterator, 'Remove')) {
+            $string = preg_replace('/[^a-zA-Z0-9\.\ \-_]/', '', $string);
+        }
+
+        return $string;
+    }
+}
+
+if (!class_exists('Transliterator', false)) {
+    class Transliterator
+    {
+        public const FORWARD = 0;
+        public const REVERSE = 1;
+
+        public string $id;
+
+        public function __construct(string $id = '')
+        {
+            $this->id = $id;
+        }
+
+        public static function create(string $id, int $direction = self::FORWARD): ?static
+        {
+            return new static($id);
+        }
+
+        public static function createFromRules(string $rules, int $direction = self::FORWARD): ?static
+        {
+            return new static($rules);
+        }
+
+        public static function createInverse(self $orig): ?static
+        {
+            return new static($orig->id);
+        }
+
+        public function transliterate(string $string, int $start = 0, int $end = -1): string|false
+        {
+            return transliterator_transliterate($this->id, $string, $start, $end);
+        }
+
+        public static function listIDs(): array|false
+        {
+            return ['Any-Latin', 'Latin-ASCII'];
+        }
+
+        public function getErrorCode(): int|false
+        {
+            return 0;
+        }
+
+        public function getErrorMessage(): string|false
+        {
+            return '';
+        }
+    }
+}
+
+// ==========================================
+// Polyfill de IntlDateFormatter
+// ==========================================
+
+if (!class_exists('IntlDateFormatter', false)) {
+    class IntlDateFormatter
+    {
+        public const NONE = -1;
+        public const FULL = 0;
+        public const LONG = 1;
+        public const MEDIUM = 2;
+        public const SHORT = 3;
+        public const RELATIVE_FULL = 128;
+        public const RELATIVE_LONG = 129;
+        public const RELATIVE_MEDIUM = 130;
+        public const RELATIVE_SHORT = 131;
+
+        public const TRADITIONAL = 0;
+        public const GREGORIAN = 1;
+
+        private string $locale;
+        private int $dateType;
+        private int $timeType;
+        private ?string $pattern;
+
+        public function __construct(
+            ?string $locale = null,
+            int $dateType = self::FULL,
+            int $timeType = self::FULL,
+            $timezone = null,
+            $calendar = null,
+            ?string $pattern = ''
+        ) {
+            $this->locale = $locale ?? 'en_US';
+            $this->dateType = $dateType;
+            $this->timeType = $timeType;
+            $this->pattern = $pattern;
+        }
+
+        public static function create(
+            ?string $locale = null,
+            int $dateType = self::FULL,
+            int $timeType = self::FULL,
+            $timezone = null,
+            $calendar = null,
+            ?string $pattern = ''
+        ): ?static {
+            return new static($locale, $dateType, $timeType, $timezone, $calendar, $pattern);
+        }
+
+        public function format($datetime): string|false
+        {
+            if ($datetime instanceof \DateTimeInterface) {
+                return $datetime->format('Y-m-d H:i:s');
+            }
+            if (is_numeric($datetime)) {
+                return date('Y-m-d H:i:s', (int)$datetime);
+            }
+            return (string)$datetime;
+        }
+
+        public static function formatObject($object, $format = null, ?string $locale = null): string|false
+        {
+            if ($object instanceof \DateTimeInterface) {
+                if (is_string($format) && str_contains($format, 'MMMM y')) {
+                    return $object->format('F Y');
+                }
+                return $object->format('Y-m-d H:i:s');
+            }
+            return false;
+        }
+
+        public function getCalendar(): int|false
+        {
+            return self::GREGORIAN;
+        }
+
+        public function getPattern(): string|false
+        {
+            return $this->pattern ?? 'Y-m-d H:i:s';
+        }
+
+        public function getTimeZoneId(): string|false
+        {
+            return date_default_timezone_get();
+        }
+
+        public function getLocale(int $type = 0): string|false
+        {
+            return $this->locale;
+        }
+    }
+}
+
+
