@@ -794,7 +794,7 @@ JAVASCRIPT
         /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
-        return $CFG_GLPI['translate_dropdowns'];
+        return (bool) ($CFG_GLPI['translate_dropdowns'] ?? false);
     }
 
 

@@ -377,7 +377,7 @@ class KnowbaseItemTranslation extends CommonDBChild
         /** @var array $CFG_GLPI */
         global $CFG_GLPI;
 
-        return $CFG_GLPI['translate_kb'];
+        return (bool) ($CFG_GLPI['translate_kb'] ?? false);
     }
 
 

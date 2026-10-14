@@ -114,21 +114,21 @@
 
     {{ fields.checkboxField(
         'translate_dropdowns',
-        config['translate_dropdowns'],
+        config['translate_dropdowns'] ?? 0,
         __("Translation of dropdowns"),
         field_options
     ) }}
 
     {{ fields.checkboxField(
         'translate_kb',
-        config['translate_kb'],
+        config['translate_kb'] ?? 0,
         __("Knowledge base translation"),
         field_options
     ) }}
 
     {{ fields.checkboxField(
         'translate_reminders',
-        config['translate_reminders'],
+        config['translate_reminders'] ?? 0,
         __("Translation of reminders"),
         field_options
     ) }}
