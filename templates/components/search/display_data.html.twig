@@ -533,15 +533,37 @@
    {% if not as_map %}
       <script>
           window.initFluidSearch{{ rand }}  = () => {
-             const allowed_forced_params = ['hide_controls', 'usesession', 'forcetoview', 'criteria', 'showmassiveactions'];
-             let forced_params = {};
-             {% for param in forced_params %}
-                forced_params['{{ param }}'] = '{{ params[param] }}';
-             {% endfor %}
+             try {
+                const allowed_forced_params = ['hide_controls', 'usesession', 'forcetoview', 'criteria', 'showmassiveactions'];
+                let forced_params = {};
+                let all_params = {{ data['search']|default({})|json_encode|raw }};
 
-             const view = new GLPI.Search.ResultsView('{{ massive_action_form_id }}', GLPI.Search.Table, forced_params);
-             view.init();
-             $('div.ajax-container.search-display-data').data('js_class', view);
+                if (typeof all_params === 'object' && all_params !== null) {
+                   $.each(all_params, (k, v) => {
+                      if (allowed_forced_params.includes(k)) {
+                         forced_params[k] = v;
+                      }
+                   });
+                }
+                {% for param in forced_params|default([]) %}
+                   forced_params['{{ param }}'] = '{{ params[param]|default('') }}';
+                {% endfor %}
+
+                if (window.GLPI && window.GLPI.Search && window.GLPI.Search.ResultsView) {
+                   const view = new GLPI.Search.ResultsView(
+                      '{{ massive_action_form_id }}',
+                      GLPI.Search.Table,
+                      {{ push_history ? "true" : "false" }},
+                      forced_params
+                   );
+                   if (view && typeof view.init === 'function') {
+                      view.init();
+                   }
+                   $('div.ajax-container.search-display-data').data('js_class', view);
+                }
+             } catch (err) {
+                console.warn('GLPI Search ResultsView init warning:', err);
+             }
           };
 
           if (document.readyState === 'loading') {
