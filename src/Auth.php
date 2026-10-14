@@ -1491,6 +1491,13 @@ class Auth extends CommonGLPI
 
         //Direct redirect
         if ($redirect) {
+            if (Session::getCurrentInterface() == "helpdesk" && (str_contains($redirect, 'central.php') || str_contains($redirect, 'front/central'))) {
+                $redirect = str_replace('front/central.php', 'front/helpdesk.public.php', $redirect);
+                $redirect = str_replace('central.php', 'helpdesk.public.php', $redirect);
+            } elseif (Session::getCurrentInterface() == "central" && (str_contains($redirect, 'helpdesk.public.php') || str_contains($redirect, 'front/helpdesk'))) {
+                $redirect = str_replace('front/helpdesk.public.php', 'front/central.php', $redirect);
+                $redirect = str_replace('helpdesk.public.php', 'central.php', $redirect);
+            }
             Toolbox::manageRedirect($redirect);
         }
 

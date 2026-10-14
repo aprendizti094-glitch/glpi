@@ -1073,6 +1073,10 @@ class Session
         if (Session::getCurrentInterface() != "central") {
             // Gestion timeout session
             self::redirectIfNotLoggedIn();
+            if (Session::getCurrentInterface() == "helpdesk") {
+                global $CFG_GLPI;
+                Html::redirect($CFG_GLPI['root_doc'] . "/front/helpdesk.public.php");
+            }
             Html::displayRightError("The current profile does not use the standard interface");
         }
     }
@@ -1108,6 +1112,10 @@ class Session
         if (Session::getCurrentInterface() != "helpdesk") {
             // Gestion timeout session
             self::redirectIfNotLoggedIn();
+            if (Session::getCurrentInterface() == "central") {
+                global $CFG_GLPI;
+                Html::redirect($CFG_GLPI['root_doc'] . "/front/central.php");
+            }
             Html::displayRightError("The current profile does not use the simplified interface");
         }
     }

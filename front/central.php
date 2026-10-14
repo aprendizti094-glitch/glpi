@@ -85,6 +85,10 @@ if (isset($_GET["active_entity"])) {
     }
 }
 
+if (Session::getCurrentInterface() == "helpdesk") {
+    Html::redirect($CFG_GLPI['root_doc'] . "/front/helpdesk.public.php");
+}
+
 Session::checkCentralAccess();
 
 Html::header(Central::getTypeName(1), $_SERVER['PHP_SELF'], 'central', 'central');

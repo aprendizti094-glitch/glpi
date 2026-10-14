@@ -136,6 +136,11 @@ if ($missing_db_config) {
             echo "Error accessing config table";
             exit();
         }
+
+        // Garantir valores padrão para traduções caso não existam no banco de dados
+        $CFG_GLPI['translate_kb']          = (int) ($CFG_GLPI['translate_kb'] ?? 0);
+        $CFG_GLPI['translate_reminders']   = (int) ($CFG_GLPI['translate_reminders'] ?? 0);
+        $CFG_GLPI['translate_dropdowns']   = (int) ($CFG_GLPI['translate_dropdowns'] ?? 0);
     }
 
     if (

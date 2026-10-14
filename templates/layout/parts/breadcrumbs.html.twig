@@ -40,7 +40,7 @@
 
    {% if menu[sector] is defined %}
    <li class="breadcrumb-item text-truncate">
-      <a href="{{ path(menu[sector]['default'] ?? '/front/central.php') }}" title="{{ menu[sector]['title'] }}">
+      <a href="{{ path(menu[sector]['default'] ?? (get_current_interface() == 'helpdesk' ? '/front/helpdesk.public.php' : '/front/central.php')) }}" title="{{ menu[sector]['title'] }}">
          <i class="{{ menu[sector]['icon'] ?? '' }}"></i>
          {{ menu[sector]['title'] }}
       </a>

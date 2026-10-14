@@ -58,7 +58,26 @@ $(function() {
 
    $(document).on('masonry_grid:layout', function() {
        window.msnry_grid_{{ rand }}.layout();
-   })
+   });
 
+   if (typeof imagesLoaded !== 'undefined') {
+       imagesLoaded('#grid_{{ rand }}', function() {
+           if (window.msnry_grid_{{ rand }}) {
+               window.msnry_grid_{{ rand }}.layout();
+           }
+       });
+   }
+
+   setTimeout(function() {
+       if (window.msnry_grid_{{ rand }}) {
+           window.msnry_grid_{{ rand }}.layout();
+       }
+   }, 150);
+
+   setTimeout(function() {
+       if (window.msnry_grid_{{ rand }}) {
+           window.msnry_grid_{{ rand }}.layout();
+       }
+   }, 500);
 });
 </script>

@@ -1682,6 +1682,14 @@ class Toolbox
         // redirect to URL : URL must be rawurlencoded
         $decoded_where = rawurldecode($where);
 
+        if (Session::getCurrentInterface() === "helpdesk" && (str_contains($decoded_where, 'central.php') || str_contains($decoded_where, 'front/central'))) {
+            $decoded_where = str_replace('front/central.php', 'front/helpdesk.public.php', $decoded_where);
+            $decoded_where = str_replace('central.php', 'helpdesk.public.php', $decoded_where);
+        } elseif (Session::getCurrentInterface() === "central" && (str_contains($decoded_where, 'helpdesk.public.php') || str_contains($decoded_where, 'front/helpdesk'))) {
+            $decoded_where = str_replace('front/helpdesk.public.php', 'front/central.php', $decoded_where);
+            $decoded_where = str_replace('helpdesk.public.php', 'central.php', $decoded_where);
+        }
+
         $redirect = self::computeRedirect($decoded_where);
 
         if ($redirect === null) {
