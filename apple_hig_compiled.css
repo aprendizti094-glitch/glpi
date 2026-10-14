@@ -369,3 +369,139 @@ body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-item:hover {
 body.navbar-collapsed aside.navbar-vertical.sidebar .dropdown-item:hover i {
     color: #FFFFFF !important;
 }
+
+/* ==========================================================================
+   HEADER CONTEXT LINKS (Adicionar, Pesquisar, Listas, Modelos) - APPLE HIG PILLS
+   ========================================================================== */
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row,
+.header-container ul.navbar-nav.flex-row,
+header.navbar ul.navbar-nav.border-start.flex-row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  padding: 0 0 0 10px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-right: none !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .nav-item,
+.header-container ul.navbar-nav.flex-row .nav-item {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
+.header-container ul.navbar-nav.flex-row .btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  width: auto !important;
+  min-width: 32px !important;
+  max-width: none !important;
+  border-radius: 9999px !important;
+  padding: 0 14px 0 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn span,
+.header-container ul.navbar-nav.flex-row .btn span {
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  display: inline-block !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn i,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn .ti,
+.header-container ul.navbar-nav.flex-row .btn i,
+.header-container ul.navbar-nav.flex-row .btn .ti {
+  font-size: 1rem !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* Adicionar - Black Pill */
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
+.header-container ul.navbar-nav.flex-row a[title*="Add"],
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] {
+  background: #1D1D1F !important;
+  color: #FFFFFF !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus) *,
+.header-container ul.navbar-nav.flex-row a[title*="Add"] *,
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] * {
+  color: #FFFFFF !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus):hover {
+  background: #000000 !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22) !important;
+}
+
+/* Pesquisar, Listas, Modelos - Soft Gray Pills */
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary,
+.header-container ul.navbar-nav.flex-row .btn-outline-secondary,
+.header-container ul.navbar-nav.flex-row .btn-ghost-secondary {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #1D1D1F !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary *,
+.header-container ul.navbar-nav.flex-row .btn-outline-secondary *,
+.header-container ul.navbar-nav.flex-row .btn-ghost-secondary * {
+  color: #1D1D1F !important;
+}
+
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-outline-secondary:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-ghost-secondary:hover,
+.header-container ul.navbar-nav.flex-row .btn-outline-secondary:hover,
+.header-container ul.navbar-nav.flex-row .btn-ghost-secondary:hover {
+  background: rgba(0, 0, 0, 0.09) !important;
+  color: #000000 !important;
+  transform: translateY(-1px) !important;
+}
+
+@media (max-width: 1399.98px) {
+  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn,
+  .header-container ul.navbar-nav.flex-row .btn {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+  }
+  header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn span,
+  .header-container ul.navbar-nav.flex-row .btn span {
+    display: none !important;
+  }
+}
