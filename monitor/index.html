@@ -896,11 +896,11 @@
 
       // PIDs consolidados
       const allPids = [
-        mysql.pids.join(', '),
-        apache.pids.join(', '),
-        ngrok.pids.join(', ')
-      ].filter(Boolean).join('  /  ');
-      document.getElementById('pidsDisplay').innerText = allPids || 'Nenhum processo detectado';
+        mysql.pids.length ? `MySQL (${mysql.pids.join(', ')})` : (mysql.running ? 'MySQL (Ativo)' : null),
+        apache.pids.length ? `Apache (${apache.pids.join(', ')})` : (apache.running ? 'Apache (Ativo)' : null),
+        ngrok.pids.length ? `Ngrok (${ngrok.pids.join(', ')})` : (ngrok.running ? 'Ngrok (Ativo)' : null)
+      ].filter(Boolean).join('  •  ');
+      document.getElementById('pidsDisplay').innerText = allPids || (data.glpiOnline ? 'Processos ativos vinculados' : 'Nenhum processo detectado');
 
       // Link Público Ngrok
       const btnOpen = document.getElementById('btnOpen');

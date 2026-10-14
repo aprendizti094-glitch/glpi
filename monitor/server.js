@@ -74,14 +74,14 @@ function getRunningProcesses() {
     return new Promise((resolve) => {
         exec('tasklist /FO CSV /NH', { timeout: 4000 }, (err, stdout) => {
             if (err || !stdout) return resolve([]);
-            const lines = stdout.split('\r\n');
+            const lines = stdout.split(/\r?\n/);
             const procs = [];
             for (const line of lines) {
                 if (!line.trim()) continue;
-                const parts = line.split('","').map(s => s.replace(/"/g, ''));
-                if (parts.length >= 2) {
-                    const name = parts[0].toLowerCase();
-                    const pid = parseInt(parts[1], 10);
+                const matches = line.match(/^"([^"]+)","?(\d+)/);
+                if (matches) {
+                    const name = matches[1].toLowerCase();
+                    const pid = parseInt(matches[2], 10);
                     if (name.includes('httpd') || name.includes('mysqld') || name.includes('ngrok')) {
                         procs.push({ name, pid });
                     }
@@ -92,13 +92,13 @@ function getRunningProcesses() {
     });
 }
 
-// Verifica portas ativas usando netstat nativo
+// Verifica portas ativas e captura os PIDs reais via netstat
 function getListeningPorts(apachePort) {
     return new Promise((resolve) => {
         exec('netstat -ano', { timeout: 4000 }, (err, stdout) => {
-            const ports = { apache: null, mysql: null };
+            const ports = { apache: null, mysql: null, ngrok: null };
             if (err || !stdout) return resolve(ports);
-            const lines = stdout.split('\r\n');
+            const lines = stdout.split(/\r?\n/);
             for (const line of lines) {
                 if (line.includes('LISTENING')) {
                     if (line.includes(`:${apachePort} `) || line.includes(`:${apachePort}\t`)) {
@@ -108,6 +108,10 @@ function getListeningPorts(apachePort) {
                     if (line.includes(':3306 ') || line.includes(':3306\t')) {
                         const m = line.trim().match(/\s+(\d+)$/);
                         if (m) ports.mysql = parseInt(m[1], 10);
+                    }
+                    if (line.includes(':4040 ') || line.includes(':4040\t')) {
+                        const m = line.trim().match(/\s+(\d+)$/);
+                        if (m) ports.ngrok = parseInt(m[1], 10);
                     }
                 }
             }
@@ -135,32 +139,38 @@ function fetchNgrokPublicUrl() {
                 resolve(lastPublicUrl);
             });
         });
-        req.on('error', () => resolve(lastPublicUrl));
+        req.on('error', () => resolve(null));
         req.on('timeout', () => {
             req.destroy();
-            resolve(lastPublicUrl);
+            resolve(null);
         });
     });
 }
 
 async function getSystemStatus() {
     const apachePort = getApacheConfiguredPort();
-    const [procs, ports] = await Promise.all([getRunningProcesses(), getListeningPorts(apachePort)]);
+    const [procs, ports, publicUrl] = await Promise.all([
+        getRunningProcesses(),
+        getListeningPorts(apachePort),
+        fetchNgrokPublicUrl()
+    ]);
 
     const apacheProcs = procs.filter(p => p.name.includes('httpd'));
     const mysqlProcs = procs.filter(p => p.name.includes('mysqld'));
     const ngrokProcs = procs.filter(p => p.name.includes('ngrok'));
 
-    const isApacheRunning = apacheProcs.length > 0 || ports.apache !== null;
-    const isMysqlRunning = mysqlProcs.length > 0 || ports.mysql !== null;
-    const isNgrokRunning = ngrokProcs.length > 0;
+    // PIDs consolidados combinando tasklist e portas ativas do netstat
+    const apachePids = Array.from(new Set([...apacheProcs.map(p => p.pid), ports.apache].filter(Boolean)));
+    const mysqlPids = Array.from(new Set([...mysqlProcs.map(p => p.pid), ports.mysql].filter(Boolean)));
+    const ngrokPids = Array.from(new Set([...ngrokProcs.map(p => p.pid), ports.ngrok].filter(Boolean)));
 
-    let publicUrl = lastPublicUrl;
-    if (isNgrokRunning) {
-        publicUrl = await fetchNgrokPublicUrl();
-    } else {
-        lastPublicUrl = null;
-        publicUrl = null;
+    const isApacheRunning = apachePids.length > 0 || ports.apache !== null;
+    const isMysqlRunning = mysqlPids.length > 0 || ports.mysql !== null;
+    const isNgrokRunning = ngrokPids.length > 0 || ports.ngrok !== null || Boolean(publicUrl);
+
+    const effectivePublicUrl = publicUrl || lastPublicUrl;
+    if (isNgrokRunning && effectivePublicUrl) {
+        lastPublicUrl = effectivePublicUrl;
     }
 
     const ngrokExePath = findNgrokExe();
@@ -177,25 +187,25 @@ async function getSystemStatus() {
         services: {
             apache: {
                 running: isApacheRunning,
-                pids: apacheProcs.map(p => p.pid),
+                pids: apachePids,
                 port: apachePort,
-                statusText: isApacheRunning ? `Rodando (PID: ${apacheProcs.map(p => p.pid).join(', ') || ports.apache})` : 'Parado'
+                statusText: isApacheRunning ? `Rodando (PID: ${apachePids.join(', ') || 'Ativo'})` : 'Parado'
             },
             mysql: {
                 running: isMysqlRunning,
-                pids: mysqlProcs.map(p => p.pid),
+                pids: mysqlPids,
                 port: 3306,
-                statusText: isMysqlRunning ? `Rodando (PID: ${mysqlProcs.map(p => p.pid).join(', ') || ports.mysql})` : 'Parado'
+                statusText: isMysqlRunning ? `Rodando (PID: ${mysqlPids.join(', ') || 'Ativo'})` : 'Parado'
             },
             ngrok: {
                 running: isNgrokRunning,
-                pids: ngrokProcs.map(p => p.pid),
-                url: publicUrl,
-                statusText: isNgrokRunning ? `Rodando (PID: ${ngrokProcs.map(p => p.pid).join(', ')})` : 'Parado'
+                pids: ngrokPids,
+                url: effectivePublicUrl,
+                statusText: isNgrokRunning ? `Rodando (PID: ${ngrokPids.join(', ') || 'Ativo'})` : 'Parado'
             }
         },
         autoRecover,
-        publicUrl,
+        publicUrl: effectivePublicUrl,
         glpiOnline: isApacheRunning && isMysqlRunning
     };
 }
@@ -214,7 +224,6 @@ async function startSystem() {
     const batPath = path.join(GLPI_DIR, 'iniciar_glpi_ngrok.bat');
     if (fs.existsSync(batPath)) {
         addLog(`Iniciando ${batPath}...`, 'action');
-        // Abre o iniciar_glpi_ngrok.bat em uma nova janela de terminal
         exec(`start "GLPI-Ngrok-Runner" cmd.exe /c "${batPath}"`, { cwd: GLPI_DIR, shell: 'cmd.exe' }, (err) => {
             if (err) addLog(`[AVISO] Erro ao disparar bat: ${err.message}`, 'warning');
         });
@@ -229,7 +238,7 @@ async function startSystem() {
         const url = await fetchNgrokPublicUrl();
         if (url) {
             clearInterval(interval);
-            addLog(`Túnel Ngrok gerado com sucesso: ${url}`, 'success');
+            addLog(`Túnel Ngrok detectado: ${url}`, 'success');
         } else if (attempts >= 15) {
             clearInterval(interval);
         }
