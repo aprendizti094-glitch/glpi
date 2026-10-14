@@ -3,394 +3,872 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GLPI Guardian — Monitor & Auto-Recuperação</title>
+  <title>GLPI Guardian — Centro de Auditoria & Auto-Recuperação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #0f172a;
-      --card-bg: #1e293b;
-      --card-border: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-cyan: #38bdf8;
-      --accent-green: #22c55e;
-      --accent-red: #ef4444;
-      --accent-yellow: #eab308;
-      --btn-purple: #6366f1;
-      --btn-purple-hover: #4f46e5;
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --glass-bg: rgba(18, 24, 43, 0.62);
+      --glass-bg-hover: rgba(28, 36, 62, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-subtle: rgba(255, 255, 255, 0.06);
+      --glass-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 24px 0 rgba(255, 255, 255, 0.02);
+      --glass-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.65), 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+
+      --color-emerald: #10b981;
+      --color-emerald-glow: rgba(16, 185, 129, 0.45);
+      --color-cyan: #06b6d4;
+      --color-cyan-glow: rgba(6, 182, 212, 0.35);
+      --color-rose: #f43f5e;
+      --color-amber: #f59e0b;
+      --color-indigo: #6366f1;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     }
 
+    /* Fundo Líquido com Orbes e Grade Sutil para Realçar o Glassmorphism */
     body {
-      background-color: var(--bg-dark);
-      color: var(--text-main);
-      padding: 24px;
+      font-family: var(--font-body);
+      background-color: #080a12;
+      color: #f1f5f9;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      position: relative;
+      overflow-x: hidden;
+      padding: 28px;
+      gap: 22px;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* Orbes Luminosos de Fundo */
+    .ambient-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(130px);
+      opacity: 0.55;
+      animation: floatMotion 18s ease-in-out infinite alternate;
+    }
+
+    .orb-1 {
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, #4f46e5 0%, #312e81 70%);
+      top: -120px;
+      left: -80px;
+      animation-duration: 22s;
+    }
+
+    .orb-2 {
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, #0891b2 0%, #0369a1 70%);
+      bottom: -150px;
+      right: -100px;
+      animation-duration: 26s;
+    }
+
+    .orb-3 {
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle, #7c3aed 0%, #4c1d95 70%);
+      top: 35%;
+      right: 15%;
+      animation-duration: 20s;
+    }
+
+    .orb-4 {
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, #059669 0%, #064e3b 70%);
+      bottom: 20%;
+      left: 20%;
+      opacity: 0.25;
+      animation-duration: 24s;
+    }
+
+    /* Textura de grade sutil para reforçar profundidade física do vidro */
+    .mesh-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Conteúdo Principal */
+    .app-container {
+      position: relative;
+      z-index: 2;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      flex: 1;
+    }
+
+    /* Top Bar Glass */
     .top-header {
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow), var(--glass-highlight);
+      border-radius: 20px;
+      padding: 18px 28px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--card-border);
-      padding-bottom: 16px;
+      justify-content: space-between;
+      transition: all 0.3s ease;
     }
 
-    .top-header h1 {
-      font-size: 1.4rem;
-      font-weight: 600;
+    .brand-group {
       display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(6, 182, 212, 0.3));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 30%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* Badge de Auto-Recuperação Interativo */
+    .toggle-autorecover {
+      display: inline-flex;
       align-items: center;
       gap: 10px;
-      color: #fff;
-    }
-
-    .badge-auto {
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.15);
-      color: var(--accent-green);
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 8px 18px;
+      border-radius: 9999px;
       cursor: pointer;
       user-select: none;
-      transition: all 0.2s;
-    }
-    .badge-auto.disabled {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--accent-red);
-      border-color: rgba(239, 68, 68, 0.3);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15);
     }
 
-    /* Grid dos dois blocos principais */
+    .toggle-autorecover:hover {
+      background: rgba(16, 185, 129, 0.2);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+    }
+
+    .toggle-autorecover.disabled {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.35);
+      box-shadow: 0 4px 16px rgba(244, 63, 94, 0.15);
+    }
+
+    .toggle-autorecover.disabled:hover {
+      background: rgba(244, 63, 94, 0.2);
+      box-shadow: 0 6px 20px rgba(244, 63, 94, 0.25);
+    }
+
+    .pulse-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--color-emerald);
+      box-shadow: 0 0 10px var(--color-emerald);
+      position: relative;
+    }
+
+    .pulse-dot::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border-radius: 50%;
+      border: 2px solid var(--color-emerald);
+      animation: radarPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+
+    .toggle-autorecover.disabled .pulse-dot {
+      background: var(--color-rose);
+      box-shadow: 0 0 10px var(--color-rose);
+    }
+    .toggle-autorecover.disabled .pulse-dot::after {
+      border-color: var(--color-rose);
+    }
+
+    .toggle-autorecover span {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ecfdf5;
+      letter-spacing: -0.01em;
+    }
+    .toggle-autorecover.disabled span {
+      color: #ffe4e6;
+    }
+
+    /* Grid dos Cards Principais */
     .dashboard-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 22px;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 960px) {
       .dashboard-grid {
         grid-template-columns: 1fr;
       }
     }
 
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    /* Glass Cards */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(190%);
+      -webkit-backdrop-filter: blur(30px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 26px;
+      box-shadow: var(--glass-shadow), var(--glass-highlight);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+    }
+
+    .card-header-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--glass-border-subtle);
     }
 
     .card-title {
-      font-size: 0.85rem;
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted);
-      margin-bottom: 16px;
+      color: #94a3b8;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .status-list {
+    .card-title-icon {
+      font-size: 1.1rem;
+    }
+
+    /* Linhas de Status */
+    .item-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .status-item {
+    .status-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 0.95rem;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      transition: all 0.2s ease;
     }
 
-    .item-left {
+    .status-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateX(2px);
+    }
+
+    .item-label-group {
       display: flex;
       align-items: center;
-      gap: 12px;
-      color: #cbd5e1;
+      gap: 14px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      font-weight: 500;
     }
 
-    .indicator {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
+    .indicator-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: bold;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.3s ease;
     }
 
-    .indicator.ok {
-      background: rgba(34, 197, 94, 0.2);
-      color: var(--accent-green);
-      border: 1px solid var(--accent-green);
+    .indicator-badge.ok {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
     }
 
-    .indicator.bad {
-      background: rgba(239, 68, 68, 0.2);
-      color: var(--accent-red);
-      border: 1px solid var(--accent-red);
+    .indicator-badge.bad {
+      background: rgba(244, 63, 94, 0.18);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.45);
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.25);
     }
 
-    .item-val {
-      font-family: monospace;
-      font-size: 0.9rem;
-      color: #f1f5f9;
+    /* Valores e Tags de PID */
+    .item-value {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
     }
 
-    .val-active {
-      color: #4ade80;
-    }
-    .val-stopped {
-      color: #f87171;
+    .pid-tag {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.1);
     }
 
-    .card-footer {
-      margin-top: 18px;
-      padding-top: 14px;
-      border-top: 1px solid var(--card-border);
+    .state-online {
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .state-offline {
+      color: #fb7185;
+      font-weight: 600;
+    }
+
+    /* Card Footer Info */
+    .card-footer-info {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid var(--glass-border-subtle);
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      gap: 10px;
     }
 
-    .footer-row {
+    .info-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      font-size: 0.86rem;
+      color: #94a3b8;
     }
 
-    /* Ações */
-    .actions-bar {
+    .info-val {
+      font-family: var(--font-mono);
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+
+    /* Barra de Ações com Vidro Polido */
+    .actions-panel {
       display: flex;
-      gap: 12px;
+      gap: 14px;
+      align-items: center;
       flex-wrap: wrap;
     }
 
-    .btn {
+    .glass-btn {
       padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 0.95rem;
+      border-radius: 14px;
+      font-family: var(--font-body);
+      font-size: 0.92rem;
       font-weight: 600;
-      border: none;
+      letter-spacing: -0.01em;
+      border: 1px solid rgba(255, 255, 255, 0.14);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      transition: all 0.15s ease;
-      color: white;
+      gap: 10px;
       text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      color: #ffffff;
+      backdrop-filter: blur(20px);
     }
 
-    .btn:active {
-      transform: scale(0.98);
+    .glass-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
     }
 
+    .glass-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Botão Iniciar (Indigo/Cyan Gradient Glass) */
     .btn-start {
-      background: var(--btn-purple);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(79, 70, 229, 0.95) 100%);
+      box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.3);
     }
     .btn-start:hover {
-      background: var(--btn-purple-hover);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(67, 56, 202, 1) 100%);
+      box-shadow: 0 12px 30px -4px rgba(99, 102, 241, 0.6);
+      transform: translateY(-2px);
     }
 
+    /* Botão Parar (Ruby Glass) */
     .btn-stop {
-      background: #f43f5e;
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.75) 0%, rgba(225, 29, 72, 0.9) 100%);
+      box-shadow: 0 8px 24px -4px rgba(244, 63, 94, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
     }
     .btn-stop:hover {
-      background: #e11d48;
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.95) 0%, rgba(190, 18, 60, 1) 100%);
+      box-shadow: 0 12px 30px -4px rgba(244, 63, 94, 0.5);
+      transform: translateY(-2px);
     }
 
+    /* Botão Reiniciar */
     .btn-restart {
-      background: #475569;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     }
     .btn-restart:hover {
-      background: #334155;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
     }
 
-    .btn-open {
-      background: #059669;
+    /* Botões de Acesso ao Sistema */
+    .btn-open-public {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.8) 0%, rgba(5, 150, 105, 0.95) 100%);
+      box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3);
       margin-left: auto;
     }
-    .btn-open:hover {
-      background: #047857;
+    .btn-open-public:hover {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 1) 0%, rgba(4, 120, 87, 1) 100%);
+      box-shadow: 0 12px 30px -4px rgba(16, 185, 129, 0.55);
+      transform: translateY(-2px);
     }
 
-    /* Logs */
-    .logs-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 20px;
-      flex: 1;
+    .btn-open-local {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .btn-open-local:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    /* Terminal de Logs em Vidro Acrílico */
+    .terminal-card {
+      background: rgba(10, 14, 26, 0.75);
+      backdrop-filter: blur(34px) saturate(200%);
+      -webkit-backdrop-filter: blur(34px) saturate(200%);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: var(--glass-shadow), var(--glass-highlight);
       display: flex;
       flex-direction: column;
-      min-height: 280px;
+      flex: 1;
+      min-height: 320px;
     }
 
-    .logs-header {
+    .terminal-topbar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--glass-border-subtle);
+      margin-bottom: 14px;
     }
 
-    .btn-clear {
-      background: transparent;
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .btn-clear:hover {
-      background: #334155;
-      color: #fff;
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .logs-box {
-      background: #090d16;
-      border: 1px solid #1e293b;
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.25);
+    }
+    .dot-red { background: #ff5f56; box-shadow: 0 0 8px rgba(255, 95, 86, 0.4); }
+    .dot-yellow { background: #ffbd2e; box-shadow: 0 0 8px rgba(255, 189, 46, 0.4); }
+    .dot-green { background: #27c93f; box-shadow: 0 0 8px rgba(39, 201, 63, 0.4); }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-clear-logs {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      padding: 5px 12px;
       border-radius: 8px;
-      padding: 14px;
-      font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 0.85rem;
-      flex: 1;
+      font-size: 0.78rem;
+      font-family: var(--font-body);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-clear-logs:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
+    }
+
+    .terminal-body {
+      background: rgba(5, 7, 14, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
       overflow-y: auto;
-      max-height: 320px;
+      max-height: 340px;
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .log-line {
+    .terminal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    .log-entry {
       display: flex;
+      align-items: flex-start;
       gap: 12px;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
-    .log-time {
+    .log-timestamp {
       color: #64748b;
       user-select: none;
+      font-size: 0.78rem;
+      padding-top: 1px;
     }
 
-    .log-msg.info { color: #38bdf8; }
-    .log-msg.success { color: #4ade80; }
-    .log-msg.warning { color: #fbbf24; }
-    .log-msg.error { color: #f87171; }
-    .log-msg.action { color: #c084fc; }
+    .log-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .log-badge.info { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .log-badge.success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .log-badge.warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .log-badge.error { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .log-badge.action { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+    .log-text {
+      color: #e2e8f0;
+      flex: 1;
+    }
+
+    /* Animações Suaves */
+    @keyframes floatMotion {
+      0% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-30px) scale(1.05); }
+      100% { transform: translateY(15px) scale(0.96); }
+    }
+
+    @keyframes radarPulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="top-header">
-    <h1>🛡️ GLPI Guardian & Auto-Recuperação</h1>
-    <div id="autoRecoverBadge" class="badge-auto" onclick="toggleAutoRecover()">
-      Auto-Recuperação: LIGADA
-    </div>
+  <!-- Ambient Light Orbs (Luzes de Fundo que criam o reflexo do vidro) -->
+  <div class="ambient-canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
   </div>
+  <div class="mesh-overlay"></div>
 
-  <div class="dashboard-grid">
-    <!-- Bloco Pré-requisitos -->
-    <div class="card">
-      <div class="card-title">⚙️ PRÉ-REQUISITOS</div>
-      <div class="status-list" id="prereqsList">
-        <div class="status-item">
-          <div class="item-left"><div class="indicator ok">✓</div> Node.js</div>
-          <div class="item-val">Detectado</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left"><div class="indicator ok">✓</div> XAMPP</div>
-          <div class="item-val">C:\xampp</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left"><div class="indicator ok">✓</div> Apache (httpd.exe)</div>
-          <div class="item-val">Presente</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left"><div class="indicator ok">✓</div> MySQL (mysqld.exe)</div>
-          <div class="item-val">Presente</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left"><div class="indicator ok">✓</div> Cloudflare Tunnel</div>
-          <div class="item-val">C:\xampp\cloudflared.exe</div>
-        </div>
-      </div>
-    </div>
+  <div class="app-container">
 
-    <!-- Bloco Serviços -->
-    <div class="card">
-      <div class="card-title">🖥️ SERVIÇOS & PROCESSOS</div>
-      <div class="status-list" id="servicesList">
-        <div class="status-item">
-          <div class="item-left">
-            <div id="ind-mysql" class="indicator bad">✕</div> MySQL
-          </div>
-          <div class="item-val" id="val-mysql">Verificando...</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left">
-            <div id="ind-apache" class="indicator bad">✕</div> Apache (GLPI Web)
-          </div>
-          <div class="item-val" id="val-apache">Verificando...</div>
-        </div>
-        <div class="status-item">
-          <div class="item-left">
-            <div id="ind-cf" class="indicator bad">✕</div> Cloudflare Tunnel
-          </div>
-          <div class="item-val" id="val-cf">Verificando...</div>
+    <!-- Top Navigation Header Glass -->
+    <header class="top-header">
+      <div class="brand-group">
+        <div class="brand-icon">🛡️</div>
+        <div class="brand-text">
+          <h1>GLPI Guardian</h1>
+          <p>Auditoria de Processos, PIDs & Recuperação Autônoma</p>
         </div>
       </div>
 
-      <div class="card-footer">
-        <div class="footer-row">
-          <span>Portas Locais</span>
-          <span style="color:#f1f5f9; font-family:monospace;" id="portsDisplay">80 (Apache), 3306 (MySQL)</span>
-        </div>
-        <div class="footer-row">
-          <span>PIDs Ativos</span>
-          <span style="color:#f1f5f9; font-family:monospace;" id="pidsDisplay">—</span>
-        </div>
-        <div class="footer-row">
-          <span>Anti-Ociosidade (Keep-Alive)</span>
-          <span style="color:#4ade80;">Ativo (a cada 45s)</span>
-        </div>
+      <div id="autoRecoverBadge" class="toggle-autorecover" onclick="toggleAutoRecover()">
+        <div class="pulse-dot"></div>
+        <span id="autoRecoverText">Auto-Recuperação: LIGADA</span>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <!-- Barra de Ações -->
-  <div class="actions-bar">
-    <button class="btn btn-start" onclick="actionStart()">▶ Iniciar Sistema</button>
-    <button class="btn btn-stop" onclick="actionStop()">■ Parar</button>
-    <button class="btn btn-restart" onclick="actionRestart()">↻ Reiniciar</button>
-    <a id="btnOpen" href="#" target="_blank" class="btn btn-open" style="display:none;">↗ Abrir GLPI Público</a>
-    <a href="http://localhost/glpi/" target="_blank" class="btn btn-restart">↗ Abrir GLPI Local</a>
-  </div>
+    <!-- Grid dos Blocos com Glassmorfismo -->
+    <main class="dashboard-grid">
 
-  <!-- Logs em tempo real -->
-  <div class="logs-card">
-    <div class="logs-header">
-      <div class="card-title" style="margin-bottom:0;">📄 LOGS EM TEMPO REAL</div>
-      <button class="btn-clear" onclick="clearLogs()">Limpar</button>
-    </div>
-    <div class="logs-box" id="logsBox">
-      <!-- Logs inseridos dinamicamente -->
-    </div>
+      <!-- Bloco 1: Pré-Requisitos -->
+      <section class="glass-card">
+        <div class="card-header-line">
+          <div class="card-title">
+            <span class="card-title-icon">⚙️</span> Pré-Requisitos do Ambiente
+          </div>
+        </div>
+
+        <div class="item-list">
+          <div class="status-row">
+            <div class="item-label-group">
+              <div class="indicator-badge ok">✓</div>
+              <span>Node.js Runtime</span>
+            </div>
+            <div class="item-value">
+              <span class="pid-tag" style="color:#a5b4fc; border-color:rgba(165,180,252,0.3);">v24.x Ativo</span>
+            </div>
+          </div>
+
+          <div class="status-row">
+            <div class="item-label-group">
+              <div class="indicator-badge ok">✓</div>
+              <span>XAMPP Integrado</span>
+            </div>
+            <div class="item-value">
+              <span style="color:#94a3b8; font-size:0.82rem;">C:\xampp</span>
+            </div>
+          </div>
+
+          <div class="status-row">
+            <div class="item-label-group">
+              <div class="indicator-badge ok">✓</div>
+              <span>Apache Web (httpd.exe)</span>
+            </div>
+            <div class="item-value">
+              <span class="state-online">Presente</span>
+            </div>
+          </div>
+
+          <div class="status-row">
+            <div class="item-label-group">
+              <div class="indicator-badge ok">✓</div>
+              <span>Banco MySQL (mysqld.exe)</span>
+            </div>
+            <div class="item-value">
+              <span class="state-online">Presente</span>
+            </div>
+          </div>
+
+          <div class="status-row">
+            <div class="item-label-group">
+              <div class="indicator-badge ok">✓</div>
+              <span>Cloudflare Tunnel Daemon</span>
+            </div>
+            <div class="item-value">
+              <span style="color:#94a3b8; font-size:0.82rem;">cloudflared.exe</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer-info">
+          <div class="info-row">
+            <span>Diretório da Aplicação</span>
+            <span class="info-val" style="font-size:0.75rem;">.../Downloads/GLPI/glpi</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bloco 2: Serviços, PIDs e Portas -->
+      <section class="glass-card">
+        <div class="card-header-line">
+          <div class="card-title">
+            <span class="card-title-icon">🖥️</span> Serviços & PIDs em Tempo Real
+          </div>
+        </div>
+
+        <div class="item-list">
+          <!-- MySQL -->
+          <div class="status-row">
+            <div class="item-label-group">
+              <div id="ind-mysql" class="indicator-badge bad">✕</div>
+              <span>MySQL Service</span>
+            </div>
+            <div class="item-value" id="val-mysql">
+              <span class="state-offline">Verificando...</span>
+            </div>
+          </div>
+
+          <!-- Apache -->
+          <div class="status-row">
+            <div class="item-label-group">
+              <div id="ind-apache" class="indicator-badge bad">✕</div>
+              <span>Apache (GLPI Web)</span>
+            </div>
+            <div class="item-value" id="val-apache">
+              <span class="state-offline">Verificando...</span>
+            </div>
+          </div>
+
+          <!-- Cloudflare -->
+          <div class="status-row">
+            <div class="item-label-group">
+              <div id="ind-cf" class="indicator-badge bad">✕</div>
+              <span>Cloudflare Tunnel</span>
+            </div>
+            <div class="item-value" id="val-cf">
+              <span class="state-offline">Verificando...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer-info">
+          <div class="info-row">
+            <span>Portas Vinculadas</span>
+            <span class="info-val">80 (Apache), 3306 (MySQL)</span>
+          </div>
+          <div class="info-row">
+            <span>PIDs Consolidados</span>
+            <span class="info-val" id="pidsDisplay" style="color:#38bdf8;">—</span>
+          </div>
+          <div class="info-row">
+            <span>Keep-Alive (Anti-Queda Reposit)</span>
+            <span class="info-val" style="color:#34d399;">Ativo (Pulso a cada 45s)</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Barra de Controles Glass -->
+    <section class="actions-panel">
+      <button class="glass-btn btn-start" onclick="actionStart()">
+        <span>▶</span> Iniciar Sistema
+      </button>
+      <button class="glass-btn btn-stop" onclick="actionStop()">
+        <span>■</span> Parar
+      </button>
+      <button class="glass-btn btn-restart" onclick="actionRestart()">
+        <span>↻</span> Reiniciar
+      </button>
+      <a id="btnOpen" href="#" target="_blank" class="glass-btn btn-open-public" style="display:none;">
+        <span>↗</span> Abrir GLPI Público
+      </a>
+      <a href="http://localhost/glpi/" target="_blank" class="glass-btn btn-open-local">
+        <span>↗</span> Abrir GLPI Local
+      </a>
+    </section>
+
+    <!-- Terminal de Logs Glassmorphic -->
+    <section class="terminal-card">
+      <div class="terminal-topbar">
+        <div class="window-controls">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+        </div>
+        <div class="terminal-title">
+          <span>CONSOLE DE AUDITORIA EM TEMPO REAL</span>
+        </div>
+        <button class="btn-clear-logs" onclick="clearLogs()">Limpar Console</button>
+      </div>
+
+      <div class="terminal-body" id="logsBox">
+        <!-- Logs renderizados via JS -->
+      </div>
+    </section>
+
   </div>
 
   <script>
@@ -403,79 +881,93 @@
         currentData = data;
         render(data);
       } catch (e) {
-        console.error('Falha ao obter status:', e);
+        console.error('Falha na auditoria:', e);
       }
     }
 
     function render(data) {
-      // 1. Atualizar serviços
       const mysql = data.services.mysql;
       const apache = data.services.apache;
       const cf = data.services.cloudflared;
 
-      updateServiceUI('mysql', mysql.running, mysql.statusText);
-      updateServiceUI('apache', apache.running, apache.statusText);
-      updateServiceUI('cf', cf.running, cf.statusText);
+      updateServiceCard('mysql', mysql.running, mysql.pids);
+      updateServiceCard('apache', apache.running, apache.pids);
+      updateServiceCard('cf', cf.running, cf.pids);
 
-      // PIDs
+      // PIDs consolidados
       const allPids = [
-        mysql.pids.join(','),
-        apache.pids.join(','),
-        cf.pids.join(',')
-      ].filter(Boolean).join(' / ');
-      document.getElementById('pidsDisplay').innerText = allPids || 'Nenhum processo ativo';
+        mysql.pids.join(', '),
+        apache.pids.join(', '),
+        cf.pids.join(', ')
+      ].filter(Boolean).join('  /  ');
+      document.getElementById('pidsDisplay').innerText = allPids || 'Nenhum processo detectado';
 
-      // Link público
+      // Link Público Cloudflare
       const btnOpen = document.getElementById('btnOpen');
       if (data.publicUrl) {
         btnOpen.href = data.publicUrl;
         btnOpen.style.display = 'inline-flex';
-        btnOpen.innerText = '↗ Abrir ' + data.publicUrl.replace('https://', '').slice(0, 22) + '...';
+        btnOpen.innerHTML = `<span>↗</span> Abrir GLPI Público`;
+        btnOpen.title = data.publicUrl;
       } else {
         btnOpen.style.display = 'none';
       }
 
-      // Auto-recover badge
+      // Badge de Auto-recuperação
       const badge = document.getElementById('autoRecoverBadge');
+      const text = document.getElementById('autoRecoverText');
       if (data.autoRecover) {
-        badge.className = 'badge-auto';
-        badge.innerText = 'Auto-Recuperação: LIGADA';
+        badge.className = 'toggle-autorecover';
+        text.innerText = 'Auto-Recuperação: LIGADA';
       } else {
-        badge.className = 'badge-auto disabled';
-        badge.innerText = 'Auto-Recuperação: DESLIGADA';
+        badge.className = 'toggle-autorecover disabled';
+        text.innerText = 'Auto-Recuperação: PAUSADA';
       }
 
       // Logs
       renderLogs(data.logs || []);
     }
 
-    function updateServiceUI(id, isRunning, text) {
+    function updateServiceCard(id, isRunning, pids) {
       const ind = document.getElementById('ind-' + id);
       const val = document.getElementById('val-' + id);
+
       if (isRunning) {
-        ind.className = 'indicator ok';
+        ind.className = 'indicator-badge ok';
         ind.innerText = '✓';
-        val.className = 'item-val val-active';
+        const pidsList = (pids && pids.length > 0) ? pids.join(', ') : 'Ativo';
+        val.innerHTML = `<span class="state-online">Rodando</span> <span class="pid-tag">PID ${pidsList}</span>`;
       } else {
-        ind.className = 'indicator bad';
+        ind.className = 'indicator-badge bad';
         ind.innerText = '✕';
-        val.className = 'item-val val-stopped';
+        val.innerHTML = `<span class="state-offline">Parado</span>`;
       }
-      val.innerText = text;
     }
 
     function renderLogs(logs) {
       const box = document.getElementById('logsBox');
-      const shouldScroll = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
-      box.innerHTML = logs.map(l => `
-        <div class="log-line">
-          <span class="log-time">${l.time}</span>
-          <span class="log-msg ${l.type}">${l.msg}</span>
-        </div>
-      `).join('');
-      if (shouldScroll) {
+      const isAtBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+
+      box.innerHTML = logs.map(l => {
+        const type = l.type || 'info';
+        return `
+          <div class="log-entry">
+            <span class="log-timestamp">${l.time}</span>
+            <span class="log-badge ${type}">${type}</span>
+            <span class="log-text">${escapeHtml(l.msg)}</span>
+          </div>
+        `;
+      }).join('');
+
+      if (isAtBottom) {
         box.scrollTop = box.scrollHeight;
       }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
     }
 
     async function actionStart() {
@@ -503,7 +995,7 @@
       fetchStatus();
     }
 
-    // Polling a cada 2 segundos
+    // Polling contínuo
     setInterval(fetchStatus, 2000);
     fetchStatus();
   </script>
