@@ -419,4 +419,256 @@ if (!class_exists('IntlDateFormatter', false)) {
     }
 }
 
+// ==========================================
+// Polyfill da classe NumberFormatter da intl
+// ==========================================
+
+if (!class_exists('NumberFormatter', false)) {
+    class NumberFormatter
+    {
+        public const PATTERN_DECIMAL = 0;
+        public const DECIMAL = 1;
+        public const CURRENCY = 2;
+        public const PERCENT = 3;
+        public const SCIENTIFIC = 4;
+        public const SPELLOUT = 5;
+        public const ORDINAL = 6;
+        public const DURATION = 7;
+        public const NUMBERING_SYSTEM = 8;
+        public const PATTERN_RULEBASED = 9;
+        public const DEFAULT_STYLE = 1;
+
+        public const ROUND_CEILING = 0;
+        public const ROUND_FLOOR = 1;
+        public const ROUND_DOWN = 2;
+        public const ROUND_UP = 3;
+        public const ROUND_HALFEVEN = 4;
+        public const ROUND_HALFDOWN = 5;
+        public const ROUND_HALFUP = 6;
+
+        public const PAD_BEFORE_PREFIX = 0;
+        public const PAD_AFTER_PREFIX = 1;
+        public const PAD_BEFORE_SUFFIX = 2;
+        public const PAD_AFTER_SUFFIX = 3;
+
+        public const PARSE_INT_ONLY = 0;
+        public const GROUPING_USED = 1;
+        public const DECIMAL_ALWAYS_SHOWN = 2;
+        public const MAX_INTEGER_DIGITS = 3;
+        public const MIN_INTEGER_DIGITS = 4;
+        public const INTEGER_DIGITS = 5;
+        public const MAX_FRACTION_DIGITS = 6;
+        public const MIN_FRACTION_DIGITS = 7;
+        public const FRACTION_DIGITS = 8;
+        public const MULTIPLIER = 9;
+        public const GROUPING_SIZE = 10;
+        public const ROUNDING_MODE = 11;
+        public const ROUNDING_INCREMENT = 12;
+        public const FORMAT_WIDTH = 13;
+        public const PADDING_POSITION = 14;
+        public const SECONDARY_GROUPING_SIZE = 15;
+        public const SIGNIFICANT_DIGITS_USED = 16;
+        public const MIN_SIGNIFICANT_DIGITS = 17;
+        public const MAX_SIGNIFICANT_DIGITS = 18;
+        public const LENIENT_PARSE = 19;
+
+        public const POSITIVE_PREFIX = 0;
+        public const POSITIVE_SUFFIX = 1;
+        public const NEGATIVE_PREFIX = 2;
+        public const NEGATIVE_SUFFIX = 3;
+        public const PADDING_CHARACTER = 4;
+        public const CURRENCY_CODE = 5;
+        public const DEFAULT_RULESET = 6;
+        public const PUBLIC_RULESETS = 7;
+
+        public const DECIMAL_SEPARATOR_SYMBOL = 0;
+        public const GROUPING_SEPARATOR_SYMBOL = 1;
+        public const PATTERN_SEPARATOR_SYMBOL = 2;
+        public const PERCENT_SYMBOL = 3;
+        public const ZERO_DIGIT_SYMBOL = 4;
+        public const DIGIT_SYMBOL = 5;
+        public const MINUS_SIGN_SYMBOL = 6;
+        public const PLUS_SIGN_SYMBOL = 7;
+        public const CURRENCY_SYMBOL = 8;
+        public const INTL_CURRENCY_SYMBOL = 9;
+        public const MONETARY_SEPARATOR_SYMBOL = 10;
+        public const EXPONENTIAL_SYMBOL = 11;
+        public const PERMILL_SYMBOL = 12;
+        public const PAD_ESCAPE_SYMBOL = 13;
+        public const INFINITY_SYMBOL = 14;
+        public const NAN_SYMBOL = 15;
+        public const SIGNIFICANT_DIGIT_SYMBOL = 16;
+        public const MONETARY_GROUPING_SEPARATOR_SYMBOL = 17;
+
+        public const TYPE_DEFAULT = 1;
+        public const TYPE_INT32 = 2;
+        public const TYPE_INT64 = 3;
+        public const TYPE_DOUBLE = 4;
+        public const TYPE_CURRENCY = 5;
+
+        protected string $locale;
+        protected int $style;
+        protected ?string $pattern;
+        protected array $attributes = [];
+        protected array $textAttributes = [];
+        protected array $symbols = [];
+
+        public function __construct(string $locale, int $style = self::DEFAULT_STYLE, ?string $pattern = null)
+        {
+            $this->locale = $locale ?: 'pt_BR';
+            $this->style = $style;
+            $this->pattern = $pattern;
+
+            $is_br = str_contains(strtolower($this->locale), 'pt');
+            $this->symbols[self::DECIMAL_SEPARATOR_SYMBOL] = $is_br ? ',' : '.';
+            $this->symbols[self::GROUPING_SEPARATOR_SYMBOL] = $is_br ? '.' : ',';
+            $this->symbols[self::PLUS_SIGN_SYMBOL] = '+';
+            $this->symbols[self::MINUS_SIGN_SYMBOL] = '-';
+            $this->symbols[self::CURRENCY_SYMBOL] = $is_br ? 'R$' : '$';
+            $this->symbols[self::INTL_CURRENCY_SYMBOL] = $is_br ? 'BRL' : 'USD';
+            $this->attributes[self::GROUPING_SIZE] = 3;
+            $this->attributes[self::FRACTION_DIGITS] = 2;
+            $this->attributes[self::MIN_FRACTION_DIGITS] = 0;
+            $this->attributes[self::MAX_FRACTION_DIGITS] = 2;
+        }
+
+        public static function create(string $locale, int $style, ?string $pattern = null): ?NumberFormatter
+        {
+            return new self($locale, $style, $pattern);
+        }
+
+        public function format(int|float $num, int $type = self::TYPE_DEFAULT): string|false
+        {
+            if ($this->style === self::SPELLOUT) {
+                return self::spellout((int)$num, $this->locale);
+            }
+            if ($this->style === self::CURRENCY) {
+                return $this->formatCurrency((float)$num, $this->symbols[self::INTL_CURRENCY_SYMBOL] ?? 'BRL');
+            }
+            if ($this->style === self::PERCENT) {
+                return number_format($num * 100, $this->attributes[self::MAX_FRACTION_DIGITS] ?? 0) . '%';
+            }
+            $dec = $this->attributes[self::MAX_FRACTION_DIGITS] ?? (is_float($num) ? 2 : 0);
+            $dec_sep = $this->symbols[self::DECIMAL_SEPARATOR_SYMBOL] ?? ',';
+            $grp_sep = $this->symbols[self::GROUPING_SEPARATOR_SYMBOL] ?? '.';
+            return number_format((float)$num, $dec, $dec_sep, $grp_sep);
+        }
+
+        public function formatCurrency(float $amount, string $currency): string|false
+        {
+            $dec_sep = $this->symbols[self::DECIMAL_SEPARATOR_SYMBOL] ?? ',';
+            $grp_sep = $this->symbols[self::GROUPING_SEPARATOR_SYMBOL] ?? '.';
+            return $currency . ' ' . number_format($amount, 2, $dec_sep, $grp_sep);
+        }
+
+        public function parse(string $string, int $type = self::TYPE_DOUBLE, ?int &$offset = null): int|float|false
+        {
+            $clean = preg_replace('/[^\d\.\,\-]/', '', $string);
+            if (str_contains($clean, ',') && str_contains($clean, '.')) {
+                $clean = str_replace('.', '', $clean);
+                $clean = str_replace(',', '.', $clean);
+            } elseif (str_contains($clean, ',')) {
+                $clean = str_replace(',', '.', $clean);
+            }
+            if (!is_numeric($clean)) {
+                return false;
+            }
+            if ($type === self::TYPE_INT32 || $type === self::TYPE_INT64) {
+                return (int)$clean;
+            }
+            return (float)$clean;
+        }
+
+        public function parseCurrency(string $string, string &$currency, ?int &$offset = null): float|false
+        {
+            preg_match('/[A-Z]{3}|\$|R\$/', $string, $m);
+            $currency = $m[0] ?? 'BRL';
+            return (float)$this->parse($string, self::TYPE_DOUBLE, $offset);
+        }
+
+        public function setAttribute(int $attribute, int|float $value): bool
+        {
+            $this->attributes[$attribute] = $value;
+            return true;
+        }
+
+        public function getAttribute(int $attribute): int|float|false
+        {
+            return $this->attributes[$attribute] ?? false;
+        }
+
+        public function setTextAttribute(int $attribute, string $value): bool
+        {
+            $this->textAttributes[$attribute] = $value;
+            return true;
+        }
+
+        public function getTextAttribute(int $attribute): string|false
+        {
+            return $this->textAttributes[$attribute] ?? false;
+        }
+
+        public function setSymbol(int $symbol, string $value): bool
+        {
+            $this->symbols[$symbol] = $value;
+            return true;
+        }
+
+        public function getSymbol(int $symbol): string|false
+        {
+            return $this->symbols[$symbol] ?? false;
+        }
+
+        public function setPattern(string $pattern): bool
+        {
+            $this->pattern = $pattern;
+            return true;
+        }
+
+        public function getPattern(): string|false
+        {
+            return $this->pattern ?? '';
+        }
+
+        public function getLocale(int $type = 0): string|false
+        {
+            return $this->locale;
+        }
+
+        public function getErrorCode(): int
+        {
+            return 0;
+        }
+
+        public function getErrorMessage(): string
+        {
+            return 'U_ZERO_ERROR';
+        }
+
+        public static function spellout(int $n, string $locale): string
+        {
+            $pt = [
+                0 => 'zero', 1 => 'um', 2 => 'dois', 3 => 'três', 4 => 'quatro', 5 => 'cinco',
+                6 => 'seis', 7 => 'sete', 8 => 'oito', 9 => 'nove', 10 => 'dez',
+                11 => 'onze', 12 => 'doze', 13 => 'treze', 14 => 'quatorze', 15 => 'quinze',
+                16 => 'dezesseis', 17 => 'dezessete', 18 => 'dezoito', 19 => 'dezenove', 20 => 'vinte',
+                30 => 'trinta', 40 => 'quarenta', 50 => 'cinquenta', 60 => 'sessenta',
+                70 => 'setenta', 80 => 'oitenta', 90 => 'noventa', 100 => 'cem'
+            ];
+            $en = [
+                0 => 'zero', 1 => 'one', 2 => 'two', 3 => 'three', 4 => 'four', 5 => 'five',
+                6 => 'six', 7 => 'seven', 8 => 'eight', 9 => 'nine', 10 => 'ten',
+                11 => 'eleven', 12 => 'twelve', 13 => 'thirteen', 14 => 'fourteen', 15 => 'fifteen',
+                16 => 'sixteen', 17 => 'seventeen', 18 => 'eighteen', 19 => 'nineteen', 20 => 'twenty',
+                30 => 'thirty', 40 => 'forty', 50 => 'fifty', 60 => 'sixty',
+                70 => 'seventy', 80 => 'eighty', 90 => 'ninety', 100 => 'one hundred'
+            ];
+
+            $map = str_contains(strtolower($locale), 'en') ? $en : $pt;
+            return $map[$n] ?? (string)$n;
+        }
+    }
+}
+
+
 

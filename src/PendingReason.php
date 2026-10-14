@@ -201,18 +201,31 @@ class PendingReason extends CommonDropdown
      */
     public static function getFollowupFrequencyValues(): array
     {
-        $formatter = new NumberFormatter($_SESSION['glpilanguage'], NumberFormatter::SPELLOUT);
+        $lang = $_SESSION['glpilanguage'] ?? 'pt_BR';
+        $format_num = function(int $n) use ($lang) {
+            if (class_exists('NumberFormatter')) {
+                try {
+                    $formatter = new NumberFormatter($lang, NumberFormatter::SPELLOUT);
+                    $res = $formatter->format($n);
+                    if ($res !== false && $res !== '') {
+                        return $res;
+                    }
+                } catch (\Throwable $e) {}
+            }
+            return (string)$n;
+        };
+
         return [
             DAY_TIMESTAMP      => __("Every day"),
-            2 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $formatter->format(2)),
-            3 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $formatter->format(3)),
-            4 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $formatter->format(4)),
-            5 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $formatter->format(5)),
-            6 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $formatter->format(6)),
+            2 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $format_num(2)),
+            3 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $format_num(3)),
+            4 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $format_num(4)),
+            5 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $format_num(5)),
+            6 * DAY_TIMESTAMP  => sprintf(__("Every %s days"), $format_num(6)),
             WEEK_TIMESTAMP     => __("Every week"),
-            2 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $formatter->format(2)),
-            3 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $formatter->format(3)),
-            4 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $formatter->format(4)),
+            2 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $format_num(2)),
+            3 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $format_num(3)),
+            4 * WEEK_TIMESTAMP => sprintf(__("Every %s weeks"), $format_num(4)),
         ];
     }
 
