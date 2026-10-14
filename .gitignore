@@ -59,6 +59,9 @@ phpstan.neon
 ngrok.exe
 ngrok.zip
 
+# Relatorios de descoberta local
+dispositivos_descobertos.json
+
 # Arquivos temporarios de testes locais
 test_*
 ticket_full_*
