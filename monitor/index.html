@@ -754,10 +754,10 @@
           <div class="status-row">
             <div class="item-label-group">
               <div class="indicator-badge ok">✓</div>
-              <span>Cloudflare Tunnel Daemon</span>
+              <span>Ngrok Tunnel (Oficial)</span>
             </div>
             <div class="item-value">
-              <span style="color:#94a3b8; font-size:0.82rem;">cloudflared.exe</span>
+              <span style="color:#94a3b8; font-size:0.82rem;">ngrok.exe</span>
             </div>
           </div>
         </div>
@@ -801,13 +801,13 @@
             </div>
           </div>
 
-          <!-- Cloudflare -->
+          <!-- Ngrok -->
           <div class="status-row">
             <div class="item-label-group">
-              <div id="ind-cf" class="indicator-badge bad">✕</div>
-              <span>Cloudflare Tunnel</span>
+              <div id="ind-ngrok" class="indicator-badge bad">✕</div>
+              <span>Ngrok Tunnel</span>
             </div>
-            <div class="item-value" id="val-cf">
+            <div class="item-value" id="val-ngrok">
               <span class="state-offline">Verificando...</span>
             </div>
           </div>
@@ -888,26 +888,26 @@
     function render(data) {
       const mysql = data.services.mysql;
       const apache = data.services.apache;
-      const cf = data.services.cloudflared;
+      const ngrok = data.services.ngrok;
 
       updateServiceCard('mysql', mysql.running, mysql.pids);
       updateServiceCard('apache', apache.running, apache.pids);
-      updateServiceCard('cf', cf.running, cf.pids);
+      updateServiceCard('ngrok', ngrok.running, ngrok.pids);
 
       // PIDs consolidados
       const allPids = [
         mysql.pids.join(', '),
         apache.pids.join(', '),
-        cf.pids.join(', ')
+        ngrok.pids.join(', ')
       ].filter(Boolean).join('  /  ');
       document.getElementById('pidsDisplay').innerText = allPids || 'Nenhum processo detectado';
 
-      // Link Público Cloudflare
+      // Link Público Ngrok
       const btnOpen = document.getElementById('btnOpen');
       if (data.publicUrl) {
         btnOpen.href = data.publicUrl;
         btnOpen.style.display = 'inline-flex';
-        btnOpen.innerHTML = `<span>↗</span> Abrir GLPI Público`;
+        btnOpen.innerHTML = `<span>↗</span> Abrir GLPI Público (Ngrok)`;
         btnOpen.title = data.publicUrl;
       } else {
         btnOpen.style.display = 'none';

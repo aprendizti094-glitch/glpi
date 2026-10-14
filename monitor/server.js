@@ -3,10 +3,20 @@ const fs = require('fs');
 const path = require('path');
 const { exec, spawn } = require('child_process');
 
-const PORT = 4040;
-const XAMPP_DIR = 'C:\\xampp';
-const GLPI_DIR = 'c:\\Users\\Aprendiz Ti\\Downloads\\GLPI\\glpi';
-const CLOUDFLARED_LOG = 'C:\\xampp\\cloudflared_quick.log';
+// Porta do Painel Guardião (5050 para manter a porta 4040 livre para a API interna do Ngrok)
+const PORT = 5050;
+
+// Localização dinâmica da raiz do GLPI e do XAMPP
+const GLPI_DIR = path.resolve(__dirname, '..');
+
+function findXamppDir() {
+    const candidates = ['C:\\xampp', 'D:\\xampp', 'E:\\xampp'];
+    for (const d of candidates) {
+        if (fs.existsSync(path.join(d, 'apache', 'bin', 'httpd.exe'))) return d;
+    }
+    return 'C:\\xampp';
+}
+const XAMPP_DIR = findXamppDir();
 
 let logs = [];
 let autoRecover = true;
@@ -21,9 +31,25 @@ function addLog(msg, type = 'info') {
     console.log(`[${time}] [${type.toUpperCase()}] ${msg}`);
 }
 
-addLog('Iniciando Painel Guardião GLPI...', 'info');
+addLog('Iniciando Painel Guardião GLPI com Túnel Ngrok (Obrigatório)...', 'info');
 
-// Usar tasklist nativo do Windows (ultrarrápido, sem delay de powershell)
+// Localizar o executável do Ngrok
+function findNgrokExe() {
+    const candidatePaths = [
+        path.join(GLPI_DIR, 'ngrok.exe'),
+        path.join(XAMPP_DIR, 'ngrok.exe'),
+        'C:\\xampp\\ngrok.exe',
+        'C:\\ngrok\\ngrok.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'ngrok', 'ngrok.exe'),
+        'ngrok.exe'
+    ];
+    for (const p of candidatePaths) {
+        if (fs.existsSync(p)) return p;
+    }
+    return path.join(GLPI_DIR, 'ngrok.exe');
+}
+
+// Tarefas ativas e PIDs usando tasklist nativo ultra-rápido
 function getRunningProcesses() {
     return new Promise((resolve) => {
         exec('tasklist /FO CSV /NH', { timeout: 3000 }, (err, stdout) => {
@@ -32,12 +58,11 @@ function getRunningProcesses() {
             const procs = [];
             for (const line of lines) {
                 if (!line.trim()) continue;
-                // Exemplo CSV: "httpd.exe","1234","Services","0","12,340 K"
                 const parts = line.split('","').map(s => s.replace(/"/g, ''));
                 if (parts.length >= 2) {
                     const name = parts[0].toLowerCase();
                     const pid = parseInt(parts[1], 10);
-                    if (name.includes('httpd') || name.includes('mysqld') || name.includes('cloudflared') || name.includes('ngrok')) {
+                    if (name.includes('httpd') || name.includes('mysqld') || name.includes('ngrok')) {
                         procs.push({ name, pid });
                     }
                 }
@@ -71,35 +96,59 @@ function getListeningPorts() {
     });
 }
 
+// Consulta a API interna do Ngrok (porta 4040) para obter a URL pública ativa
+function fetchNgrokPublicUrl() {
+    return new Promise((resolve) => {
+        const req = http.get('http://127.0.0.1:4040/api/tunnels', { timeout: 2000 }, (res) => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    if (data.tunnels && data.tunnels.length > 0) {
+                        const httpsTunnel = data.tunnels.find(t => t.public_url && t.public_url.startsWith('https://'));
+                        const url = (httpsTunnel ? httpsTunnel.public_url : data.tunnels[0].public_url) + '/glpi/';
+                        lastPublicUrl = url;
+                        return resolve(url);
+                    }
+                } catch (e) {}
+                resolve(lastPublicUrl);
+            });
+        });
+        req.on('error', () => resolve(lastPublicUrl));
+        req.on('timeout', () => {
+            req.destroy();
+            resolve(lastPublicUrl);
+        });
+    });
+}
+
 async function getSystemStatus() {
     const [procs, ports] = await Promise.all([getRunningProcesses(), getListeningPorts()]);
 
     const apacheProcs = procs.filter(p => p.name.includes('httpd'));
     const mysqlProcs = procs.filter(p => p.name.includes('mysqld'));
-    const cfProcs = procs.filter(p => p.name.includes('cloudflared'));
+    const ngrokProcs = procs.filter(p => p.name.includes('ngrok'));
 
     const isApacheRunning = apacheProcs.length > 0 || ports[80] !== null;
     const isMysqlRunning = mysqlProcs.length > 0 || ports[3306] !== null;
-    const isCfRunning = cfProcs.length > 0;
+    const isNgrokRunning = ngrokProcs.length > 0;
 
     let publicUrl = lastPublicUrl;
-    if (fs.existsSync(CLOUDFLARED_LOG)) {
-        try {
-            const logContent = fs.readFileSync(CLOUDFLARED_LOG, 'utf8');
-            const match = logContent.match(/https:\/\/[a-zA-Z0-9\-]+\.trycloudflare\.com/);
-            if (match) {
-                publicUrl = match[0] + '/glpi/';
-                lastPublicUrl = publicUrl;
-            }
-        } catch (e) {}
+    if (isNgrokRunning) {
+        publicUrl = await fetchNgrokPublicUrl();
+    } else {
+        lastPublicUrl = null;
+        publicUrl = null;
     }
 
+    const ngrokExePath = findNgrokExe();
     const prereqs = {
         xampp: fs.existsSync(XAMPP_DIR),
         apacheExe: fs.existsSync(path.join(XAMPP_DIR, 'apache', 'bin', 'httpd.exe')),
         mysqlExe: fs.existsSync(path.join(XAMPP_DIR, 'mysql', 'bin', 'mysqld.exe')),
         glpiDir: fs.existsSync(GLPI_DIR),
-        cloudflaredExe: fs.existsSync(path.join(XAMPP_DIR, 'cloudflared.exe'))
+        ngrokExe: fs.existsSync(ngrokExePath)
     };
 
     return {
@@ -117,11 +166,11 @@ async function getSystemStatus() {
                 port: 3306,
                 statusText: isMysqlRunning ? `Rodando (PID: ${mysqlProcs.map(p => p.pid).join(', ') || ports[3306]})` : 'Parado'
             },
-            cloudflared: {
-                running: isCfRunning,
-                pids: cfProcs.map(p => p.pid),
+            ngrok: {
+                running: isNgrokRunning,
+                pids: ngrokProcs.map(p => p.pid),
                 url: publicUrl,
-                statusText: isCfRunning ? `Rodando (PID: ${cfProcs.map(p => p.pid).join(', ')})` : 'Parado'
+                statusText: isNgrokRunning ? `Rodando (PID: ${ngrokProcs.map(p => p.pid).join(', ')})` : 'Parado'
             }
         },
         autoRecover,
@@ -130,58 +179,115 @@ async function getSystemStatus() {
     };
 }
 
+let lastNgrokAttempt = 0;
+
 async function startSystem() {
-    addLog('Iniciando serviços do GLPI...', 'info');
+    addLog('Iniciando serviços do GLPI com Ngrok (Obrigatório)...', 'info');
+
+    // Garante que qualquer resquício antigo do Cloudflare seja abortado imediatamente
+    exec('taskkill /F /IM cloudflared.exe', () => {});
+
     const status = await getSystemStatus();
 
+    // 1. Iniciar Apache
     if (!status.services.apache.running) {
-        addLog('Iniciando Apache (httpd.exe)...', 'action');
-        const child = spawn('C:\\xampp\\apache\\bin\\httpd.exe', [], {
-            cwd: 'C:\\xampp\\apache',
-            detached: true,
-            stdio: 'ignore'
-        });
-        child.unref();
+        const httpdExe = path.join(XAMPP_DIR, 'apache', 'bin', 'httpd.exe');
+        if (fs.existsSync(httpdExe)) {
+            addLog('Iniciando Apache (httpd.exe)...', 'action');
+            const child = spawn(httpdExe, [], {
+                cwd: path.join(XAMPP_DIR, 'apache'),
+                detached: true,
+                stdio: 'ignore'
+            });
+            child.unref();
+        } else {
+            addLog(`[AVISO] httpd.exe não encontrado em ${httpdExe}`, 'warning');
+        }
     } else {
         addLog('Apache já em execução.', 'success');
     }
 
+    // 2. Iniciar MySQL
     if (!status.services.mysql.running) {
-        addLog('Iniciando MySQL (mysqld.exe)...', 'action');
-        const child = spawn('C:\\xampp\\mysql\\bin\\mysqld.exe', ['--defaults-file=C:\\xampp\\mysql\\bin\\my.ini', '--standalone'], {
-            cwd: 'C:\\xampp\\mysql',
-            detached: true,
-            stdio: 'ignore'
-        });
-        child.unref();
+        const mysqlExe = path.join(XAMPP_DIR, 'mysql', 'bin', 'mysqld.exe');
+        if (fs.existsSync(mysqlExe)) {
+            addLog('Iniciando MySQL (mysqld.exe)...', 'action');
+            const myIni = path.join(XAMPP_DIR, 'mysql', 'bin', 'my.ini');
+            const child = spawn(mysqlExe, [`--defaults-file=${myIni}`, '--standalone'], {
+                cwd: path.join(XAMPP_DIR, 'mysql'),
+                detached: true,
+                stdio: 'ignore'
+            });
+            child.unref();
+        } else {
+            addLog(`[AVISO] mysqld.exe não encontrado em ${mysqlExe}`, 'warning');
+        }
     } else {
         addLog('MySQL já em execução.', 'success');
     }
 
-    if (!status.services.cloudflared.running) {
-        addLog('Iniciando Cloudflare Tunnel...', 'action');
-        if (fs.existsSync(CLOUDFLARED_LOG)) {
-            try { fs.unlinkSync(CLOUDFLARED_LOG); } catch (e) {}
+    // 3. Iniciar Ngrok (Obrigatório)
+    if (!status.services.ngrok.running) {
+        const now = Date.now();
+        if (now - lastNgrokAttempt < 10000) {
+            return;
         }
-        const cfLog = fs.openSync(CLOUDFLARED_LOG, 'a');
-        const child = spawn('C:\\xampp\\cloudflared.exe', ['tunnel', '--url', 'http://127.0.0.1:80', '--logfile', CLOUDFLARED_LOG], {
-            detached: true,
-            stdio: ['ignore', cfLog, cfLog]
-        });
-        child.unref();
+        lastNgrokAttempt = now;
+
+        const ngrokExe = findNgrokExe();
+        if (fs.existsSync(ngrokExe)) {
+            const targetPort = status.services.apache.port || 80;
+            const logPath = path.join(XAMPP_DIR, 'ngrok.log');
+            addLog(`Iniciando Túnel Ngrok na porta ${targetPort}...`, 'action');
+            
+            // Limpa instancias antigas ou travadas do ngrok antes de subir
+            exec('taskkill /F /IM ngrok.exe', () => {
+                setTimeout(() => {
+                    let logFd;
+                    try {
+                        logFd = fs.openSync(logPath, 'w');
+                    } catch (e) {
+                        logFd = 'ignore';
+                    }
+                    const child = spawn(ngrokExe, ['http', `127.0.0.1:${targetPort}`, '--log=stdout'], {
+                        detached: true,
+                        stdio: ['ignore', logFd, logFd]
+                    });
+                    child.unref();
+
+                    // Aguarda 3s e busca a URL pública gerada ou lê log de erro
+                    setTimeout(async () => {
+                        const url = await fetchNgrokPublicUrl();
+                        if (url) {
+                            addLog(`Túnel Ngrok gerado com sucesso: ${url}`, 'success');
+                        } else if (fs.existsSync(logPath)) {
+                            try {
+                                const content = fs.readFileSync(logPath, 'utf8');
+                                const errorMatch = content.match(/ERR_NGROK_\d+.*?$/m) || content.match(/lvl=eror.*?err="([^"]+)"/);
+                                if (errorMatch) {
+                                    addLog(`[NGROK ALERTA] ${errorMatch[1] || errorMatch[0]}`, 'warning');
+                                }
+                            } catch (e) {}
+                        }
+                    }, 3000);
+                }, 800);
+            });
+        } else {
+            addLog(`[ERRO] ngrok.exe não encontrado em ${ngrokExe}. Coloque ngrok.exe na pasta do GLPI.`, 'error');
+        }
     } else {
-        addLog('Cloudflare Tunnel já em execução.', 'success');
+        addLog('Ngrok já em execução.', 'success');
     }
 }
 
 async function stopSystem() {
-    addLog('Encerrando processos httpd, mysqld e cloudflared...', 'warning');
-    exec('taskkill /F /IM httpd.exe /IM mysqld.exe /IM cloudflared.exe', () => {
+    addLog('Encerrando processos httpd, mysqld, ngrok e cloudflared...', 'warning');
+    exec('taskkill /F /IM httpd.exe /IM mysqld.exe /IM ngrok.exe /IM cloudflared.exe', () => {
         addLog('Processos finalizados com sucesso.', 'warning');
     });
 }
 
-// Auditoria automática de queda a cada 4 segundos
+// Auditoria automática de queda a cada 6 segundos
 setInterval(async () => {
     if (!autoRecover || isRecovering) return;
 
@@ -197,27 +303,29 @@ setInterval(async () => {
             addLog('[AUDITORIA] MySQL caiu! Restaurando serviço...', 'error');
             needsRecovery = true;
         }
-        if (!st.services.cloudflared.running) {
-            addLog('[AUDITORIA] Cloudflare Tunnel caiu! Restaurando serviço...', 'error');
-            needsRecovery = true;
+        if (!st.services.ngrok.running) {
+            if (Date.now() - lastNgrokAttempt >= 15000) {
+                addLog('[AUDITORIA] Ngrok caiu! Restaurando túnel...', 'error');
+                needsRecovery = true;
+            }
         }
 
         if (needsRecovery) {
             isRecovering = true;
             await startSystem();
-            setTimeout(() => { isRecovering = false; }, 6000);
+            setTimeout(() => { isRecovering = false; }, 8000);
         }
     } catch (err) {
         console.error('Erro na auditoria:', err);
     }
-}, 4000);
+}, 6000);
 
 // Anti-inatividade (Keep-Alive Reposit via WScript a cada 45s)
 setInterval(() => {
     exec('cscript //nologo -e:vbscript -', (err) => {}).stdin.end('Set WshShell = WScript.CreateObject("WScript.Shell") : WshShell.SendKeys("{F15}")');
 }, 45000);
 
-// Servidor Web
+// Servidor Web HTTP na porta 5050
 const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
@@ -242,7 +350,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.url === '/api/restart' && req.method === 'POST') {
-        addLog('Reiniciando sistema completo...', 'warning');
+        addLog('Reiniciando sistema completo com Ngrok...', 'warning');
         await stopSystem();
         setTimeout(async () => {
             await startSystem();
@@ -278,5 +386,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-    addLog(`Painel Guardião GLPI disponível na porta ${PORT}`, 'success');
+    addLog(`Painel Guardião GLPI disponível na porta ${PORT} (Ngrok obrigatório)`, 'success');
 });

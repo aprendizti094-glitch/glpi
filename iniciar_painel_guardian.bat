@@ -7,7 +7,10 @@ echo ========================================================
 echo        INICIANDO GLPI GUARDIAN (AUDITORIA E PIDs)
 echo ========================================================
 echo.
-echo [1/2] Verificando Node.js...
+echo [1/3] Finalizando processos orfaos antigos do Cloudflare...
+taskkill /F /IM cloudflared.exe >nul 2>&1
+
+echo [2/3] Verificando Node.js...
 where node >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERRO] Node.js nao encontrado no PATH do sistema.
@@ -15,10 +18,10 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [2/2] Iniciando servidor do Painel em http://localhost:4040 ...
+echo [3/3] Iniciando servidor do Painel em http://localhost:5050 ...
 echo.
 
-start "" "http://localhost:4040"
+start "" "http://localhost:5050"
 node server.js
 
 pause
