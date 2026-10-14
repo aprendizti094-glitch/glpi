@@ -204,6 +204,32 @@
 .level-pleno { background: #EDE9FE; color: #6D28D9; }
 .level-senior { background: #D1FAE5; color: #047857; }
 
+.card-location-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.70rem;
+    color: #0071E3;
+    background: #EBF5FF;
+    padding: 2px 6px;
+    border-radius: 6px;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+.card-location-pill i {
+    font-size: 0.74rem;
+}
+.card-tech-pill.tech-unassigned {
+    color: #B45309;
+    background: #FEF3C7;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
 .card-urgent-notice {
     background: #FFF4E5;
     color: #B45309;
@@ -323,6 +349,12 @@
                                         <div class="card-category">
                                             {{ ticket['category_short'] }}
                                         </div>
+                                        {% if ticket['location'] %}
+                                            <span class="card-location-pill" title="Localização: {{ ticket['location_full']|default(ticket['location']) }}">
+                                                <i class="ti ti-map-pin"></i>
+                                                <span>{{ ticket['location'] }}</span>
+                                            </span>
+                                        {% endif %}
                                         {% if ticket['assignee'] %}
                                             <span class="card-tech-pill" title="Atribuído para: {{ ticket['assignee'] }}{% if ticket['technician_title'] %} ({{ ticket['technician_title'] }}){% endif %}">
                                                 <i class="ti ti-{{ ticket['technician'] ? 'user-check' : 'users' }}"></i>
@@ -330,6 +362,11 @@
                                                 {% if ticket['technician_title'] %}
                                                     <span class="tech-level-tag level-{{ ticket['technician_title']|lower|replace({' ': '-', 'ê': 'e', 'ú': 'u'}) }}">{{ ticket['technician_title'] }}</span>
                                                 {% endif %}
+                                            </span>
+                                        {% else %}
+                                            <span class="card-tech-pill tech-unassigned" title="Chamado aguardando atribuição">
+                                                <i class="ti ti-user-exclamation"></i>
+                                                <span class="tech-name">Não atribuído</span>
                                             </span>
                                         {% endif %}
                                     </div>

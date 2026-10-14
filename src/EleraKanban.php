@@ -109,7 +109,11 @@ class EleraKanban
                 'glpi_tickets.date',
                 'glpi_tickets.date_mod',
                 'glpi_tickets.users_id_recipient',
+                'glpi_tickets.itilcategories_id',
+                'glpi_tickets.locations_id',
                 'glpi_itilcategories.completename as category',
+                'glpi_locations.completename as location_name',
+                'glpi_locations.name as location_short_name',
             ],
             'FROM' => 'glpi_tickets',
             'LEFT JOIN' => [
@@ -117,6 +121,12 @@ class EleraKanban
                     'FKEY' => [
                         'glpi_tickets' => 'itilcategories_id',
                         'glpi_itilcategories' => 'id'
+                    ]
+                ],
+                'glpi_locations' => [
+                    'FKEY' => [
+                        'glpi_tickets' => 'locations_id',
+                        'glpi_locations' => 'id'
                     ]
                 ]
             ],
@@ -200,6 +210,26 @@ class EleraKanban
                 $ticket['category_short'] = end($cat_parts);
             } else {
                 $ticket['category_short'] = 'Geral';
+            }
+
+            // Location with requester fallback
+            $loc_name = $ticket['location_name'] ?? $ticket['location_short_name'] ?? '';
+            if (empty($loc_name) && !empty($ticket['users_id_recipient'])) {
+                $u_loc = new User();
+                if ($u_loc->getFromDB((int)$ticket['users_id_recipient']) && !empty($u_loc->fields['locations_id'])) {
+                    $l = new Location();
+                    if ($l->getFromDB((int)$u_loc->fields['locations_id'])) {
+                        $loc_name = $l->fields['completename'] ?: $l->fields['name'];
+                    }
+                }
+            }
+            if (!empty($loc_name)) {
+                $loc_parts = explode(' > ', $loc_name);
+                $ticket['location'] = end($loc_parts);
+                $ticket['location_full'] = $loc_name;
+            } else {
+                $ticket['location'] = '';
+                $ticket['location_full'] = '';
             }
 
             // Technician (User)
@@ -297,6 +327,29 @@ class EleraKanban
                     $group_name = $grp->getName();
                 }
             }
+
+            // Fallback for assignee from category if not explicitly set
+            if (empty($tech_name) && empty($group_name) && !empty($ticket['itilcategories_id'])) {
+                $fallback_cat = new ITILCategory();
+                $f_cat_id = (int)$ticket['itilcategories_id'];
+                while ($f_cat_id > 0 && empty($tech_name) && empty($group_name) && $fallback_cat->getFromDB($f_cat_id)) {
+                    if (!empty($fallback_cat->fields['users_id'])) {
+                        $f_user = new User();
+                        if ($f_user->getFromDB((int)$fallback_cat->fields['users_id'])) {
+                            $tech_name = $f_user->getFriendlyName();
+                            $tech_user_id = (int)$f_user->getID();
+                        }
+                    }
+                    if (!empty($fallback_cat->fields['groups_id'])) {
+                        $f_grp = new Group();
+                        if ($f_grp->getFromDB((int)$fallback_cat->fields['groups_id'])) {
+                            $group_name = $f_grp->getName();
+                        }
+                    }
+                    $f_cat_id = (int)($fallback_cat->fields['itilcategories_id'] ?? 0);
+                }
+            }
+
             $ticket['assigned_group'] = $group_name;
             $ticket['assignee'] = $tech_name ?: $group_name ?: '';
 

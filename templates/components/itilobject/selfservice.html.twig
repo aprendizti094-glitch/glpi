@@ -132,10 +132,37 @@
                ) }}
            </div>
 
+           {# Dynamic resolution of real ITILCategory IDs from database #}
+           {% set real_cat_sistema = 1 %}
+           {% set real_cat_rede = 2 %}
+           {% set real_cat_pc = 3 %}
+           {% set real_cat_impressora = 4 %}
+           {% set real_cat_acesso = 5 %}
+           {% set real_cat_suporte = 6 %}
+
+           {% if helpdesk_categories is defined and helpdesk_categories|length %}
+               {% for c in helpdesk_categories %}
+                   {% set cname = c.name|lower %}
+                   {% if cname matches '/(winthor|erp|sistema)/i' %}
+                       {% set real_cat_sistema = c.id %}
+                   {% elseif cname matches '/(rede|internet|wifi|vpn)/i' %}
+                       {% set real_cat_rede = c.id %}
+                   {% elseif cname matches '/(computador|hardware|notebook|pc)/i' %}
+                       {% set real_cat_pc = c.id %}
+                   {% elseif cname matches '/(impressora|toner|impress)/i' %}
+                       {% set real_cat_impressora = c.id %}
+                   {% elseif cname matches '/(acesso|senha|email|e-mail)/i' %}
+                       {% set real_cat_acesso = c.id %}
+                   {% elseif cname matches '/(suporte|duvida|dúvida|ajuda|apoio)/i' %}
+                       {% set real_cat_suporte = c.id %}
+                   {% endif %}
+               {% endfor %}
+           {% endif %}
+
            <!-- Grid de Cards de Categorias Premium Apple HIG -->
            <div class="apple-categories-grid mb-3">
                <!-- Card 1: Sistemas / ERP -->
-               <div class="apple-category-card" data-category-id="1" data-keywords="winthor,erp,sistema,sistemas">
+               <div class="apple-category-card" data-category-id="{{ real_cat_sistema }}" data-keywords="winthor,erp,sistema,sistemas">
                    <div class="apple-cat-icon-wrap icon-purple">
                        <i class="fas fa-layer-group"></i>
                    </div>
@@ -149,7 +176,7 @@
                </div>
 
                <!-- Card 2: Redes / Internet -->
-               <div class="apple-category-card" data-category-id="2" data-keywords="internet,rede,redes,wifi,vpn">
+               <div class="apple-category-card" data-category-id="{{ real_cat_rede }}" data-keywords="internet,rede,redes,wifi,vpn">
                    <div class="apple-cat-icon-wrap icon-blue">
                        <i class="fas fa-wifi"></i>
                    </div>
@@ -163,7 +190,7 @@
                </div>
 
                <!-- Card 3: Computadores / Hardware -->
-               <div class="apple-category-card" data-category-id="3" data-keywords="computador,computadores,hardware,notebook,pc">
+               <div class="apple-category-card" data-category-id="{{ real_cat_pc }}" data-keywords="computador,computadores,hardware,notebook,pc">
                    <div class="apple-cat-icon-wrap icon-cyan">
                        <i class="fas fa-desktop"></i>
                    </div>
@@ -177,7 +204,7 @@
                </div>
 
                <!-- Card 4: Impressoras -->
-               <div class="apple-category-card" data-category-id="4" data-keywords="impressora,impressoras,impressao,toner">
+               <div class="apple-category-card" data-category-id="{{ real_cat_impressora }}" data-keywords="impressora,impressoras,impressao,toner">
                    <div class="apple-cat-icon-wrap icon-amber">
                        <i class="fas fa-print"></i>
                    </div>
@@ -191,7 +218,7 @@
                </div>
 
                <!-- Card 5: E-mail / Acessos -->
-               <div class="apple-category-card" data-category-id="5" data-keywords="email,e-mail,senha,acesso,acessos">
+               <div class="apple-category-card" data-category-id="{{ real_cat_acesso }}" data-keywords="email,e-mail,senha,acesso,acessos">
                    <div class="apple-cat-icon-wrap icon-red">
                        <i class="fas fa-key"></i>
                    </div>
@@ -205,7 +232,7 @@
                </div>
 
                <!-- Card 6: Dúvidas / Suporte -->
-               <div class="apple-category-card" data-category-id="6" data-keywords="duvida,duvidas,suporte,ajuda">
+               <div class="apple-category-card" data-category-id="{{ real_cat_suporte }}" data-keywords="duvida,duvidas,suporte,ajuda">
                    <div class="apple-cat-icon-wrap icon-green">
                        <i class="fas fa-headset"></i>
                    </div>
@@ -234,6 +261,7 @@
                       right_field_options|merge({'condition': condition}),
                    ) }}
                </div>
+               <input type="hidden" name="forced_itilcategories_id" id="forcedItilCategoryId" value="{{ params['itilcategories_id'] ?? real_cat_sistema }}" />
            </div>
        </div>
 
@@ -473,6 +501,10 @@
                    <span class="preview-label">Urgência</span>
                    <span class="preview-val fw-semibold" id="previewUrgVal"><span class="urgency-dot-sm me-1" style="background-color: #3B82F6;"></span> Média</span>
                </div>
+               <div class="preview-item">
+                   <span class="preview-label">Localização</span>
+                   <span class="preview-val fw-semibold" id="previewLocVal">Local padrão</span>
+               </div>
                <div class="preview-item preview-item-full">
                    <span class="preview-label">Título</span>
                    <span class="preview-val fw-semibold text-break" id="previewTitleVal">-</span>
@@ -494,15 +526,19 @@
                 </div>
             </div>
             <div class="card-body p-3">
-               {{ fields.dropdownField(
-                  'Location',
-                  'locations_id',
-                  params['locations_id'],
-                  'Location'|itemtype_name,
-                  right_field_options|merge({
-                     'hide_if_no_elements': true
-                  })
-               ) }}
+               <div class="mb-3">
+                  <label class="form-label fw-bold d-flex align-items-center mb-1">
+                     <i class="fas fa-map-marker-alt text-primary me-2"></i> Local do Atendimento / Onde você se encontra
+                  </label>
+                  <p class="text-muted small mb-3">Selecione o setor, prédio ou sala para que o técnico possa localizar seu posto de trabalho rapidamente.</p>
+                  {{ fields.dropdownField(
+                     'Location',
+                     'locations_id',
+                     params['locations_id'],
+                     'Location'|itemtype_name,
+                     right_field_options
+                  ) }}
+               </div>
 
                <!-- Informações de Delegação (se houver) -->
                {% if delegating|length %}
@@ -614,16 +650,23 @@ function updateTicketPreview() {
     }
 
     var activeCatTitle = $('.apple-category-card.active .apple-cat-title').text();
-    if (!activeCatTitle) {
+    if (!activeCatTitle || activeCatTitle.trim() === '') {
         var nativeCatText = $('select[name="itilcategories_id"] option:selected').text();
-        activeCatTitle = (nativeCatText && nativeCatText.trim() !== '' && nativeCatText.indexOf('-----') === -1) ? nativeCatText : 'Não especificada';
+        activeCatTitle = (nativeCatText && nativeCatText.trim() !== '' && nativeCatText.indexOf('-----') === -1) ? nativeCatText : 'Sistemas & ERP';
     }
-    $('#previewCatVal').text(activeCatTitle);
+    $('#previewCatVal').text(activeCatTitle.trim());
 
     var $activeUrg = $('#appleUrgencyGridV2 .apple-urgency-card-v2.active');
     var urgName = $activeUrg.data('name') || 'Média';
     var urgColor = $activeUrg.data('color') || '#3B82F6';
     $('#previewUrgVal').html('<span class="urgency-dot-sm me-1" style="background-color: ' + urgColor + ';"></span> ' + urgName);
+
+    var $locSelect = $('select[name="locations_id"]');
+    var locText = $locSelect.find('option:selected').text();
+    if (!locText || locText.trim() === '' || locText.indexOf('-----') !== -1) {
+        locText = 'Local padrão (do seu usuário)';
+    }
+    $('#previewLocVal').text(locText.trim());
 
     var titleVal = $('input[name="name"]').val();
     $('#previewTitleVal').text(titleVal && titleVal.trim() !== '' ? titleVal : '(Sem título informado)');
@@ -763,25 +806,23 @@ $(function () {
         $(this).addClass('active');
 
         var catId = $(this).data('category-id');
+        var catTitle = $(this).find('.apple-cat-title').text().trim();
         var keywords = ($(this).data('keywords') || '').toLowerCase().split(',');
 
-        var $catSelect = $('select[name="itilcategories_id"]');
-        if ($catSelect.length) {
-            if ($catSelect.find('option[value="' + catId + '"]').length) {
-                $catSelect.val(catId);
-            } else {
-                $catSelect.find('option').each(function() {
-                    var text = $(this).text().toLowerCase();
-                    for (var i = 0; i < keywords.length; i++) {
-                        if (text.indexOf(keywords[i]) !== -1) {
-                            $catSelect.val($(this).val());
-                            return false;
-                        }
-                    }
-                });
-            }
-            $catSelect.trigger('change.select2').trigger('change');
+        if (catId) {
+            $('#forcedItilCategoryId').val(catId);
         }
+
+        var $catSelect = $('select[name="itilcategories_id"]');
+        if ($catSelect.length && catId) {
+            if (!$catSelect.find('option[value="' + catId + '"]').length) {
+                var newOption = new Option(catTitle, catId, true, true);
+                $catSelect.append(newOption);
+            }
+            $catSelect.val(catId).trigger('change.select2').trigger('change');
+        }
+
+        updateTicketPreview();
 
         // Feedback suave: Avança automaticamente para o passo 2
         setTimeout(function() {
@@ -795,14 +836,43 @@ $(function () {
     });
 
     // Sincronizar card inicial caso já exista categoria selecionada
-    var currentCat = $('select[name="itilcategories_id"]').val();
+    var currentCat = $('#forcedItilCategoryId').val() || $('select[name="itilcategories_id"]').val();
     if (currentCat && currentCat != '0') {
-        $('.apple-category-card[data-category-id="' + currentCat + '"]').addClass('active');
+        var $targetCard = $('.apple-category-card[data-category-id="' + currentCat + '"]');
+        if ($targetCard.length) {
+            $('.apple-category-card').removeClass('active');
+            $targetCard.addClass('active');
+        }
+    } else {
+        if (!$('.apple-category-card.active').length) {
+            var $firstCard = $('.apple-category-card').first();
+            $firstCard.addClass('active');
+            var firstCatId = $firstCard.data('category-id');
+            if (firstCatId) {
+                $('#forcedItilCategoryId').val(firstCatId);
+            }
+        }
     }
 
     // Toggle para outras categorias
     $('#btnToggleOtherCategory').on('click', function() {
         $('#wrapperOtherCategory').toggleClass('d-none');
+    });
+
+    // Sincronizar quando a categoria mudar pelo dropdown nativo
+    $(document).on('change', 'select[name="itilcategories_id"]', function() {
+        var val = $(this).val();
+        if (val && val != '0') {
+            $('#forcedItilCategoryId').val(val);
+            $('.apple-category-card').removeClass('active');
+            $('.apple-category-card[data-category-id="' + val + '"]').addClass('active');
+            updateTicketPreview();
+        }
+    });
+
+    // Sincronizar quando a localização for alterada
+    $(document).on('change', 'select[name="locations_id"]', function() {
+        updateTicketPreview();
     });
 
     // 3. Seleção de Cards de Urgência V2
@@ -815,6 +885,7 @@ $(function () {
         if ($urgSelect.length) {
             $urgSelect.val(urgVal).trigger('change.select2').trigger('change');
         }
+        updateTicketPreview();
     });
 
     // 4. Chips de Sugestão Rápida para o Título
@@ -824,6 +895,32 @@ $(function () {
         $input.val(suggested).trigger('input').trigger('change').focus();
         $('#titleRequiredAlert').addClass('d-none');
         $input.removeClass('input-shake');
+
+        // Mapear automaticamente a categoria pelo chip clicado
+        var lower = (suggested || '').toLowerCase();
+        $('.apple-category-card').each(function() {
+            var kws = ($(this).data('keywords') || '').toLowerCase().split(',');
+            for (var i = 0; i < kws.length; i++) {
+                var kw = kws[i].trim();
+                if (kw && lower.indexOf(kw) !== -1) {
+                    $('.apple-category-card').removeClass('active');
+                    $(this).addClass('active');
+                    var cId = $(this).data('category-id');
+                    var cTitle = $(this).find('.apple-cat-title').text().trim();
+                    $('#forcedItilCategoryId').val(cId);
+                    var $catSelect = $('select[name="itilcategories_id"]');
+                    if ($catSelect.length && cId) {
+                        if (!$catSelect.find('option[value="' + cId + '"]').length) {
+                            $catSelect.append(new Option(cTitle, cId, true, true));
+                        }
+                        $catSelect.val(cId).trigger('change.select2').trigger('change');
+                    }
+                    return false;
+                }
+            }
+        });
+
+        updateTicketPreview();
     });
 
     // Limpeza de alerta de título em tempo real
@@ -832,6 +929,7 @@ $(function () {
             $('#titleRequiredAlert').addClass('d-none');
             $(this).removeClass('input-shake');
         }
+        updateTicketPreview();
     });
 
     // Limpeza de alerta de descrição em tempo real (Textarea nativo)
@@ -879,6 +977,18 @@ $(function () {
 
     // 6. Interceptador de Envio Final para Garantir Integridade
     $('#btnSubmitTicket').closest('form').on('submit', function(e) {
+        var forcedCat = $('#forcedItilCategoryId').val();
+        if (forcedCat && forcedCat != '0') {
+            var $catSelect = $('select[name="itilcategories_id"]');
+            if ($catSelect.length) {
+                if (!$catSelect.find('option[value="' + forcedCat + '"]').length) {
+                    var cardTitle = $('.apple-category-card[data-category-id="' + forcedCat + '"] .apple-cat-title').text().trim() || 'Categoria';
+                    $catSelect.append(new Option(cardTitle, forcedCat, true, true));
+                }
+                $catSelect.val(forcedCat);
+            }
+        }
+
         var titleVal = $('input[name="name"]').val();
         if (!titleVal || titleVal.trim() === '') {
             e.preventDefault();

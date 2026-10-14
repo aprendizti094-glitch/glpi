@@ -1930,6 +1930,19 @@ class Ticket extends CommonITILObject
             }
         }
 
+        // 1. Resolve Category before rules and auto-assign
+        if (empty($input['itilcategories_id']) || $input['itilcategories_id'] == 0) {
+            if (!empty($input['forced_itilcategories_id'])) {
+                $input['itilcategories_id'] = (int)$input['forced_itilcategories_id'];
+            } else {
+                $textToScan = ($input['name'] ?? '') . ' ' . ($input['content'] ?? '');
+                $detectedCat = self::detectCategoryFromText($textToScan, (int)($input['entities_id'] ?? 0));
+                if ($detectedCat > 0) {
+                    $input['itilcategories_id'] = $detectedCat;
+                }
+            }
+        }
+
         $cat_id = $input['itilcategories_id'] ?? 0;
         if ($cat_id) {
             $input['itilcategories_id_code'] = ITILCategory::getById($cat_id)->fields['code'];
@@ -1981,6 +1994,20 @@ class Ticket extends CommonITILObject
                 }
             }
 
+            // 2. Auto-inherit locations_id if not explicitly provided
+            if (empty($input['locations_id']) || $input['locations_id'] == 0) {
+                if (!empty($input['_locations_id_of_requester'])) {
+                    $input['locations_id'] = (int)$input['_locations_id_of_requester'];
+                } elseif (!empty($input['_locations_id_of_item'])) {
+                    $input['locations_id'] = (int)$input['_locations_id_of_item'];
+                } elseif ($uid = Session::getLoginUserID()) {
+                    $u_loc = new User();
+                    if ($u_loc->getFromDB($uid) && !empty($u_loc->fields['locations_id'])) {
+                        $input['locations_id'] = (int)$u_loc->fields['locations_id'];
+                    }
+                }
+            }
+
             // Clean new lines before passing to rules
             if (isset($input["content"])) {
                 $input["content"] = preg_replace('/\\\\r\\\\n/', "\\n", $input['content']);
@@ -1997,6 +2024,20 @@ class Ticket extends CommonITILObject
 
             // Recompute default values based on values computed by rules
             $input = $this->computeDefaultValuesForAdd($input);
+        }
+
+        // Ensure location is populated if still empty after rules
+        if (empty($input['locations_id']) || $input['locations_id'] == 0) {
+            if (!empty($input['_locations_id_of_requester'])) {
+                $input['locations_id'] = (int)$input['_locations_id_of_requester'];
+            } elseif (!empty($input['_locations_id_of_item'])) {
+                $input['locations_id'] = (int)$input['_locations_id_of_item'];
+            } elseif ($uid = Session::getLoginUserID()) {
+                $u_loc = new User();
+                if ($u_loc->getFromDB($uid) && !empty($u_loc->fields['locations_id'])) {
+                    $input['locations_id'] = (int)$u_loc->fields['locations_id'];
+                }
+            }
         }
 
         if (
@@ -2029,23 +2070,21 @@ class Ticket extends CommonITILObject
             // Manage auto assign
             $auto_assign_mode = Entity::getUsedConfig('auto_assign_mode', $input['entities_id']);
 
-            switch ($auto_assign_mode) {
-                case Entity::CONFIG_NEVER:
-                    break;
+            if ($auto_assign_mode == Entity::AUTO_ASSIGN_HARDWARE_CATEGORY) {
+                // Auto assign tech/group from hardware first, then category
+                $input = $this->setTechAndGroupFromHardware($input, $item);
+                $input = $this->setTechAndGroupFromItilCategory($input);
+            } else {
+                // Default & AUTO_ASSIGN_CATEGORY_HARDWARE: Auto assign tech/group from Category, then hardware
+                $input = $this->setTechAndGroupFromItilCategory($input);
+                $input = $this->setTechAndGroupFromHardware($input, $item);
+            }
 
-                case Entity::AUTO_ASSIGN_HARDWARE_CATEGORY:
-                    // Auto assign tech/group from hardware
-                    $input = $this->setTechAndGroupFromHardware($input, $item);
-                    // Auto assign tech/group from Category
-                    $input = $this->setTechAndGroupFromItilCategory($input);
-                    break;
-
-                case Entity::AUTO_ASSIGN_CATEGORY_HARDWARE:
-                    // Auto assign tech/group from Category
-                    $input = $this->setTechAndGroupFromItilCategory($input);
-                    // Auto assign tech/group from hardware
-                    $input = $this->setTechAndGroupFromHardware($input, $item);
-                    break;
+            // Fallback: If still not assigned to any technician or group, assign default IT/Support group
+            $has_user_assigned  = $this->hasValidActorInInput($input, User::class, CommonITILActor::ASSIGN);
+            $has_group_assigned = $this->hasValidActorInInput($input, Group::class, CommonITILActor::ASSIGN);
+            if (!$has_user_assigned && !$has_group_assigned) {
+                $input = $this->setDefaultAssignmentIfUnassigned($input);
             }
         }
 
@@ -4000,6 +4039,14 @@ JAVASCRIPT;
 
         $this->restoreInputAndDefaults($ID, $options, $default_values, true);
 
+        // Pre-populate locations_id from user if not set
+        if (empty($options['locations_id']) || $options['locations_id'] == 0) {
+            $user_obj = new User();
+            if ($user_obj->getFromDB($ID) && !empty($user_obj->fields['locations_id'])) {
+                $options['locations_id'] = (int)$user_obj->fields['locations_id'];
+            }
+        }
+
         // Check category / type validity
         if ($options['itilcategories_id']) {
             $cat = new ITILCategory();
@@ -4042,6 +4089,21 @@ JAVASCRIPT;
             $options['_right'] = "delegate";
         }
 
+        global $DB;
+        $helpdesk_categories = [];
+        $cat_iter = $DB->request([
+            'SELECT' => ['id', 'name', 'completename', 'itilcategories_id', 'users_id', 'groups_id', 'is_incident', 'is_request'],
+            'FROM'   => 'glpi_itilcategories',
+            'WHERE'  => [
+                'is_helpdeskvisible' => 1,
+                'is_deleted'         => 0,
+            ],
+            'ORDER'  => 'completename ASC'
+        ]);
+        foreach ($cat_iter as $c) {
+            $helpdesk_categories[] = $c;
+        }
+
         TemplateRenderer::getInstance()->display('components/itilobject/selfservice.html.twig', [
             'has_tickets_to_validate' => TicketValidation::getNumberToValidate(Session::getLoginUserID()) > 0,
             'url_validate'            => $url_validate,
@@ -4053,6 +4115,7 @@ JAVASCRIPT;
             'itiltemplate'            => $tt,
             'delegating'              => $delegating,
             'predefined_fields'       => Toolbox::prepareArrayForInput($predefined_fields),
+            'helpdesk_categories'     => $helpdesk_categories,
         ]);
     }
 
@@ -7169,5 +7232,89 @@ JAVASCRIPT;
         }
 
         return $options;
+    }
+
+    /**
+     * Auto-detect ITIL Category based on text content/keywords if not specified
+     *
+     * @param string $text
+     * @param int $entity_id
+     * @return int
+     */
+    public static function detectCategoryFromText(string $text, int $entity_id = 0): int
+    {
+        global $DB;
+        if (empty(trim($text))) {
+            return 0;
+        }
+        $clean = mb_strtolower($text, 'UTF-8');
+
+        $patterns = [
+            'computador' => ['computador', 'pc', 'notebook', 'desktop', 'travando', 'travamento', 'lento', 'lentidão', 'tela azul', 'mouse', 'teclado', 'monitor', 'hardware'],
+            'impressora' => ['impressora', 'toner', 'imprimir', 'impressão', 'scanner', 'etiqueta', 'etiquetadora', 'papel'],
+            'rede'       => ['internet', 'wifi', 'wi-fi', 'rede', 'vpn', 'queda', 'cabo de rede', 'sem conexão', 'conexão'],
+            'sistema'    => ['winthor', 'erp', 'sistema', 'nota fiscal', 'nf-e', 'danfe', 'relatório', 'protheus', 'totvs'],
+            'acesso'     => ['senha', 'email', 'e-mail', 'acesso', 'desbloqueio', 'login', 'usuário', 'permissão'],
+            'suporte'    => ['suporte', 'duvida', 'dúvida', 'apoio', 'ajuda', 'orientação']
+        ];
+
+        foreach ($patterns as $concept => $keywords) {
+            foreach ($keywords as $kw) {
+                if (str_contains($clean, $kw)) {
+                    $escapedConcept = $DB->escape($concept);
+                    $iterator = $DB->request([
+                        'SELECT' => ['id'],
+                        'FROM'   => 'glpi_itilcategories',
+                        'WHERE'  => [
+                            'name'       => ['LIKE', "%{$escapedConcept}%"],
+                            'is_deleted' => 0,
+                        ],
+                        'LIMIT'  => 1
+                    ]);
+                    if ($row = $iterator->current()) {
+                        return (int)$row['id'];
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * If ticket has no technician or group assigned, assign a default support/IT group
+     *
+     * @param array $input
+     * @return array
+     */
+    protected function setDefaultAssignmentIfUnassigned(array $input): array
+    {
+        global $DB;
+        $group_iter = $DB->request([
+            'SELECT' => ['id', 'name'],
+            'FROM'   => 'glpi_groups',
+            'WHERE'  => [
+                'is_assign' => 1,
+            ],
+            'ORDER'  => 'id ASC'
+        ]);
+        $first_assign_group = 0;
+        $matched_group = 0;
+        foreach ($group_iter as $grp) {
+            if (!$first_assign_group) {
+                $first_assign_group = (int)$grp['id'];
+            }
+            $gname = mb_strtolower($grp['name'], 'UTF-8');
+            if (str_contains($gname, 'ti') || str_contains($gname, 'suporte') || str_contains($gname, 'tecnico') || str_contains($gname, 'técnico') || str_contains($gname, 'helpdesk')) {
+                $matched_group = (int)$grp['id'];
+                break;
+            }
+        }
+        if ($matched_group > 0) {
+            $input['_groups_id_assign'] = $matched_group;
+        } elseif ($first_assign_group > 0) {
+            $input['_groups_id_assign'] = $first_assign_group;
+        }
+        return $input;
     }
 }

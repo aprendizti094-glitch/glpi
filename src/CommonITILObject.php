@@ -8957,15 +8957,21 @@ abstract class CommonITILObject extends CommonDBTM
         $has_user_assigned  = $this->hasValidActorInInput($input, User::class, CommonITILActor::ASSIGN);
         $has_group_assigned = $this->hasValidActorInInput($input, Group::class, CommonITILActor::ASSIGN);
         if (
-            $input['itilcategories_id'] > 0
+            isset($input['itilcategories_id'])
+            && $input['itilcategories_id'] > 0
             && (!$has_user_assigned || !$has_group_assigned)
-            && $cat->getFromDB($input['itilcategories_id'])
         ) {
-            if (!$has_user_assigned && $cat->fields['users_id'] > 0) {
-                $input['_users_id_assign'] = $cat->fields['users_id'];
-            }
-            if (!$has_group_assigned && $cat->fields['groups_id'] > 0) {
-                $input['_groups_id_assign'] = $cat->fields['groups_id'];
+            $cat_id = (int)$input['itilcategories_id'];
+            while ($cat_id > 0 && (!$has_user_assigned || !$has_group_assigned) && $cat->getFromDB($cat_id)) {
+                if (!$has_user_assigned && !empty($cat->fields['users_id']) && $cat->fields['users_id'] > 0) {
+                    $input['_users_id_assign'] = (int)$cat->fields['users_id'];
+                    $has_user_assigned = true;
+                }
+                if (!$has_group_assigned && !empty($cat->fields['groups_id']) && $cat->fields['groups_id'] > 0) {
+                    $input['_groups_id_assign'] = (int)$cat->fields['groups_id'];
+                    $has_group_assigned = true;
+                }
+                $cat_id = (int)($cat->fields['itilcategories_id'] ?? 0);
             }
         }
 
