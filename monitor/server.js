@@ -200,75 +200,29 @@ async function getSystemStatus() {
     };
 }
 
-async function startApache(apachePort) {
-    const httpdExe = path.join(XAMPP_DIR, 'apache', 'bin', 'httpd.exe');
-    if (!fs.existsSync(httpdExe)) {
-        addLog(`[ERRO] httpd.exe não encontrado em ${httpdExe}`, 'error');
-        return;
-    }
+// Inicia os serviços disparando diretamente o iniciar_glpi_ngrok.bat validado
+async function startSystem() {
+    if (isStarting) return;
+    isStarting = true;
+    cooldownUntil = Date.now() + 30000; // 30s de carência para a auditoria
 
-    addLog(`Iniciando Apache (httpd.exe) na porta ${apachePort}...`, 'action');
+    addLog('Disparando iniciar_glpi_ngrok.bat oficial validado...', 'info');
 
-    // Remove httpd.pid antigo órfão se houver
-    const pidFile = path.join(XAMPP_DIR, 'apache', 'logs', 'httpd.pid');
-    try {
-        if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
-    } catch (e) {}
+    // Mata qualquer vestígio antigo do Cloudflare
+    exec('taskkill /F /IM cloudflared.exe', () => {});
 
-    // Inicia processo minimizado e 100% desacoplado via cmd start nativo do Windows
-    const apacheDir = path.join(XAMPP_DIR, 'apache');
-    const cmd = `start "Apache" /min "${httpdExe}" -d "${apacheDir}"`;
-    
-    return new Promise((resolve) => {
-        exec(cmd, { cwd: apacheDir, shell: 'cmd.exe' }, (err) => {
-            if (err) addLog(`[AVISO] Erro ao disparar httpd: ${err.message}`, 'warning');
-            setTimeout(resolve, 2000);
+    const batPath = path.join(GLPI_DIR, 'iniciar_glpi_ngrok.bat');
+    if (fs.existsSync(batPath)) {
+        addLog(`Iniciando ${batPath}...`, 'action');
+        // Abre o iniciar_glpi_ngrok.bat em uma nova janela de terminal
+        exec(`start "GLPI-Ngrok-Runner" cmd.exe /c "${batPath}"`, { cwd: GLPI_DIR, shell: 'cmd.exe' }, (err) => {
+            if (err) addLog(`[AVISO] Erro ao disparar bat: ${err.message}`, 'warning');
         });
-    });
-}
-
-async function startMysql() {
-    const mysqlExe = path.join(XAMPP_DIR, 'mysql', 'bin', 'mysqld.exe');
-    if (!fs.existsSync(mysqlExe)) {
-        addLog(`[AVISO] mysqld.exe não encontrado em ${mysqlExe}`, 'warning');
-        return;
+    } else {
+        addLog(`[ERRO] Arquivo não encontrado: ${batPath}`, 'error');
     }
 
-    addLog('Iniciando MySQL (mysqld.exe)...', 'action');
-    const mysqlDir = path.join(XAMPP_DIR, 'mysql');
-    const myIni = path.join(mysqlDir, 'bin', 'my.ini');
-    const cmd = `start "MySQL" /min "${mysqlExe}" --defaults-file="${myIni}" --standalone`;
-
-    return new Promise((resolve) => {
-        exec(cmd, { cwd: mysqlDir, shell: 'cmd.exe' }, (err) => {
-            if (err) addLog(`[AVISO] Erro ao disparar mysqld: ${err.message}`, 'warning');
-            setTimeout(resolve, 1500);
-        });
-    });
-}
-
-async function startNgrok(targetPort) {
-    const ngrokExe = findNgrokExe();
-    if (!fs.existsSync(ngrokExe)) {
-        addLog(`[ERRO] ngrok.exe não encontrado em ${ngrokExe}. Coloque ngrok.exe na pasta do GLPI.`, 'error');
-        return;
-    }
-
-    // Verifica se já há uma sessão Ngrok ativa respondendo na porta 4040
-    const activeUrl = await fetchNgrokPublicUrl();
-    if (activeUrl) {
-        addLog(`Ngrok já ativo com túnel: ${activeUrl}`, 'success');
-        return;
-    }
-
-    addLog(`Iniciando Túnel Ngrok oficial para a porta ${targetPort}...`, 'action');
-
-    const cmd = `start "Ngrok" /min "${ngrokExe}" http 127.0.0.1:${targetPort}`;
-    exec(cmd, { cwd: GLPI_DIR, shell: 'cmd.exe' }, (err) => {
-        if (err) addLog(`[AVISO] Erro ao disparar ngrok: ${err.message}`, 'warning');
-    });
-
-    // Monitora a geração do link público
+    // Monitora a geração do link público do Ngrok
     let attempts = 0;
     const interval = setInterval(async () => {
         attempts++;
@@ -276,60 +230,26 @@ async function startNgrok(targetPort) {
         if (url) {
             clearInterval(interval);
             addLog(`Túnel Ngrok gerado com sucesso: ${url}`, 'success');
-        } else if (attempts >= 10) {
+        } else if (attempts >= 15) {
             clearInterval(interval);
-            addLog(`[NGROK ALERTA] Túnel ainda gerando. Verifique seu token com: ngrok config add-authtoken <token>`, 'warning');
         }
-    }, 1500);
-}
+    }, 2000);
 
-async function startSystem() {
-    if (isStarting) return;
-    isStarting = true;
-    cooldownUntil = Date.now() + 25000; // 25s de carência para a auditoria
-
-    addLog('Iniciando serviços do GLPI com Ngrok (Obrigatório)...', 'info');
-
-    // Mata qualquer vestígio do Cloudflare
-    exec('taskkill /F /IM cloudflared.exe', () => {});
-
-    const apachePort = getApacheConfiguredPort();
-    const status = await getSystemStatus();
-
-    // 1. MySQL
-    if (!status.services.mysql.running) {
-        await startMysql();
-    } else {
-        addLog('MySQL já em execução.', 'success');
-    }
-
-    // 2. Apache
-    if (!status.services.apache.running) {
-        await startApache(apachePort);
-    } else {
-        addLog('Apache já em execução.', 'success');
-    }
-
-    // 3. Ngrok
-    if (!status.services.ngrok.running) {
-        await startNgrok(apachePort);
-    } else {
-        addLog('Ngrok já em execução.', 'success');
-    }
-
-    isStarting = false;
+    setTimeout(() => {
+        isStarting = false;
+    }, 4000);
 }
 
 async function stopSystem() {
     addLog('Encerrando processos httpd, mysqld, ngrok e cloudflared...', 'warning');
-    cooldownUntil = Date.now() + 15000; // Bloqueia auditoria durante parada intencional
+    cooldownUntil = Date.now() + 20000; // Bloqueia auditoria durante parada intencional
     consecutiveFails = { apache: 0, mysql: 0, ngrok: 0 };
     exec('taskkill /F /IM httpd.exe /IM mysqld.exe /IM ngrok.exe /IM cloudflared.exe', () => {
         addLog('Processos finalizados com sucesso.', 'warning');
     });
 }
 
-// Auditoria automática de queda a cada 10 segundos com debounce (evita loops e falso-positivos)
+// Auditoria automática de queda a cada 10 segundos com debounce (evita falso-positivos)
 setInterval(async () => {
     if (!autoRecover || isStarting || Date.now() < cooldownUntil) return;
 
@@ -341,7 +261,7 @@ setInterval(async () => {
         if (!st.services.apache.running) {
             consecutiveFails.apache++;
             if (consecutiveFails.apache >= 2) {
-                addLog('[AUDITORIA] Apache fora do ar confirmado. Restaurando serviço...', 'error');
+                addLog('[AUDITORIA] Apache fora do ar detectado. Restaurando...', 'error');
                 triggerRecovery = true;
             }
         } else {
@@ -352,7 +272,7 @@ setInterval(async () => {
         if (!st.services.mysql.running) {
             consecutiveFails.mysql++;
             if (consecutiveFails.mysql >= 2) {
-                addLog('[AUDITORIA] MySQL fora do ar confirmado. Restaurando serviço...', 'error');
+                addLog('[AUDITORIA] MySQL fora do ar detectado. Restaurando...', 'error');
                 triggerRecovery = true;
             }
         } else {
@@ -363,7 +283,7 @@ setInterval(async () => {
         if (!st.services.ngrok.running) {
             consecutiveFails.ngrok++;
             if (consecutiveFails.ngrok >= 2) {
-                addLog('[AUDITORIA] Ngrok fora do ar confirmado. Restaurando túnel...', 'error');
+                addLog('[AUDITORIA] Ngrok fora do ar detectado. Restaurando...', 'error');
                 triggerRecovery = true;
             }
         } else {
