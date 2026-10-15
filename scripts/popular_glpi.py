@@ -382,6 +382,30 @@ def print_device_table(devices):
     print("=" * 90)
 
 
+def normalize_glpi_url(raw_url):
+    """
+    Limpa e normaliza a URL do GLPI, removendo páginas internas (como /front/...,
+    /apirest.php, /index.php) e barras finais, garantindo o esquema https:// ou http://.
+    Exemplo:
+        https://erupt-stony-briskly.ngrok-free.dev/glpi/front/config.form.php
+        -> https://erupt-stony-briskly.ngrok-free.dev/glpi
+    """
+    if not raw_url:
+        return ""
+    url = raw_url.strip()
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+
+    # Remove query string / fragments se houver
+    url = url.split('?')[0].split('#')[0]
+
+    # Remove páginas internas comuns do GLPI
+    pattern = r"/(?:front(?:/.*)?|apirest\.php(?:/.*)?|index\.php(?:/.*)?|api(?:/.*)?)$"
+    url = re.sub(pattern, "", url, flags=re.IGNORECASE)
+
+    return url.rstrip('/')
+
+
 # =============================================================================
 # ENVIO 1: INVENTÁRIO NATIVO DO GLPI (/front/inventory.php)
 # =============================================================================
@@ -390,7 +414,8 @@ def send_native_glpi_inventory(glpi_base_url, device):
     Envia o dispositivo no formato JSON nativo do GLPI Agent para /front/inventory.php.
     Não requer tokens ou senhas pois aceita inventários anônimos de agentes.
     """
-    inventory_url = glpi_base_url.rstrip('/') + '/front/inventory.php'
+    base = normalize_glpi_url(glpi_base_url)
+    inventory_url = base + '/front/inventory.php'
     
     ip = device['ip']
     mac = device['mac'] or "00:00:00:00:00:00"
@@ -457,7 +482,8 @@ def send_native_glpi_inventory(glpi_base_url, device):
         data=data,
         headers={
             "Content-Type": "application/json",
-            "User-Agent": "GLPI-Discovery/1.0"
+            "User-Agent": "GLPI-Discovery/1.0",
+            "ngrok-skip-browser-warning": "69420"
         }
     )
 
@@ -477,14 +503,17 @@ def send_native_glpi_inventory(glpi_base_url, device):
 # =============================================================================
 class GlpiRestClient:
     def __init__(self, glpi_base_url, app_token=None):
-        self.api_url = glpi_base_url.rstrip('/') + '/apirest.php'
+        self.base_url = normalize_glpi_url(glpi_base_url)
+        self.api_url = self.base_url + '/apirest.php'
         self.app_token = app_token
         self.session_token = None
 
     def _headers(self):
         h = {
             "Content-Type": "application/json",
-            "User-Agent": "GLPI-Discovery-REST/1.0"
+            "Accept": "application/json",
+            "User-Agent": "GLPI-Discovery-REST/1.0",
+            "ngrok-skip-browser-warning": "69420"
         }
         if self.app_token:
             h["App-Token"] = self.app_token
@@ -504,10 +533,32 @@ class GlpiRestClient:
         
         req = urllib.request.Request(init_url, data=b"", headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=10, context=SSL_CTX) as resp:
-                res = json.loads(resp.read().decode('utf-8'))
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CTX) as resp:
+                raw = resp.read().decode('utf-8', errors='ignore')
+                try:
+                    res = json.loads(raw)
+                except Exception:
+                    if "<html" in raw.lower() or "<!doctype" in raw.lower():
+                        return False, (
+                            f"O servidor retornou uma página HTML em vez de JSON da API.\n"
+                            f"    URL chamada: {init_url}\n"
+                            f"    Dica: Certifique-se de que a API REST está habilitada em Configurar -> Geral -> API"
+                        )
+                    return False, f"Resposta não-JSON recebida da API: {raw[:160]}"
+
                 self.session_token = res.get("session_token")
                 return True, "Sessão REST iniciada com sucesso!"
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8', errors='ignore')
+            try:
+                err_json = json.loads(err_body)
+                if isinstance(err_json, list) and len(err_json) >= 2:
+                    return False, f"Erro GLPI [{err_json[0]}]: {err_json[1]}"
+                elif isinstance(err_json, dict) and "message" in err_json:
+                    return False, f"Erro GLPI: {err_json['message']}"
+            except Exception:
+                pass
+            return False, f"HTTP {e.code} ({e.reason}): {err_body[:200]}"
         except Exception as e:
             return False, f"Falha ao autenticar na API REST: {e}"
 
@@ -518,10 +569,32 @@ class GlpiRestClient:
         headers["Authorization"] = f"user_token {user_token}"
         req = urllib.request.Request(init_url, data=b"", headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=10, context=SSL_CTX) as resp:
-                res = json.loads(resp.read().decode('utf-8'))
+            with urllib.request.urlopen(req, timeout=12, context=SSL_CTX) as resp:
+                raw = resp.read().decode('utf-8', errors='ignore')
+                try:
+                    res = json.loads(raw)
+                except Exception:
+                    if "<html" in raw.lower() or "<!doctype" in raw.lower():
+                        return False, (
+                            f"O servidor retornou uma página HTML em vez de JSON da API.\n"
+                            f"    URL chamada: {init_url}\n"
+                            f"    Dica: Certifique-se de que a API REST está habilitada em Configurar -> Geral -> API"
+                        )
+                    return False, f"Resposta não-JSON recebida da API: {raw[:160]}"
+
                 self.session_token = res.get("session_token")
                 return True, "Sessão REST iniciada com sucesso!"
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8', errors='ignore')
+            try:
+                err_json = json.loads(err_body)
+                if isinstance(err_json, list) and len(err_json) >= 2:
+                    return False, f"Erro GLPI [{err_json[0]}]: {err_json[1]}"
+                elif isinstance(err_json, dict) and "message" in err_json:
+                    return False, f"Erro GLPI: {err_json['message']}"
+            except Exception:
+                pass
+            return False, f"HTTP {e.code} ({e.reason}): {err_body[:200]}"
         except Exception as e:
             return False, f"Falha ao autenticar na API REST: {e}"
 
@@ -684,9 +757,11 @@ def main():
         print(f"{C_RED}[X] URL do GLPI não informada. Concluído.{C_RESET}")
         return
 
-    # Garantir que URL contenha protocolo
-    if not glpi_url.startswith("http://") and not glpi_url.startswith("https://"):
-        glpi_url = "https://" + glpi_url
+    # Normalizar URL (remover /front/..., /apirest.php, query params, etc.)
+    original_input = glpi_url
+    glpi_url = normalize_glpi_url(glpi_url)
+    if glpi_url != original_input.rstrip('/'):
+        print(f"{C_CYAN}[i] URL ajustada para a raiz do GLPI: {glpi_url}{C_RESET}")
 
     print(f"\n{C_CYAN}Conectando ao GLPI em: {glpi_url}...{C_RESET}")
 

@@ -155,7 +155,8 @@ abstract class API
         }
 
         // construct api url
-        self::$api_url = trim($CFG_GLPI['url_base_api'], "/");
+        $api_base = $CFG_GLPI['url_base_api'] ?? ($CFG_GLPI['url_base'] ? rtrim($CFG_GLPI['url_base'], '/') . '/api' : '');
+        self::$api_url = trim($api_base, "/");
 
         // Don't display error in result
         ini_set('display_errors', 'Off');
@@ -164,7 +165,7 @@ abstract class API
         $_SESSION["MESSAGE_AFTER_REDIRECT"] = [];
 
         // check if api is enabled
-        if (!$CFG_GLPI['enable_api']) {
+        if (empty($CFG_GLPI['enable_api'])) {
             $this->returnError(__("API disabled"), "", "", false);
         }
 

@@ -805,18 +805,23 @@ class Config extends CommonDBTM
 
         echo "<tr><th colspan='4'>" . __('API') . "</th></tr>";
 
+        $url_base_api = $CFG_GLPI["url_base_api"] ?? ($CFG_GLPI["url_base"] ?? '');
+        if (empty($url_base_api) && !empty($CFG_GLPI["url_base"])) {
+            $url_base_api = rtrim($CFG_GLPI["url_base"], '/') . '/api';
+        }
+
         echo "<tr class='tab_bg_2'>";
         echo "<td><label for='url_base_api'>" . __('URL of the API') . "</label></td>";
-        echo "<td colspan='3'><input type='url' name='url_base_api' id='url_base_api' value='" . $CFG_GLPI["url_base_api"] . "' class='form-control'></td>";
+        echo "<td colspan='3'><input type='url' name='url_base_api' id='url_base_api' value='" . htmlspecialchars($url_base_api, ENT_QUOTES) . "' class='form-control'></td>";
         echo "</tr>";
         echo "<tr class='tab_bg_2'>";
         echo "<td><label for='dropdown_enable_api$rand'>" . __("Enable Rest API") . "</label></td>";
         echo "<td>";
-        Dropdown::showYesNo("enable_api", $CFG_GLPI["enable_api"], -1, ['rand' => $rand]);
+        Dropdown::showYesNo("enable_api", $CFG_GLPI["enable_api"] ?? 0, -1, ['rand' => $rand]);
         echo "</td>";
-        if ($CFG_GLPI["enable_api"]) {
+        if (!empty($CFG_GLPI["enable_api"])) {
             echo "<td colspan='2'>";
-            $inline_doc_api = trim($CFG_GLPI['url_base_api'], '/') . "/";
+            $inline_doc_api = trim($url_base_api, '/') . "/";
             echo "<a href='$inline_doc_api'>" . __("API inline Documentation") . "</a>";
             echo "</td>";
         }
@@ -830,14 +835,14 @@ class Config extends CommonDBTM
         Html::showToolTip(__("Allow to login to API and get a session token with user credentials"));
         echo "</td>";
         echo "<td>";
-        Dropdown::showYesNo("enable_api_login_credentials", $CFG_GLPI["enable_api_login_credentials"], -1, ['rand' => $rand]);
+        Dropdown::showYesNo("enable_api_login_credentials", $CFG_GLPI["enable_api_login_credentials"] ?? 0, -1, ['rand' => $rand]);
         echo "</td>";
         echo "<td><label for='dropdown_enable_api_login_external_token$rand'>";
         echo __("Enable login with external token") . "</label>&nbsp;";
         Html::showToolTip(__("Allow to login to API and get a session token with user external token. See Remote access key in user Settings tab "));
         echo "</td>";
         echo "<td>";
-        Dropdown::showYesNo("enable_api_login_external_token", $CFG_GLPI["enable_api_login_external_token"], -1, ['rand' => $rand]);
+        Dropdown::showYesNo("enable_api_login_external_token", $CFG_GLPI["enable_api_login_external_token"] ?? 0, -1, ['rand' => $rand]);
         echo "</td>";
         echo "</tr>";
 

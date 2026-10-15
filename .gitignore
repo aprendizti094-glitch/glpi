@@ -69,3 +69,5 @@ live_ticket_*
 *.bak
 *.orig
 node_modules/
+__pycache__/
+*.pyc
