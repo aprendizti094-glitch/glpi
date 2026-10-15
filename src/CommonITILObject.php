@@ -9042,7 +9042,7 @@ abstract class CommonITILObject extends CommonDBTM
      *
      * @return bool
      */
-    private function hasValidActorInInput(array $input, string $itemtype, string $actortype): bool
+    protected function hasValidActorInInput(array $input, string $itemtype, string $actortype): bool
     {
         $input_id_key = sprintf(
             '_%s_%s',

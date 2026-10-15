@@ -2080,11 +2080,17 @@ class Ticket extends CommonITILObject
                 $input = $this->setTechAndGroupFromHardware($input, $item);
             }
 
-            // Fallback: If still not assigned to any technician or group, assign default IT/Support group
-            $has_user_assigned  = $this->hasValidActorInInput($input, User::class, CommonITILActor::ASSIGN);
+            // 1. Fallback: If still not assigned to any group, assign default IT/Support group
             $has_group_assigned = $this->hasValidActorInInput($input, Group::class, CommonITILActor::ASSIGN);
-            if (!$has_user_assigned && !$has_group_assigned) {
+            if (!$has_group_assigned && empty($input['_groups_id_assign'])) {
                 $input = $this->setDefaultAssignmentIfUnassigned($input);
+            }
+
+            // 2. Intelligent Load-Balanced Auto-Assignment:
+            // If ticket has no technician user assigned, assign the least-loaded technician
+            $has_user_assigned  = $this->hasValidActorInInput($input, User::class, CommonITILActor::ASSIGN);
+            if (!$has_user_assigned && (empty($input['_users_id_assign']) || (int)$input['_users_id_assign'] <= 0)) {
+                $input = $this->assignLeastLoadedTechnician($input);
             }
         }
 
@@ -7315,6 +7321,211 @@ JAVASCRIPT;
         } elseif ($first_assign_group > 0) {
             $input['_groups_id_assign'] = $first_assign_group;
         }
+        return $input;
+    }
+
+    /**
+     * Resolves the technician ID with the lowest active ticket workload.
+     * Logic:
+     * - Filters candidates by group (if specified) or all active technicians.
+     * - Counts open/active tickets (status not in SOLVED or CLOSED).
+     * - Selects the technician with the fewest active tickets.
+     * - In case of a tie, selects the one whose last assigned ticket is oldest (fair round-robin).
+     *
+     * @param int|null $groupId
+     * @param int $entityId
+     * @return int
+     */
+    public static function getLeastLoadedTechnicianId(?int $groupId = null, int $entityId = 0): int
+    {
+        global $DB;
+
+        $candidate_ids = [];
+
+        // 1. If group is specified, find active central technicians in that group
+        if ($groupId !== null && $groupId > 0) {
+            $res = $DB->request([
+                'SELECT'     => ['u.id', 'p.name AS profile_name'],
+                'DISTINCT'   => true,
+                'FROM'       => 'glpi_users AS u',
+                'INNER JOIN' => [
+                    'glpi_groups_users AS gu' => [
+                        'FKEY' => ['gu' => 'users_id', 'u' => 'id']
+                    ],
+                    'glpi_profiles_users AS pu' => [
+                        'FKEY' => ['pu' => 'users_id', 'u' => 'id']
+                    ],
+                    'glpi_profiles AS p' => [
+                        'FKEY' => ['p' => 'id', 'pu' => 'profiles_id']
+                    ]
+                ],
+                'WHERE'      => [
+                    'gu.groups_id' => $groupId,
+                    'u.is_deleted' => 0,
+                    'u.is_active'  => 1,
+                    'p.interface'  => 'central'
+                ]
+            ]);
+
+            $group_techs = [];
+            $group_centrals = [];
+            foreach ($res as $row) {
+                $uid = (int)$row['id'];
+                if (strcasecmp($row['profile_name'], 'Technician') === 0 || strcasecmp($row['profile_name'], 'Técnico') === 0) {
+                    $group_techs[$uid] = $uid;
+                } else {
+                    $group_centrals[$uid] = $uid;
+                }
+            }
+
+            if (!empty($group_techs)) {
+                $candidate_ids = array_values($group_techs);
+            } elseif (!empty($group_centrals)) {
+                $candidate_ids = array_values($group_centrals);
+            }
+        }
+
+        // 2. Fallback to all active central technicians if no group or group has no central users
+        if (empty($candidate_ids)) {
+            $res = $DB->request([
+                'SELECT'     => ['u.id', 'p.name AS profile_name'],
+                'DISTINCT'   => true,
+                'FROM'       => 'glpi_users AS u',
+                'INNER JOIN' => [
+                    'glpi_profiles_users AS pu' => [
+                        'FKEY' => ['pu' => 'users_id', 'u' => 'id']
+                    ],
+                    'glpi_profiles AS p' => [
+                        'FKEY' => ['p' => 'id', 'pu' => 'profiles_id']
+                    ]
+                ],
+                'WHERE'      => [
+                    'u.is_deleted' => 0,
+                    'u.is_active'  => 1,
+                    'p.interface'  => 'central'
+                ]
+            ]);
+
+            $all_techs = [];
+            $all_centrals = [];
+            foreach ($res as $row) {
+                $uid = (int)$row['id'];
+                if (strcasecmp($row['profile_name'], 'Technician') === 0 || strcasecmp($row['profile_name'], 'Técnico') === 0) {
+                    $all_techs[$uid] = $uid;
+                } else {
+                    $all_centrals[$uid] = $uid;
+                }
+            }
+
+            if (!empty($all_techs)) {
+                $candidate_ids = array_values($all_techs);
+            } elseif (!empty($all_centrals)) {
+                $candidate_ids = array_values($all_centrals);
+            }
+        }
+
+        if (empty($candidate_ids)) {
+            return 0;
+        }
+
+        if (count($candidate_ids) === 1) {
+            return (int)$candidate_ids[0];
+        }
+
+        // 3. Count open tickets per candidate (excluding solved and closed)
+        $not_closed = array_unique(array_merge(
+            Ticket::getSolvedStatusArray(),
+            Ticket::getClosedStatusArray()
+        ));
+        $not_closed_str = implode(',', array_map('intval', $not_closed));
+        $cids_str = implode(',', array_map('intval', $candidate_ids));
+
+        $workload = [];
+        $last_assigned_date = [];
+        foreach ($candidate_ids as $cid) {
+            $workload[$cid] = 0;
+            $last_assigned_date[$cid] = '1970-01-01 00:00:00';
+        }
+
+        $assignType = CommonITILActor::ASSIGN;
+        $count_query = "SELECT tu.users_id, COUNT(DISTINCT t.id) AS active_tickets, MAX(t.date) AS last_date
+                        FROM glpi_tickets_users tu
+                        JOIN glpi_tickets t ON t.id = tu.tickets_id
+                        WHERE tu.type = {$assignType}
+                          AND t.is_deleted = 0
+                          AND t.status NOT IN ({$not_closed_str})
+                          AND tu.users_id IN ({$cids_str})
+                        GROUP BY tu.users_id";
+
+        foreach ($DB->request($count_query) as $row) {
+            $uid = (int)$row['users_id'];
+            if (isset($workload[$uid])) {
+                $workload[$uid] = (int)$row['active_tickets'];
+                if (!empty($row['last_date'])) {
+                    $last_assigned_date[$uid] = $row['last_date'];
+                }
+            }
+        }
+
+        // 4. Sort candidates:
+        // - Least open tickets first (lowest workload)
+        // - Oldest last ticket date first (fair round-robin tie breaker)
+        // - Lowest ID first (deterministic)
+        usort($candidate_ids, function($a, $b) use ($workload, $last_assigned_date) {
+            if ($workload[$a] !== $workload[$b]) {
+                return $workload[$a] <=> $workload[$b];
+            }
+            if ($last_assigned_date[$a] !== $last_assigned_date[$b]) {
+                return strcmp($last_assigned_date[$a], $last_assigned_date[$b]);
+            }
+            return $a <=> $b;
+        });
+
+        return (int)$candidate_ids[0];
+    }
+
+    /**
+     * Assigns the least loaded technician to ticket input
+     *
+     * @param array $input
+     * @return array
+     */
+    public function assignLeastLoadedTechnician(array $input): array
+    {
+        global $DB;
+
+        $group_id = 0;
+        if (!empty($input['_groups_id_assign'])) {
+            $group_id = is_array($input['_groups_id_assign']) ? (int)reset($input['_groups_id_assign']) : (int)$input['_groups_id_assign'];
+        }
+
+        if ($group_id <= 0) {
+            $input = $this->setDefaultAssignmentIfUnassigned($input);
+            if (!empty($input['_groups_id_assign'])) {
+                $group_id = is_array($input['_groups_id_assign']) ? (int)reset($input['_groups_id_assign']) : (int)$input['_groups_id_assign'];
+            }
+        }
+
+        $entity_id = (int)($input['entities_id'] ?? 0);
+        $tech_id = self::getLeastLoadedTechnicianId($group_id, $entity_id);
+
+        if ($tech_id > 0) {
+            $input['_users_id_assign'] = $tech_id;
+
+            // If ticket has no group yet, assign the technician's primary group
+            if (empty($input['_groups_id_assign'])) {
+                $user_group = $DB->request([
+                    'SELECT' => ['groups_id'],
+                    'FROM'   => 'glpi_groups_users',
+                    'WHERE'  => ['users_id' => $tech_id],
+                    'LIMIT'  => 1
+                ])->current();
+                if ($user_group && !empty($user_group['groups_id'])) {
+                    $input['_groups_id_assign'] = (int)$user_group['groups_id'];
+                }
+            }
+        }
+
         return $input;
     }
 }

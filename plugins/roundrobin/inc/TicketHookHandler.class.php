@@ -46,7 +46,27 @@ class PluginRoundRobinTicketHookHandler extends CommonDBTM implements IPluginRou
         if ($item->getType() !== 'Ticket') {
             return;
         }
-        PluginRoundRobinLogger::addDebug(__METHOD__ . " - TicketId: " . $this->getTicketId($item));
+
+        $ticketId = (int)$this->getTicketId($item);
+        if ($ticketId <= 0) {
+            return;
+        }
+
+        // If ticket already has an assigned technician (from prepareInputForAdd or manual), keep it
+        $has_tech = $this->DB->request([
+            'COUNT' => 'c',
+            'FROM'  => 'glpi_tickets_users',
+            'WHERE' => [
+                'tickets_id' => $ticketId,
+                'type'       => 2 // CommonITILActor::ASSIGN
+            ]
+        ])->current();
+        if ($has_tech && (int)$has_tech['c'] > 0) {
+            PluginRoundRobinLogger::addDebug(__METHOD__ . " - Ticket {$ticketId} already has technician assigned. Skipping.");
+            return;
+        }
+
+        PluginRoundRobinLogger::addDebug(__METHOD__ . " - TicketId: " . $ticketId);
         PluginRoundRobinLogger::addDebug(__METHOD__ . " - CategoryId: " . $this->getTicketCategory($item));
         $this->assignTicket($item);
     }
@@ -260,75 +280,51 @@ EOT;
         }
 
         $itilcategoriesId = (int)$this->getTicketCategory($item);
-        $urgency = isset($item->fields['urgency']) ? (int)$item->fields['urgency'] : 3;
-        if ($urgency <= 0) {
-            $ticket = new Ticket();
-            if ($ticket->getFromDB($ticketId)) {
-                $urgency = (int)($ticket->fields['urgency'] ?? 3);
+        $groupId = 0;
+        if ($itilcategoriesId > 0) {
+            $cat = new ITILCategory();
+            if ($cat->getFromDB($itilcategoriesId) && !empty($cat->fields['groups_id'])) {
+                $groupId = (int)$cat->fields['groups_id'];
+            }
+        }
+        if ($groupId <= 0) {
+            $grp_row = $this->DB->request([
+                'SELECT' => ['groups_id'],
+                'FROM'   => 'glpi_groups_tickets',
+                'WHERE'  => ['tickets_id' => $ticketId, 'type' => 2],
+                'LIMIT'  => 1
+            ])->current();
+            if ($grp_row && !empty($grp_row['groups_id'])) {
+                $groupId = (int)$grp_row['groups_id'];
             }
         }
 
-        $lastAssignmentIndex = $this->getLastAssignmentIndex($item);
-        if ($lastAssignmentIndex === false) {
-            $lastAssignmentIndex = null;
+        $userId = Ticket::getLeastLoadedTechnicianId($groupId);
+        if ($userId > 0) {
+            $this->setAssignment($ticketId, $userId, $itilcategoriesId);
+            return $userId;
         }
 
-        $categoryGroupMembers = $this->getGroupsUsersByCategory($itilcategoriesId);
-        if (count($categoryGroupMembers) === 0) {
-            PluginRoundRobinLogger::addDebug(__FUNCTION__ . ' - No members found for ticket ' . $ticketId);
-            return null;
-        }
-
-        // Filter eligible technicians based on urgency and seniority level
-        $eligibleMembers = $this->filterTechniciansByUrgency($categoryGroupMembers, $urgency);
-        if (empty($eligibleMembers)) {
-            $eligibleMembers = $categoryGroupMembers;
-        }
-
-        // Select the least busy technician among eligible
-        $newAssignmentIndex = $this->pickLeastBusyTechnicianIndex($eligibleMembers, $lastAssignmentIndex);
-        $this->rrAssignmentsEntity->updateLastAssignmentIndex($itilcategoriesId, $newAssignmentIndex);
-
-        /**
-         * set the assignment
-         */
-        $userId = (int)$eligibleMembers[$newAssignmentIndex]['UserId'];
-        $this->setAssignment($ticketId, $userId, $itilcategoriesId);
-        return $userId;
+        return null;
     }
 
     public function findUserIdToAssign(int $itilcategoriesId, bool $storeChoice = true, int $urgency = 3) {
-        $lastAssignmentIndex = $this->getLastAssignmentIndexId($itilcategoriesId);
-        if ($lastAssignmentIndex === false) {
-            $lastAssignmentIndex = null;
+        $groupId = 0;
+        if ($itilcategoriesId > 0) {
+            $cat = new ITILCategory();
+            if ($cat->getFromDB($itilcategoriesId) && !empty($cat->fields['groups_id'])) {
+                $groupId = (int)$cat->fields['groups_id'];
+            }
         }
-        $categoryGroupMembers = $this->getGroupsUsersByCategory($itilcategoriesId);
-        if (count($categoryGroupMembers) === 0) {
-            return null;
-        }
-
-        $eligibleMembers = $this->filterTechniciansByUrgency($categoryGroupMembers, $urgency);
-        if (empty($eligibleMembers)) {
-            $eligibleMembers = $categoryGroupMembers;
-        }
-
-        $newAssignmentIndex = $this->pickLeastBusyTechnicianIndex($eligibleMembers, $lastAssignmentIndex);
-
-        if ($storeChoice) {
-            $this->rrAssignmentsEntity->updateLastAssignmentIndex($itilcategoriesId, $newAssignmentIndex);
-        }
-
-        $userId = (int)$eligibleMembers[$newAssignmentIndex]['UserId'];
-        return $userId;
+        return Ticket::getLeastLoadedTechnicianId($groupId);
     }
 
     protected function getLastAssignmentIndexId(int $categoryId) {
-        return $this->rrAssignmentsEntity->getLastAssignmentIndex($categoryId);
+        return false;
     }
 
     protected function getLastAssignmentIndex(CommonDBTM $item) {
-        $itilcategoriesId = (int)$this->getTicketCategory($item);
-        return $this->rrAssignmentsEntity->getLastAssignmentIndex($itilcategoriesId);
+        return false;
     }
 
     protected function setAssignment($ticketId, $userId, $itilcategoriesId) {
@@ -338,54 +334,60 @@ EOT;
             return;
         }
 
-        // 1. Remove previous assigned technician
-        $this->DB->delete('glpi_tickets_users', [
-            'tickets_id' => $ticketId,
-            'type' => 2 // CommonITILActor::ASSIGN
-        ]);
+        // Insert new technician assignment if not already exists
+        $existing = $this->DB->request([
+            'COUNT' => 'c',
+            'FROM'  => 'glpi_tickets_users',
+            'WHERE' => [
+                'tickets_id' => $ticketId,
+                'type'       => 2 // CommonITILActor::ASSIGN
+            ]
+        ])->current();
 
-        // 2. Insert new technician assignment
-        $tu = new Ticket_User();
-        $tu->add([
-            'tickets_id' => $ticketId,
-            'users_id' => $userId,
-            'type' => 2,
-            'use_notification' => 0
-        ]);
-
-        // 3. Assign Group if enabled
-        if ($this->rrAssignmentsEntity->getOptionAutoAssignGroup() === 1) {
-            $groups_id = 1;
-            if ($itilcategoriesId > 0) {
-                $catGroup = $this->rrAssignmentsEntity->getGroupByItilCategory($itilcategoriesId);
-                if ($catGroup) {
-                    $groups_id = (int)$catGroup;
-                }
-            }
-
-            $existingGroup = $this->DB->request([
-                'FROM' => 'glpi_groups_tickets',
-                'WHERE' => [
-                    'tickets_id' => $ticketId,
-                    'type' => 2
-                ]
+        if (!$existing || (int)$existing['c'] === 0) {
+            $tu = new Ticket_User();
+            $tu->add([
+                'tickets_id'       => $ticketId,
+                'users_id'         => $userId,
+                'type'             => 2,
+                'use_notification' => 0
             ]);
-            if (count($existingGroup) === 0) {
+        }
+
+        // Assign Group if ticket has none
+        $existingGroup = $this->DB->request([
+            'COUNT' => 'c',
+            'FROM'  => 'glpi_groups_tickets',
+            'WHERE' => [
+                'tickets_id' => $ticketId,
+                'type'       => 2
+            ]
+        ])->current();
+
+        if (!$existingGroup || (int)$existingGroup['c'] === 0) {
+            $u_grp = $this->DB->request([
+                'SELECT' => ['groups_id'],
+                'FROM'   => 'glpi_groups_users',
+                'WHERE'  => ['users_id' => $userId],
+                'LIMIT'  => 1
+            ])->current();
+            $groups_id = $u_grp ? (int)$u_grp['groups_id'] : 1;
+            if ($groups_id > 0) {
                 $gt = new Group_Ticket();
                 $gt->add([
                     'tickets_id' => $ticketId,
-                    'groups_id' => $groups_id,
-                    'type' => 2
+                    'groups_id'  => $groups_id,
+                    'type'       => 2
                 ]);
             }
         }
 
-        // 4. Update ticket status to ASSIGNED (2) if it was INCOMING (1)
+        // Update ticket status to ASSIGNED (2) if it was INCOMING (1)
         $ticket = new Ticket();
         if ($ticket->getFromDB($ticketId)) {
             if ((int)$ticket->fields['status'] === 1) {
                 $ticket->update([
-                    'id' => $ticketId,
+                    'id'     => $ticketId,
                     'status' => 2
                 ]);
             }

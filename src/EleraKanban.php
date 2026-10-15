@@ -264,6 +264,68 @@ class EleraKanban
                     }
                 }
             }
+
+            // Auto-assign least loaded technician for unassigned open tickets
+            if ($tech_user_id === 0 && !in_array((int)$ticket['status'], [CommonITILObject::SOLVED, CommonITILObject::CLOSED])) {
+                $tid = (int)$ticket['id'];
+                $t_group_id = 0;
+                $t_grp_row = $DB->request([
+                    'SELECT' => ['groups_id'],
+                    'FROM'   => 'glpi_groups_tickets',
+                    'WHERE'  => ['tickets_id' => $tid, 'type' => CommonITILActor::ASSIGN],
+                    'LIMIT'  => 1
+                ])->current();
+                if ($t_grp_row && !empty($t_grp_row['groups_id'])) {
+                    $t_group_id = (int)$t_grp_row['groups_id'];
+                }
+
+                $auto_tech_id = Ticket::getLeastLoadedTechnicianId($t_group_id);
+                if ($auto_tech_id > 0) {
+                    $tu_add = new Ticket_User();
+                    $tu_add->add([
+                        'tickets_id' => $tid,
+                        'users_id'   => $auto_tech_id,
+                        'type'       => CommonITILActor::ASSIGN,
+                        'use_notification' => 0
+                    ]);
+
+                    if ($t_group_id <= 0) {
+                        $u_grp = $DB->request([
+                            'SELECT' => ['groups_id'],
+                            'FROM'   => 'glpi_groups_users',
+                            'WHERE'  => ['users_id' => $auto_tech_id],
+                            'LIMIT'  => 1
+                        ])->current();
+                        $def_grp_id = $u_grp ? (int)$u_grp['groups_id'] : 1;
+                        if ($def_grp_id > 0) {
+                            $gt_add = new Group_Ticket();
+                            $gt_add->add([
+                                'tickets_id' => $tid,
+                                'groups_id'  => $def_grp_id,
+                                'type'       => CommonITILActor::ASSIGN
+                            ]);
+                        }
+                    }
+
+                    $tech_user_id = $auto_tech_id;
+                    $tech = new User();
+                    if ($tech->getFromDB($tech_user_id)) {
+                        $fname = trim($tech->fields['firstname'] ?? '');
+                        $rname = trim($tech->fields['realname'] ?? '');
+                        if (!empty($fname) && !empty($rname)) {
+                            $tech_name = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                        } else {
+                            $tech_name = !empty($fname) ? $fname : (!empty($rname) ? $rname : $tech->getName());
+                        }
+                        if (!empty($tech->fields['usertitles_id'])) {
+                            $ut = new UserTitle();
+                            if ($ut->getFromDB((int)$tech->fields['usertitles_id'])) {
+                                $tech_title = $ut->getName();
+                            }
+                        }
+                    }
+                }
+            }
             $ticket['technician'] = $tech_name;
             $ticket['technician_id'] = $tech_user_id;
             $ticket['technician_title'] = $tech_title;
