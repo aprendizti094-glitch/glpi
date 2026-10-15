@@ -177,32 +177,63 @@ aside.navbar-vertical.sidebar .navbar-brand {
     text-decoration: none !important;
 }
 
-aside.navbar-vertical.sidebar .navbar-brand .glpi-logo {
+/* Colapsado (Ícone B da Brago estilizado squircle) */
+aside.navbar-vertical.sidebar .navbar-brand .glpi-logo,
+body.navbar-collapsed aside.navbar-vertical.sidebar .navbar-brand .glpi-logo {
     width: 40px !important;
     height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
     border-radius: 12px !important;
-    background: linear-gradient(135deg, #1C1C1E 0%, #343438 100%) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+    background: #FFFFFF url("../pics/logos/logo-G-100-black.png") no-repeat center center / 76% !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
     position: relative !important;
     border: none !important;
 }
 
-aside.navbar-vertical.sidebar .navbar-brand:hover .glpi-logo {
-    transform: scale(1.08) !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28) !important;
+aside.navbar-vertical.sidebar .navbar-brand:hover .glpi-logo,
+body.navbar-collapsed aside.navbar-vertical.sidebar .navbar-brand:hover .glpi-logo {
+    transform: scale(1.06) !important;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
 }
 
 aside.navbar-vertical.sidebar .navbar-brand .glpi-logo::after {
-    content: "G" !important;
-    color: #FFFFFF !important;
-    font-size: 1.3rem !important;
-    font-weight: 800 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-    letter-spacing: -0.04em !important;
+    content: none !important;
+    display: none !important;
+}
+
+/* Expandido (Logo Completo Brago Distribuidora) */
+body:not(.navbar-collapsed) aside.navbar-vertical.sidebar .navbar-brand .glpi-logo {
+    width: 146px !important;
+    height: 44px !important;
+    border-radius: 0 !important;
+    background: url("../pics/logos/logo-GLPI-100-black.png") no-repeat center center / contain !important;
+    box-shadow: none !important;
+    display: block !important;
+}
+
+body:not(.navbar-collapsed) aside.navbar-vertical.sidebar .navbar-brand:hover .glpi-logo {
+    transform: scale(1.04) !important;
+    box-shadow: none !important;
+}
+
+/* Logo da Página de Login */
+body.page-anonymous .glpi-logo,
+body.welcome-anonymous .glpi-logo,
+.page-anonymous .glpi-logo,
+.page-card-notlogged .glpi-logo {
+    display: inline-block !important;
+    width: 270px !important;
+    height: 86px !important;
+    max-width: 90vw !important;
+    margin: 0 auto 1.5rem auto !important;
+    --logo: none !important;
+    content: none !important;
+    background: url("../pics/logos/logo-GLPI-250-black.png?v=brago2") no-repeat center center / contain !important;
 }
 
 aside.navbar-vertical.sidebar .container-fluid > span.d-none.d-lg-inline-block,
