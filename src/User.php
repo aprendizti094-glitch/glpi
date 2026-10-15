@@ -967,6 +967,9 @@ class User extends CommonDBTM
                 $right->add($affectation);
             }
         }
+
+        // Ensure technical users (Aprendiz, Pleno, Sênior) always have Technician profile and IT group
+        $this->syncTechnicianProfileFromTitle();
     }
 
 
@@ -1320,6 +1323,112 @@ class User extends CommonDBTM
                 ],
                 true
             );
+        }
+
+        // Ensure technical users (Aprendiz, Pleno, Sênior) always have Technician profile and IT group
+        $this->syncTechnicianProfileFromTitle();
+    }
+
+    /**
+     * Ensures that any user with a technical title (Aprendiz, Pleno, Sênior)
+     * is ALWAYS automatically granted the Technician profile (Central interface)
+     * and removed from Self-Service profile, as well as added to the IT group.
+     */
+    public function syncTechnicianProfileFromTitle(): void
+    {
+        global $DB;
+
+        $userId = (int)($this->fields['id'] ?? 0);
+        if ($userId <= 0) {
+            return;
+        }
+
+        $titleId = (int)($this->fields['usertitles_id'] ?? 0);
+        if ($titleId <= 0 && isset($this->input['usertitles_id'])) {
+            $titleId = (int)$this->input['usertitles_id'];
+        }
+
+        // Titles: 1 = Aprendiz, 2 = Pleno, 3 = Sênior
+        if (in_array($titleId, [1, 2, 3])) {
+            // 1. Find Technician profile ID (profile with central interface or named Technician)
+            $tech_prof = $DB->request([
+                'SELECT' => ['id'],
+                'FROM'   => 'glpi_profiles',
+                'WHERE'  => ['name' => 'Technician'],
+                'LIMIT'  => 1
+            ])->current();
+            $tech_profile_id = $tech_prof ? (int)$tech_prof['id'] : 6;
+
+            // 2. Find Self-Service profile ID
+            $self_prof = $DB->request([
+                'SELECT' => ['id'],
+                'FROM'   => 'glpi_profiles',
+                'WHERE'  => ['name' => 'Self-Service'],
+                'LIMIT'  => 1
+            ])->current();
+            $self_profile_id = $self_prof ? (int)$self_prof['id'] : 1;
+
+            // Check if user already has Technician profile
+            $has_tech = $DB->request([
+                'COUNT' => 'c',
+                'FROM'  => 'glpi_profiles_users',
+                'WHERE' => [
+                    'users_id'    => $userId,
+                    'profiles_id' => $tech_profile_id
+                ]
+            ])->current();
+
+            if (!$has_tech || (int)$has_tech['c'] === 0) {
+                // Remove Self-Service profile to prevent user from being restricted to helpdesk
+                if ($self_profile_id > 0) {
+                    $DB->delete('glpi_profiles_users', [
+                        'users_id'    => $userId,
+                        'profiles_id' => $self_profile_id
+                    ]);
+                }
+
+                // Add Technician profile
+                $pu = new Profile_User();
+                $pu->add([
+                    'users_id'           => $userId,
+                    'profiles_id'        => $tech_profile_id,
+                    'entities_id'        => (int)($this->fields['entities_id'] ?? 0),
+                    'is_recursive'       => 1,
+                    'is_default_profile' => 1
+                ]);
+            } else {
+                // Ensure Technician is set as default profile
+                $DB->update('glpi_profiles_users', [
+                    'is_default_profile' => 1
+                ], [
+                    'users_id'    => $userId,
+                    'profiles_id' => $tech_profile_id
+                ]);
+                // Remove Self-Service if it still exists alongside
+                if ($self_profile_id > 0) {
+                    $DB->delete('glpi_profiles_users', [
+                        'users_id'    => $userId,
+                        'profiles_id' => $self_profile_id
+                    ]);
+                }
+            }
+
+            // 3. Ensure user is in IT department group (Group 1: Departamento- TI)
+            $in_grp = $DB->request([
+                'COUNT' => 'c',
+                'FROM'  => 'glpi_groups_users',
+                'WHERE' => [
+                    'users_id'  => $userId,
+                    'groups_id' => 1
+                ]
+            ])->current();
+            if (!$in_grp || (int)$in_grp['c'] === 0) {
+                $gu = new Group_User();
+                $gu->add([
+                    'users_id'  => $userId,
+                    'groups_id' => 1
+                ]);
+            }
         }
     }
 

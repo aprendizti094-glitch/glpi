@@ -7340,6 +7340,77 @@ JAVASCRIPT;
     {
         global $DB;
 
+        // Auto-heal: Ensure any active user marked as Aprendiz (1), Pleno (2), or Sênior (3)
+        // is always promoted to Technician profile (central) and removed from Self-Service
+        $tech_users = $DB->request([
+            'SELECT' => ['id', 'entities_id'],
+            'FROM'   => 'glpi_users',
+            'WHERE'  => [
+                'usertitles_id' => [1, 2, 3],
+                'is_deleted'    => 0,
+                'is_active'     => 1
+            ]
+        ]);
+        foreach ($tech_users as $tu_row) {
+            $u_id = (int)$tu_row['id'];
+            $has_central = $DB->request([
+                'SELECT'     => ['pu.id'],
+                'FROM'       => 'glpi_profiles_users AS pu',
+                'INNER JOIN' => [
+                    'glpi_profiles AS p' => [
+                        'FKEY' => ['p' => 'id', 'pu' => 'profiles_id']
+                    ]
+                ],
+                'WHERE'      => [
+                    'pu.users_id' => $u_id,
+                    'p.interface' => 'central'
+                ],
+                'LIMIT'      => 1
+            ])->current();
+
+            if (!$has_central) {
+                $self_p = $DB->request([
+                    'SELECT' => ['id'],
+                    'FROM'   => 'glpi_profiles',
+                    'WHERE'  => ['name' => 'Self-Service'],
+                    'LIMIT'  => 1
+                ])->current();
+                if ($self_p) {
+                    $DB->delete('glpi_profiles_users', [
+                        'users_id'    => $u_id,
+                        'profiles_id' => (int)$self_p['id']
+                    ]);
+                }
+
+                $tech_p = $DB->request([
+                    'SELECT' => ['id'],
+                    'FROM'   => 'glpi_profiles',
+                    'WHERE'  => ['name' => 'Technician'],
+                    'LIMIT'  => 1
+                ])->current();
+                $t_pid = $tech_p ? (int)$tech_p['id'] : 6;
+
+                $pu_heal = new Profile_User();
+                $pu_heal->add([
+                    'users_id'           => $u_id,
+                    'profiles_id'        => $t_pid,
+                    'entities_id'        => (int)($tu_row['entities_id'] ?? 0),
+                    'is_recursive'       => 1,
+                    'is_default_profile' => 1
+                ]);
+
+                $in_ti = $DB->request([
+                    'COUNT' => 'c',
+                    'FROM'  => 'glpi_groups_users',
+                    'WHERE' => ['users_id' => $u_id, 'groups_id' => 1]
+                ])->current();
+                if (!$in_ti || (int)$in_ti['c'] === 0) {
+                    $gu_heal = new Group_User();
+                    $gu_heal->add(['users_id' => $u_id, 'groups_id' => 1]);
+                }
+            }
+        }
+
         $candidate_ids = [];
 
         // 1. If group is specified, find active central technicians in that group
