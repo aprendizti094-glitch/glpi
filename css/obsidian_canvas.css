@@ -219,13 +219,20 @@
 }
 
 /* SVG Edges Layer */
+.obs-svg-layer,
+.obs-svg-layer defs,
+.obs-svg-layer marker,
+.obs-svg-layer polygon,
+.obs-temp-edge {
+    pointer-events: none !important;
+}
+
 .obs-svg-layer {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
     z-index: 10;
 }
 
@@ -401,6 +408,18 @@
     border-color: #3b82f6 !important;
 }
 
+.obs-node.connect-target {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(59, 130, 246, 0.2) !important;
+    transform: scale(1.015);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.obs-node.is-source-connecting {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5), 0 6px 20px rgba(99, 102, 241, 0.25) !important;
+    border-color: #6366f1 !important;
+}
+
 /* Obsidian Card Color Variations */
 .obs-node.color-green {
     border-color: var(--obs-c-green);
@@ -499,15 +518,24 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    user-select: none;
+    cursor: default;
 }
 
 .obs-node-image-wrap img {
     max-width: 100%;
     max-height: 100%;
+    width: auto;
+    height: auto;
     object-fit: contain;
     border-radius: 6px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    pointer-events: none !important;
+    -webkit-user-drag: none !important;
+    user-select: none !important;
 }
 
 /* Anchor Ports for Connections */

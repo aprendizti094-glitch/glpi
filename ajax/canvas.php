@@ -95,11 +95,16 @@ if ($action === 'upload') {
     $data = json_decode($raw, true);
     if (!empty($data['base64'])) {
         $base64 = $data['base64'];
-        if (preg_match('/^data:image\/(\w+);base64,/', $base64, $type)) {
+        if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);base64,/', $base64, $type)) {
             $base64 = substr($base64, strpos($base64, ',') + 1);
             $ext = strtolower($type[1]);
+            if ($ext === 'jpeg') $ext = 'jpg';
+            if ($ext === 'svg+xml') $ext = 'svg';
             $base64 = base64_decode($base64);
             if ($base64 !== false) {
+                if (!is_dir($imagesDir)) {
+                    @mkdir($imagesDir, 0777, true);
+                }
                 $filename = 'pasted_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 6) . '.' . $ext;
                 file_put_contents($imagesDir . '/' . $filename, $base64);
                 $url = $rootDoc . '/ajax/canvas.php?action=view_img&name=' . urlencode($filename);

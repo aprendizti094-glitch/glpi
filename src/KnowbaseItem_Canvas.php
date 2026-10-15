@@ -255,8 +255,11 @@ class KnowbaseItem_Canvas extends CommonDBTM
                     kbTitle: <?= json_encode($title) ?>
                 };
 
+                var canvasStarted = false;
                 function startCanvas() {
+                    if (canvasStarted) return;
                     if (window.ObsidianCanvasApp && typeof window.ObsidianCanvasApp.init === 'function') {
+                        canvasStarted = true;
                         window.ObsidianCanvasApp.init(config);
                     }
                 }
@@ -273,6 +276,10 @@ class KnowbaseItem_Canvas extends CommonDBTM
                     var attempts = 0;
                     var interval = setInterval(function() {
                         attempts++;
+                        if (canvasStarted) {
+                            clearInterval(interval);
+                            return;
+                        }
                         if (window.ObsidianCanvasApp) {
                             clearInterval(interval);
                             startCanvas();

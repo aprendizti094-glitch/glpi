@@ -51,6 +51,13 @@
             this.edges = [];
             this.saveTimeout = null;
 
+            // Debounce guards & upload locks
+            this._lastAddNodeTime = 0;
+            this._lastAddNodeType = '';
+            this._lastAddNodeX = 0;
+            this._lastAddNodeY = 0;
+            this._isUploadingImage = false;
+
             if (!this.viewport) {
                 const self = this;
                 let attempts = 0;
@@ -75,6 +82,24 @@
             this.init();
         }
 
+        destroy() {
+            clearTimeout(this.saveTimeout);
+            if (this._onMouseMove) window.removeEventListener('mousemove', this._onMouseMove);
+            if (this._onMouseUp) window.removeEventListener('mouseup', this._onMouseUp);
+            if (this._onKeyDown) window.removeEventListener('keydown', this._onKeyDown);
+            if (this._onKeyUp) window.removeEventListener('keyup', this._onKeyUp);
+            if (this._onPaste) window.removeEventListener('paste', this._onPaste);
+            if (this.viewport && this._onWheel) {
+                this.viewport.removeEventListener('wheel', this._onWheel);
+            }
+            if (this.viewport && this._onMouseDown) {
+                this.viewport.removeEventListener('mousedown', this._onMouseDown);
+            }
+            if (this.viewport && this._onDblClick) {
+                this.viewport.removeEventListener('dblclick', this._onDblClick);
+            }
+        }
+
         init() {
             this.setupEvents();
             this.loadData();
@@ -84,8 +109,11 @@
             const self = this;
             if (!this.viewport) return;
 
+            // Clean up any stale listeners first
+            this.destroy();
+
             // Viewport Panning (Mouse Drag on canvas)
-            this.viewport.addEventListener('mousedown', (e) => {
+            this._onMouseDown = (e) => {
                 if (e.target === self.viewport || e.target.id === 'obs-svg-layer') {
                     if (self.connectingPort && self.connectingPort.isClickMode) {
                         self.cancelConnecting();
@@ -100,9 +128,10 @@
                         self.deselectAll();
                     }
                 }
-            });
+            };
+            this.viewport.addEventListener('mousedown', this._onMouseDown);
 
-            window.addEventListener('mousemove', (e) => {
+            this._onMouseMove = (e) => {
                 // Panning
                 if (self.isPanning) {
                     self.panX = e.clientX - self.panStartX;
@@ -145,30 +174,10 @@
                     const canvasCoords = self.screenToCanvas(e.clientX, e.clientY);
                     const p1 = self.getPortCoordinates(self.connectingPort.nodeId, self.connectingPort.side);
 
-                    // Check if hovering over candidate target node or port
-                    let targetNode = null;
-                    let targetSide = null;
-
-                    const targetElem = document.elementFromPoint(e.clientX, e.clientY);
-                    if (targetElem) {
-                        if (targetElem.classList.contains('obs-port') && targetElem.dataset.nodeId !== self.connectingPort.nodeId) {
-                            targetNode = self.nodes.find(n => n.id === targetElem.dataset.nodeId);
-                            targetSide = targetElem.dataset.side;
-                        } else {
-                            const nodeEl = targetElem.closest('.obs-node');
-                            if (nodeEl && nodeEl.dataset.nodeId !== self.connectingPort.nodeId) {
-                                targetNode = self.nodes.find(n => n.id === nodeEl.dataset.nodeId);
-                            }
-                        }
-                    }
-
-                    // Fallback geometric detection near cursor
-                    if (!targetNode) {
-                        targetNode = self.getNodeAtCoords(canvasCoords.x, canvasCoords.y, 25);
-                        if (targetNode && targetNode.id === self.connectingPort.nodeId) {
-                            targetNode = null;
-                        }
-                    }
+                    // Find candidate target node or port using multi-layer raycasting
+                    const targetMatch = self.findTargetNodeAtScreenCoords(e.clientX, e.clientY, self.connectingPort.nodeId);
+                    const targetNode = targetMatch.node;
+                    let targetSide = targetMatch.side;
 
                     // Highlight hovered target node
                     document.querySelectorAll('.obs-node.connect-target').forEach(el => {
@@ -191,9 +200,10 @@
                     self.tempEdgePath.setAttribute('d', d);
                     self.tempEdgePath.style.display = 'block';
                 }
-            });
+            };
+            window.addEventListener('mousemove', this._onMouseMove);
 
-            window.addEventListener('mouseup', (e) => {
+            this._onMouseUp = (e) => {
                 if (self.isPanning) {
                     self.isPanning = false;
                     self.viewport.classList.remove('is-dragging-canvas');
@@ -215,10 +225,11 @@
                     // Complete connection on mouseup
                     self.completeConnection(e.clientX, e.clientY);
                 }
-            });
+            };
+            window.addEventListener('mouseup', this._onMouseUp);
 
             // Zoom (Mouse Wheel)
-            this.viewport.addEventListener('wheel', (e) => {
+            this._onWheel = (e) => {
                 e.preventDefault();
                 const zoomFactor = 1.08;
                 const oldZoom = self.zoom;
@@ -235,10 +246,11 @@
                 self.zoom = newZoom;
 
                 self.applyTransform();
-            }, { passive: false });
+            };
+            this.viewport.addEventListener('wheel', this._onWheel, { passive: false });
 
             // Spacebar Panning toggle & Delete / Escape keys
-            window.addEventListener('keydown', (e) => {
+            this._onKeyDown = (e) => {
                 if (e.key === 'Escape') {
                     if (self.connectingPort) {
                         self.cancelConnecting();
@@ -256,54 +268,63 @@
                         self.deleteEdge(self.selectedEdgeId);
                     }
                 }
-            });
+            };
+            window.addEventListener('keydown', this._onKeyDown);
 
-            window.addEventListener('keyup', (e) => {
+            this._onKeyUp = (e) => {
                 if (e.code === 'Space') {
                     self.spacePressed = false;
                     self.viewport.style.cursor = '';
                 }
-            });
+            };
+            window.addEventListener('keyup', this._onKeyUp);
 
             // Double Click on Canvas Background -> Create Card
-            this.viewport.addEventListener('dblclick', (e) => {
+            this._onDblClick = (e) => {
                 if (e.target === self.viewport || e.target.id === 'obs-svg-layer') {
                     const canvasCoords = self.screenToCanvas(e.clientX, e.clientY);
                     self.addNode({
                         type: 'text',
                         title: 'Nota',
                         content: 'Escreva sua anotação...',
-                        x: canvasCoords.x - 100,
-                        y: canvasCoords.y - 40,
+                        x: Math.round(canvasCoords.x - 100),
+                        y: Math.round(canvasCoords.y - 40),
                         width: 220,
                         height: 100,
                         color: 'default'
                     });
                 }
-            });
+            };
+            this.viewport.addEventListener('dblclick', this._onDblClick);
 
             // Paste Event (Support pasting text or image directly onto canvas)
-            window.addEventListener('paste', (e) => {
-                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            this._onPaste = (e) => {
+                if (self._isUploadingImage) return;
+                const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
+                if (!items) return;
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].type.indexOf('image') !== -1) {
                         const blob = items[i].getAsFile();
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const base64 = event.target.result;
-                            self.uploadPastedImage(base64);
-                        };
-                        reader.readAsDataURL(blob);
-                        e.preventDefault();
-                        return;
+                        if (blob) {
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                self.uploadPastedImage(event.target.result, 'Pasted image');
+                            };
+                            reader.readAsDataURL(blob);
+                            e.preventDefault();
+                            return;
+                        }
                     }
                 }
-            });
+            };
+            window.addEventListener('paste', this._onPaste);
 
-            // Helper to bind events safely
+            // Helper to bind events safely without stacking multiple listeners
             const safeOn = (id, event, handler) => {
                 const el = document.getElementById(id);
-                if (el) el.addEventListener(event, handler);
+                if (el) {
+                    el['on' + event] = handler;
+                }
             };
 
             // Bottom Toolbar Buttons
@@ -313,8 +334,8 @@
                     type: 'text',
                     title: 'Nota de Tarefa',
                     content: 'Nova tarefa a realizar...',
-                    x: center.x - 100,
-                    y: center.y - 50,
+                    x: Math.round(center.x - 100),
+                    y: Math.round(center.y - 50),
                     width: 220,
                     height: 110,
                     color: 'green'
@@ -327,8 +348,8 @@
                     type: 'markdown',
                     title: 'Documento',
                     content: '## Resumo do Problema\n- Detalhe 1\n- Detalhe 2',
-                    x: center.x - 120,
-                    y: center.y - 60,
+                    x: Math.round(center.x - 120),
+                    y: Math.round(center.y - 60),
                     width: 260,
                     height: 140,
                     color: 'default'
@@ -349,6 +370,7 @@
                     };
                     reader.readAsDataURL(file);
                 }
+                e.target.value = ''; // Reset input value so subsequent uploads work cleanly
             });
 
             // Right Toolbar Actions (Zoom & Reset)
@@ -384,12 +406,12 @@
             // Context Bar Actions (Colors & Delete)
             if (this.contextBar) {
                 this.contextBar.querySelectorAll('.obs-color-dot').forEach((dot) => {
-                    dot.addEventListener('click', () => {
+                    dot.onclick = () => {
                         if (self.selectedNodeId) {
                             const color = dot.dataset.color;
                             self.setNodeColor(self.selectedNodeId, color);
                         }
-                    });
+                    };
                 });
             }
 
@@ -521,6 +543,20 @@
         }
 
         addNode(nodeData) {
+            const now = Date.now();
+            // Debounce guard: prevent duplicate node creation within 250ms
+            if (this._lastAddNodeTime && (now - this._lastAddNodeTime < 250)) {
+                if (this._lastAddNodeType === (nodeData.type || 'text') &&
+                    Math.abs(this._lastAddNodeX - (nodeData.x || 0)) < 15 &&
+                    Math.abs(this._lastAddNodeY - (nodeData.y || 0)) < 15) {
+                    return null;
+                }
+            }
+            this._lastAddNodeTime = now;
+            this._lastAddNodeType = nodeData.type || 'text';
+            this._lastAddNodeX = nodeData.x || 0;
+            this._lastAddNodeY = nodeData.y || 0;
+
             const node = {
                 id: 'node_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 type: nodeData.type || 'text',
@@ -571,7 +607,13 @@
                 body.className += ' obs-node-image-wrap';
                 const img = document.createElement('img');
                 img.src = node.imageUrl;
-                img.alt = node.title;
+                img.alt = node.title || 'Imagem';
+                img.draggable = false;
+                img.setAttribute('draggable', 'false');
+                img.style.pointerEvents = 'none';
+                img.style.userSelect = 'none';
+                img.style.webkitUserDrag = 'none';
+                img.addEventListener('dragstart', (e) => e.preventDefault());
                 body.appendChild(img);
             } else {
                 body.contentEditable = true;
@@ -647,6 +689,13 @@
             });
             el.appendChild(handleBR);
 
+            // Prevent native ghost-dragging of cards
+            el.addEventListener('dragstart', (e) => {
+                if (!e.target.isContentEditable) {
+                    e.preventDefault();
+                }
+            });
+
             // Node Selection & Dragging
             el.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('obs-port') || e.target.classList.contains('obs-resize-handle')) {
@@ -686,6 +735,7 @@
                 self.selectNode(node.id);
 
                 if (!e.target.isContentEditable) {
+                    e.preventDefault();
                     self.draggedNode = node;
                     const canvasCoords = self.screenToCanvas(e.clientX, e.clientY);
                     self.dragOffsetX = canvasCoords.x - node.x;
@@ -851,8 +901,9 @@
         }
 
         // Node geometric collision helper for connection target detection
-        getNodeAtCoords(canvasX, canvasY, padding = 20) {
+        getNodeAtCoords(canvasX, canvasY, padding = 20, excludeNodeId = null) {
             return this.nodes.find(n => {
+                if (excludeNodeId && n.id === excludeNodeId) return false;
                 return (
                     canvasX >= n.x - padding &&
                     canvasX <= n.x + n.width + padding &&
@@ -860,6 +911,70 @@
                     canvasY <= n.y + n.height + padding
                 );
             });
+        }
+
+        // Multi-layer hit detection: checks port, node element (header, body, image-wrap), and geometric bounds
+        findTargetNodeAtScreenCoords(clientX, clientY, excludeNodeId = null) {
+            let targetNode = null;
+            let targetSide = null;
+
+            // Temporarily hide tempEdgePath so it never intercepts elementsFromPoint/elementFromPoint
+            let prevDisplay = '';
+            if (this.tempEdgePath) {
+                prevDisplay = this.tempEdgePath.style.display;
+                this.tempEdgePath.style.display = 'none';
+            }
+
+            let elements = [];
+            if (typeof document.elementsFromPoint === 'function') {
+                elements = document.elementsFromPoint(clientX, clientY) || [];
+            } else if (typeof document.elementFromPoint === 'function') {
+                const single = document.elementFromPoint(clientX, clientY);
+                if (single) elements = [single];
+            }
+
+            if (this.tempEdgePath) {
+                this.tempEdgePath.style.display = prevDisplay;
+            }
+
+            // 1. Look for specific port first
+            for (const el of elements) {
+                if (!el) continue;
+                if (el.classList && el.classList.contains('obs-port')) {
+                    const portNodeId = el.dataset.nodeId;
+                    if (portNodeId && portNodeId !== excludeNodeId) {
+                        targetNode = this.nodes.find(n => n.id === portNodeId);
+                        if (targetNode) {
+                            targetSide = el.dataset.side || null;
+                            return { node: targetNode, side: targetSide };
+                        }
+                    }
+                }
+            }
+
+            // 2. Look for any node card (or elements inside a card like header, image-wrap, body)
+            for (const el of elements) {
+                if (!el) continue;
+                const nodeEl = el.closest ? el.closest('.obs-node') : null;
+                if (nodeEl) {
+                    const tId = nodeEl.dataset.nodeId || nodeEl.id.replace('obs-node-', '');
+                    if (tId && tId !== excludeNodeId) {
+                        targetNode = this.nodes.find(n => n.id === tId);
+                        if (targetNode) {
+                            return { node: targetNode, side: null };
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback: geometric proximity in canvas coordinates
+            const canvasCoords = this.screenToCanvas(clientX, clientY);
+            targetNode = this.getNodeAtCoords(canvasCoords.x, canvasCoords.y, 45, excludeNodeId);
+            if (targetNode) {
+                return { node: targetNode, side: null };
+            }
+
+            return { node: null, side: null };
         }
 
         // Calculate the closest target port side facing the source
@@ -892,39 +1007,19 @@
             const canvasCoords = this.screenToCanvas(clientX, clientY);
             const p1 = this.getPortCoordinates(this.connectingPort.nodeId, this.connectingPort.side || 'bottom');
 
-            let targetNode = null;
-            let targetSide = null;
-
-            const targetElem = document.elementFromPoint(clientX, clientY);
-            if (targetElem) {
-                if (targetElem.classList.contains('obs-port') && targetElem.dataset.nodeId !== this.connectingPort.nodeId) {
-                    targetNode = this.nodes.find(n => n.id === targetElem.dataset.nodeId);
-                    targetSide = targetElem.dataset.side;
-                } else {
-                    const nodeEl = targetElem.closest('.obs-node');
-                    if (nodeEl) {
-                        const targetId = nodeEl.dataset.nodeId || nodeEl.id.replace('obs-node-', '');
-                        if (targetId !== this.connectingPort.nodeId) {
-                            targetNode = this.nodes.find(n => n.id === targetId);
-                        }
-                    }
-                }
-            }
-
-            if (!targetNode) {
-                targetNode = this.getNodeAtCoords(canvasCoords.x, canvasCoords.y, 45);
-                if (targetNode && targetNode.id === this.connectingPort.nodeId) {
-                    targetNode = null;
-                }
-            }
+            const targetMatch = this.findTargetNodeAtScreenCoords(clientX, clientY, this.connectingPort.nodeId);
+            const targetNode = targetMatch.node;
+            let targetSide = targetMatch.side;
 
             if (targetNode && targetNode.id !== this.connectingPort.nodeId) {
                 targetSide = targetSide || this.getBestTargetSide(targetNode, p1);
                 this.addEdge(this.connectingPort.nodeId, this.connectingPort.side || 'bottom', targetNode.id, targetSide);
             } else if (this.connectingPort.hasMoved) {
-                // FEATURE 1: Dropped onto empty canvas -> Create new card automatically!
+                // Only create new card automatically if dropped far into open empty canvas, NOT near any existing node
+                const nearAnyNode = this.getNodeAtCoords(canvasCoords.x, canvasCoords.y, 80);
                 const dist = Math.hypot(clientX - this.connectingPort.startX, clientY - this.connectingPort.startY);
-                if (dist > 30) {
+
+                if (!nearAnyNode && dist > 70) {
                     const newCard = this.addNode({
                         type: 'text',
                         title: 'Nota de Tarefa',
@@ -936,18 +1031,20 @@
                         color: 'default'
                     });
 
-                    const bestSide = this.getBestTargetSide(newCard, p1);
-                    this.addEdge(this.connectingPort.nodeId, this.connectingPort.side || 'bottom', newCard.id, bestSide);
+                    if (newCard) {
+                        const bestSide = this.getBestTargetSide(newCard, p1);
+                        this.addEdge(this.connectingPort.nodeId, this.connectingPort.side || 'bottom', newCard.id, bestSide);
 
-                    setTimeout(() => {
-                        const el = document.getElementById('obs-node-' + newCard.id);
-                        if (el) {
-                            const body = el.querySelector('.obs-node-body');
-                            if (body) {
-                                body.focus();
+                        setTimeout(() => {
+                            const el = document.getElementById('obs-node-' + newCard.id);
+                            if (el) {
+                                const body = el.querySelector('.obs-node-body');
+                                if (body) {
+                                    body.focus();
+                                }
                             }
-                        }
-                    }, 60);
+                        }, 60);
+                    }
                 }
             }
 
@@ -1191,8 +1288,16 @@
         }
 
         uploadPastedImage(base64, originalName) {
+            if (this._isUploadingImage) return;
+            this._isUploadingImage = true;
             const self = this;
             const center = this.getViewportCenter();
+
+            const unlock = () => {
+                setTimeout(() => {
+                    self._isUploadingImage = false;
+                }, 300);
+            };
 
             $.ajax({
                 url: self.rootDoc + '/ajax/canvas.php?action=upload&id=' + self.kbId,
@@ -1200,6 +1305,7 @@
                 data: JSON.stringify({ base64: base64 }),
                 contentType: 'application/json',
                 success: function (res) {
+                    unlock();
                     if (res.success) {
                         self.addNode({
                             type: 'image',
@@ -1215,7 +1321,7 @@
                         // Fallback: direct data URL
                         self.addNode({
                             type: 'image',
-                            title: 'Pasted image',
+                            title: originalName || 'Pasted image',
                             imageUrl: base64,
                             x: center.x - 140,
                             y: center.y - 100,
@@ -1226,10 +1332,11 @@
                     }
                 },
                 error: function () {
+                    unlock();
                     // Fallback to inline base64
                     self.addNode({
                         type: 'image',
-                        title: 'Pasted image',
+                        title: originalName || 'Pasted image',
                         imageUrl: base64,
                         x: center.x - 140,
                         y: center.y - 100,
@@ -1388,10 +1495,19 @@
         }
     }
 
-    // Global initializer
+    // Global initializer with singleton teardown
     window.ObsidianCanvasApp = {
+        currentInstance: null,
         init: function (config) {
-            new ObsidianCanvas(config);
+            if (this.currentInstance && typeof this.currentInstance.destroy === 'function') {
+                try {
+                    this.currentInstance.destroy();
+                } catch (e) {
+                    console.error('Error destroying previous ObsidianCanvas instance:', e);
+                }
+            }
+            this.currentInstance = new ObsidianCanvas(config);
+            return this.currentInstance;
         }
     };
 
