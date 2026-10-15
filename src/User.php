@@ -1429,6 +1429,16 @@ class User extends CommonDBTM
                     'groups_id' => 1
                 ]);
             }
+
+            // 4. Ensure Technician profile has full rights to create and edit Knowledge Base and Categories
+            $DB->update('glpi_profilerights', ['rights' => 15383], [
+                'profiles_id' => $tech_profile_id,
+                'name'        => 'knowbase'
+            ]);
+            $DB->update('glpi_profilerights', ['rights' => 23], [
+                'profiles_id' => $tech_profile_id,
+                'name'        => 'knowbasecategory'
+            ]);
         }
     }
 
