@@ -193,7 +193,14 @@ if (-not $hasToken) {
     }
 }
 
-# 6. Verificar se o Ngrok ja esta ativo e online
+# 6. Garantir apenas uma única instância do Ngrok (evita ERR_NGROK_6030)
+$ngrokProcs = @(Get-Process -Name ngrok -ErrorAction SilentlyContinue)
+if ($ngrokProcs.Count -gt 1) {
+    Write-Host "   - Detectadas multiplas instancias do Ngrok ($($ngrokProcs.Count)). Encerrando conflitos..." -ForegroundColor Yellow
+    $ngrokProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 800
+}
+
 $publicUrl = $null
 try {
     $existingRes = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
@@ -205,7 +212,7 @@ try {
 } catch {}
 
 if (-not $publicUrl) {
-    # Encerrar processos orfaos antigos do Ngrok caso nao haja tunel ativo
+    # Encerrar qualquer processo orfao antigo do Ngrok caso nao haja tunel ativo
     Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
 
