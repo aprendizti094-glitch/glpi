@@ -30,6 +30,12 @@
  # ---------------------------------------------------------------------
  #}
 
+<script type="text/javascript">
+if (window.innerWidth <= 767.98 && !window.location.search.includes('desktop_home')) {
+   window.location.replace("{{ path('/front/helpdesk.public.php?create_ticket=1') }}");
+}
+</script>
+
 {% if password_alert|length %}
    <div class="alert alert-warning alert-dismissible" role="alert">
       <div class="d-flex mb-2">

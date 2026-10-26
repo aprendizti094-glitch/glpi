@@ -384,7 +384,7 @@
                                             <span class="card-id-badge">#{{ ticket['id'] }}</span>
                                             <span class="card-user-name" title="Requerente: {{ ticket['requester'] }}">{{ ticket['requester'] }}</span>
                                         </div>
-                                        <span class="card-time-pill">
+                                        <span class="card-time-pill" title="{{ ticket['time_tooltip']|default('') }}">
                                             <i class="ti ti-clock"></i>
                                             {{ ticket['time_ago'] }}
                                         </span>

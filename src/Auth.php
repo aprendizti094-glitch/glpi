@@ -1501,13 +1501,21 @@ class Auth extends CommonGLPI
             Toolbox::manageRedirect($redirect);
         }
 
+        $is_mobile = false;
+        if (isset($_SERVER['HTTP_USER_AGENT']) && preg_match('/(android|iphone|ipad|ipod|mobile|phone|tablet|webos|blackberry|iemobile|opera mini)/i', $_SERVER['HTTP_USER_AGENT'])) {
+            $is_mobile = true;
+        }
+
         // Redirect to Command Central if not post-only
         if (Session::getCurrentInterface() == "helpdesk") {
-            if ($_SESSION['glpiactiveprofile']['create_ticket_on_login']) {
+            if ($is_mobile || !empty($_SESSION['glpiactiveprofile']['create_ticket_on_login'])) {
                 Html::redirect($CFG_GLPI['root_doc'] . "/front/helpdesk.public.php?create_ticket=1");
             }
             Html::redirect($CFG_GLPI['root_doc'] . "/front/helpdesk.public.php");
         } else {
+            if ($is_mobile) {
+                Html::redirect($CFG_GLPI['root_doc'] . "/front/helpdesk.public.php?create_ticket=1");
+            }
             if ($_SESSION['glpiactiveprofile']['create_ticket_on_login']) {
                 Html::redirect(Ticket::getFormURL());
             }

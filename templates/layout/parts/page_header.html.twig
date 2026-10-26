@@ -33,8 +33,9 @@
 {% set anonymous = session('glpiactiveprofile') is null %}
 
 {% set is_vertical = user_pref('page_layout') == 'vertical' %}
+{% set is_selfservice = (get_current_interface() == 'helpdesk') or (sector|default('') == 'self-service') or ('helpdesk' in (item|default(''))) %}
 
-<body class="{{ user_pref('fold_menu') and is_vertical ? 'navbar-collapsed' : '' }} {{ is_vertical ? 'vertical-layout' : 'horizontal-layout' }} {{ is_debug_active ? 'debug-active' : '' }}{{ is_ticket_form|default(false) ? ' glpi-ticket-zap-view' : '' }}">
+<body class="{{ user_pref('fold_menu') and is_vertical ? 'navbar-collapsed' : '' }} {{ is_vertical ? 'vertical-layout' : 'horizontal-layout' }} {{ is_debug_active ? 'debug-active' : '' }}{{ is_ticket_form|default(false) ? ' glpi-ticket-zap-view' : '' }}{{ is_selfservice ? ' glpi-selfservice' : '' }}">
    {% if constant('SKIP_UPDATES') is defined and call('Update::isDbUpToDate') == false %}
       <div class="banner-need-update">
          {{ __("You are bypassing a needed update") }}
@@ -42,6 +43,138 @@
    {% endif %}
    {{ include('layout/parts/impersonate_banner.html.twig') }}
    {{ include('components/messages_after_redirect_toasts.html.twig', {'display_container': true}) }}
+
+   {% if is_selfservice and not anonymous and user is not null and not is_ticket_form %}
+      {# ===== Self-service mobile: topbar + navbar inferior (visíveis apenas em telas pequenas na home/lista via css/selfservice_mobile.css) ===== #}
+      {% set ss_name = (user.fields['firstname'] ?? '') is not empty ? user.fields['firstname'] : user.fields['name'] %}
+      {% set ss_current_script = _server['SCRIPT_NAME']|default(_server['PHP_SELF']|default('')) %}
+      {% set ss_tab_tickets = (sector|default('') == 'tickets') 
+         or (item|default('') in ['ticket', 'tickets']) 
+         or ('ticket.php' in ss_current_script) 
+         or ('ticket.form.php' in ss_current_script) %}
+      <div class="ss-mobile-topbar">
+         <div class="ss-mobile-greeting">
+            <span class="ss-mobile-badge"><i class="ti ti-headset me-1"></i> Central de Atendimento</span>
+            <h1 class="ss-mobile-username">Olá, {{ ss_name|verbatim_value }} 👋</h1>
+            <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
+               <span class="ss-mobile-entity"><i class="ti ti-building me-1"></i>{{ session('glpiactive_entity_name')|verbatim_value }}</span>
+               {% set u_loc_id = user.fields['locations_id']|default(0) %}
+               {% set u_loc_name = u_loc_id > 0 ? get_item_name('Location', u_loc_id) : 'Brago-DF' %}
+               <span class="ss-mobile-location-tag" title="Região / Localização"><i class="ti ti-map-pin me-1"></i>{{ u_loc_name }}</span>
+            </div>
+         </div>
+         <div class="ss-mobile-avatar">
+            <div class="dropdown">
+               <a href="#" class="ss-avatar-btn" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ get_item_name(user) }}">
+                  {{ include('components/user/picture.html.twig', {
+                     'users_id': user.fields['id'],
+                     'with_link': false,
+                     'avatar_size': 'avatar-md',
+                  }) }}
+               </a>
+               <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2 mt-2 animate__animated animate__fadeIn">
+                  <div class="px-3 py-2">
+                     <div class="fw-bold text-dark text-truncate" style="max-width: 220px;">{{ get_item_name(user) }}</div>
+                     <div class="small text-muted text-truncate" style="max-width: 220px;">{{ session('glpiactive_entity_name')|verbatim_value }}</div>
+                  </div>
+                  <div class="dropdown-divider"></div>
+                  {{ include('layout/parts/profile_selector.html.twig') }}
+                  <div class="dropdown-divider"></div>
+                  <a href="{{ path('/front/preference.php') }}" class="dropdown-item">
+                     <i class="ti ti-adjustments-alt me-2"></i> {{ __('My settings') }}
+                  </a>
+                  <a href="{{ path('/front/logout.php') }}" class="dropdown-item text-danger">
+                     <i class="ti ti-logout me-2"></i> {{ __('Logout') }}
+                  </a>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <nav class="ss-mobile-nav" id="ssMobileNav" data-active-tab="{{ ss_tab_tickets ? 'tickets' : 'create' }}" aria-label="Navegação principal">
+         <!-- Pílula deslizante animada com física Apple HIG -->
+         <div class="ss-mobile-nav-slider" id="ssNavSlider" aria-hidden="true"></div>
+
+         <a href="{{ path('/front/helpdesk.public.php?create_ticket=1') }}"
+            class="ss-mobile-nav-item {{ not ss_tab_tickets ? 'active' : '' }}"
+            data-tab="create"
+            id="ssTabCreate">
+            <span class="ss-mobile-nav-icon"><i class="ti ti-circle-plus"></i></span>
+            <span class="ss-mobile-nav-label">Criar chamado</span>
+         </a>
+         <a href="{{ path('/front/ticket.php') }}"
+            class="ss-mobile-nav-item {{ ss_tab_tickets ? 'active' : '' }}"
+            data-tab="tickets"
+            id="ssTabTickets">
+            <span class="ss-mobile-nav-icon"><i class="ti ti-ticket"></i></span>
+            <span class="ss-mobile-nav-label">Chamados</span>
+         </a>
+      </nav>
+
+      <script type="text/javascript">
+      document.addEventListener('DOMContentLoaded', function() {
+         var nav = document.getElementById('ssMobileNav');
+         var slider = document.getElementById('ssNavSlider');
+         if (!nav || !slider) return;
+
+         var activeTab = nav.getAttribute('data-active-tab') || 'create';
+
+         // Animação de continuidade caso o usuário tenha vindo da outra aba
+         try {
+            var prevTab = sessionStorage.getItem('ss_mobile_nav_prev');
+            if (prevTab && prevTab !== activeTab) {
+               slider.style.transition = 'none';
+               slider.style.transform = prevTab === 'tickets' ? 'translateX(100%)' : 'translateX(0)';
+               requestAnimationFrame(function() {
+                  requestAnimationFrame(function() {
+                     slider.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.45, 0.64, 1)';
+                     slider.style.transform = activeTab === 'tickets' ? 'translateX(100%)' : 'translateX(0)';
+                  });
+               });
+            } else {
+               slider.style.transform = activeTab === 'tickets' ? 'translateX(100%)' : 'translateX(0)';
+            }
+            sessionStorage.setItem('ss_mobile_nav_prev', activeTab);
+         } catch(e) {
+            slider.style.transform = activeTab === 'tickets' ? 'translateX(100%)' : 'translateX(0)';
+         }
+
+         // Efeito interativo imediato no clique/toque (Switch Animation Instantânea)
+         var items = nav.querySelectorAll('.ss-mobile-nav-item');
+         items.forEach(function(item) {
+            function handleSwitch(e) {
+               var targetTab = item.getAttribute('data-tab');
+               var currentTab = nav.getAttribute('data-active-tab');
+               if (targetTab === currentTab) return;
+
+               e.preventDefault();
+               var href = item.getAttribute('href');
+
+               nav.setAttribute('data-active-tab', targetTab);
+               try { sessionStorage.setItem('ss_mobile_nav_prev', currentTab); } catch(err) {}
+
+               // Anima pílula deslizante com física elástica
+               slider.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.45, 0.64, 1)';
+               slider.style.transform = targetTab === 'tickets' ? 'translateX(100%)' : 'translateX(0)';
+
+               // Transição suave de classes ativas e opacidade
+               items.forEach(function(it) { it.classList.remove('active'); });
+               item.classList.add('active');
+
+               // Adiciona efeito elástico de pulso
+               slider.classList.add('ss-nav-bouncing');
+
+               // Navega suavemente para a página destino após iniciar o switch
+               setTimeout(function() {
+                  window.location.href = href;
+               }, 180);
+            }
+
+            item.addEventListener('click', handleSwitch);
+         });
+      });
+      </script>
+   {% endif %}
 
    <div class="page">
 
@@ -63,7 +196,7 @@
                </span>
             {% endif %}
 
-            {% if user is not null %}
+            {% if user is not null and not is_selfservice %}
                {# There may still be a user logged in without a profile or entity. This is seen when they need to reset their password. #}
                <div class="d-lg-none">
                   {{ include('layout/parts/user_header.html.twig') }}
@@ -108,9 +241,11 @@
                   <span class="glpi-logo"></span>
                </a>
 
+               {% if not is_selfservice %}
                <div class="d-lg-none">
                   {{ include('layout/parts/user_header.html.twig') }}
                </div>
+               {% endif %}
 
                <div class="collapse navbar-collapse justify-content-center" id="navbar-menu">
                   {{ include('layout/parts/menu.html.twig') }}

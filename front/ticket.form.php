@@ -217,6 +217,94 @@ if (isset($_POST["add"])) {
         sprintf(__('%s adds an actor'), $_SESSION["glpiname"])
     );
     Html::redirect(Ticket::getFormURLWithID($id));
+} elseif (isset($_POST['take_ticket'])) {
+    if (Session::getCurrentInterface() != 'central') {
+        Html::displayRightError();
+    }
+    $id = (int) $_POST['id'];
+    $track->check($id, READ);
+    $current_user_id = Session::getLoginUserID();
+
+    if ($current_user_id > 0) {
+        // 1. Remove qualquer outro técnico atribuído anteriormente para que o chamado pertença SOMENTE a este usuário
+        $ticket_user = new Ticket_User();
+        $existing_assigns = $ticket_user->find([
+            'tickets_id' => $id,
+            'type'       => CommonITILActor::ASSIGN,
+        ]);
+        foreach ($existing_assigns as $assign_data) {
+            if ($assign_data['users_id'] != $current_user_id) {
+                $ticket_user->delete(['id' => $assign_data['id']], true);
+            }
+        }
+
+        // 2. Remove grupos atribuídos para garantir exclusividade ao técnico
+        $group_ticket = new Group_Ticket();
+        $existing_groups = $group_ticket->find([
+            'tickets_id' => $id,
+            'type'       => CommonITILActor::ASSIGN,
+        ]);
+        foreach ($existing_groups as $group_data) {
+            $group_ticket->delete(['id' => $group_data['id']], true);
+        }
+
+        // 3. Prepara atualização com o técnico logado como único responsável
+        $input = [
+            'id'           => $id,
+            '_itil_assign' => [
+                '_type'            => 'user',
+                'users_id'         => $current_user_id,
+                'use_notification' => 1,
+            ],
+        ];
+
+        // 4. Se o status for Novo (INCOMING = 1), avança para Em Atendimento / Atribuído (ASSIGNED = 2)
+        // Isso registra o tempo de início do atendimento (takeintoaccount_delay_stat) para o técnico
+        if ($track->fields['status'] == CommonITILObject::INCOMING) {
+            $input['status'] = CommonITILObject::ASSIGNED;
+        }
+
+        $track->update($input);
+
+        // 5. Atualiza tarefas abertas do chamado para este técnico (para que tempo de ação e conclusão contem para ele)
+        $task = new TicketTask();
+        $open_tasks = $task->find([
+            'tickets_id' => $id,
+            'state'      => [Planning::INFO, Planning::TODO],
+        ]);
+        foreach ($open_tasks as $task_data) {
+            $task->update([
+                'id'            => $task_data['id'],
+                'users_id_tech' => $current_user_id,
+            ]);
+        }
+
+        Event::log(
+            $id,
+            "ticket",
+            4,
+            "tracking",
+            sprintf(__('%s assume a responsabilidade do chamado'), $_SESSION["glpiname"] ?? 'Usuário')
+        );
+
+        Session::addMessageAfterRedirect(
+            __('Chamado assumido com sucesso! Você agora é o único técnico responsável.'),
+            false,
+            INFO
+        );
+
+        if (!empty($_POST['is_ajax']) || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success'         => true,
+                'message'         => __('Chamado assumido com sucesso! Você agora é o único técnico responsável.'),
+                'technician_name' => getUserName($current_user_id),
+                'status'          => $track->fields['status'],
+            ]);
+            exit();
+        }
+    }
+    Html::redirect(Ticket::getFormURLWithID($id));
 } elseif (isset($_POST['delete_document'])) {
     $track->getFromDB((int) $_POST['tickets_id']);
     $doc = new Document();

@@ -9,6 +9,20 @@
     var lastCheck = Math.floor(Date.now() / 1000) - 30; // Começa olhando os últimos 30 segundos
     var isPolling = false;
 
+    function getRootDoc() {
+        if (window.location.pathname.startsWith('/glpi/') || window.location.pathname === '/glpi') {
+            return '/glpi';
+        }
+        if (window.CFG_GLPI && typeof window.CFG_GLPI.root_doc !== 'undefined') {
+            var rd = window.CFG_GLPI.root_doc;
+            if (rd === '/glpi' && !window.location.pathname.startsWith('/glpi')) {
+                return '';
+            }
+            return rd ? rd.replace(/\/+$/, '') : '';
+        }
+        return '';
+    }
+
     // Recupera lista de eventos já exibidos
     function getSeenEvents() {
         try {
@@ -96,7 +110,7 @@
                 '<div class="glpi-toast-content">' +
                     '<div class="glpi-toast-tech">' +
                         '<strong>' + escapeHtml(evt.technician_name) + '</strong> assumiu o chamado ' +
-                        '<a href="/glpi/front/ticket.form.php?id=' + evt.ticket_id + '" class="glpi-toast-id">#' + evt.ticket_id + '</a>' +
+                        '<a href="' + getRootDoc() + '/front/ticket.form.php?id=' + evt.ticket_id + '" class="glpi-toast-id">#' + evt.ticket_id + '</a>' +
                     '</div>' +
                     '<div class="glpi-toast-title" title="' + escapeHtml(evt.ticket_title) + '">' +
                         escapeHtml(evt.ticket_title) +
@@ -205,7 +219,7 @@
         if (isPolling) return;
         isPolling = true;
 
-        var url = '/glpi/ajax/get_live_notifications.php?since=' + lastCheck + '&t=' + Date.now();
+        var url = getRootDoc() + '/ajax/get_live_notifications.php?since=' + lastCheck + '&t=' + Date.now();
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');

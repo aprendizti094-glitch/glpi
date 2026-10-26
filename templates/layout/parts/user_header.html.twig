@@ -32,6 +32,89 @@
 
 {% set rand_header = random() %}
 
+<style>
+/* Neutralização de position absolute do Tabler no header */
+.navbar .navbar-nav .nav-link .user-header-location-tag,
+.user-menu .user-menu-dropdown-toggle .user-header-location-tag,
+.user-header-location-tag {
+   position: static !important;
+   top: auto !important;
+   right: auto !important;
+   transform: none !important;
+   float: none !important;
+   display: inline-flex !important;
+   align-items: center !important;
+   gap: 3px !important;
+   padding: 1.5px 7px !important;
+   border-radius: 9999px !important;
+   font-size: 0.68rem !important;
+   font-weight: 700 !important;
+   letter-spacing: 0.02em !important;
+   line-height: 1.15 !important;
+   white-space: nowrap !important;
+   flex-shrink: 0 !important;
+   vertical-align: middle !important;
+   box-sizing: border-box !important;
+   margin: 0 !important;
+   text-transform: uppercase !important;
+}
+.user-header-location-tag i {
+   font-size: 0.72rem !important;
+   margin: 0 !important;
+   padding: 0 !important;
+}
+.user-header-location-tag.loc-df {
+   background: #EFF6FF !important;
+   color: #1D4ED8 !important;
+   border: 1px solid #BFDBFE !important;
+}
+.user-header-location-tag.loc-to {
+   background: #ECFDF5 !important;
+   color: #047857 !important;
+   border: 1px solid #A7F3D0 !important;
+}
+.user-header-location-tag.loc-go {
+   background: #FEF3C7 !important;
+   color: #B45309 !important;
+   border: 1px solid #FDE68A !important;
+}
+.user-header-location-tag.loc-ms {
+   background: #F5F3FF !important;
+   color: #6D28D9 !important;
+   border: 1px solid #DDD6FE !important;
+}
+.user-header-location-tag.loc-custom {
+   background: #F1F5F9 !important;
+   color: #334155 !important;
+   border: 1px solid #CBD5E1 !important;
+}
+[data-bs-theme='dark'] .user-header-location-tag.loc-df {
+   background: rgba(37, 99, 235, 0.2) !important;
+   color: #93C5FD !important;
+   border-color: rgba(37, 99, 235, 0.4) !important;
+}
+[data-bs-theme='dark'] .user-header-location-tag.loc-to {
+   background: rgba(5, 150, 105, 0.2) !important;
+   color: #6EE7B7 !important;
+   border-color: rgba(5, 150, 105, 0.4) !important;
+}
+[data-bs-theme='dark'] .user-header-location-tag.loc-go {
+   background: rgba(217, 119, 6, 0.2) !important;
+   color: #FCD34D !important;
+   border-color: rgba(217, 119, 6, 0.4) !important;
+}
+[data-bs-theme='dark'] .user-header-location-tag.loc-ms {
+   background: rgba(124, 58, 237, 0.2) !important;
+   color: #C4B5FD !important;
+   border-color: rgba(124, 58, 237, 0.4) !important;
+}
+[data-bs-theme='dark'] .user-header-location-tag.loc-custom {
+   background: #334155 !important;
+   color: #E2E8F0 !important;
+   border-color: #475569 !important;
+}
+</style>
+
 <div class="btn-group">
    {% if user is not null %}
       <div class="navbar-nav flex-row order-md-last user-menu">
@@ -39,24 +122,32 @@
             <a href="#" class="nav-link d-flex lh-1 text-reset p-1 dropdown-toggle user-menu-dropdown-toggle {% if is_debug_active %}bg-red-lt{% endif %}"
                data-bs-toggle="dropdown" data-bs-auto-close="outside">
                {% if not anonymous %}
-                  <div class="pe-2 d-none d-xl-block">
-                     <div>{{ (session('glpiactiveprofile')['name'] ?? '')|verbatim_value|u.truncate(35, '...') }}</div>
-                     {% set entity_completename = session('glpiactive_entity_name')|verbatim_value %}
-                     <div class="mt-1 small text-muted" title="{{ entity_completename }}"
-                          data-bs-toggle="tooltip" data-bs-placement="bottom">
-                        {{ entity_completename|truncate_left }}
-                     </div>
-                  </div>
-
                   {{ include('components/user/picture.html.twig', {
                      'users_id': user.fields['id'],
                      'with_link': false,
                      'avatar_size': '',
                   }) }}
+
+                  <div class="pe-2 d-none d-md-block text-start">
+                     <div class="fw-semibold text-truncate" style="max-width: 150px;" title="{{ user.fields['name']|default(get_item_name(user)) }}">
+                        {{ user.fields['name']|default(get_item_name(user)) }}
+                     </div>
+                     <div class="text-muted-menu small text-truncate" style="max-width: 150px; font-size: 0.75rem;" title="{{ (session('glpiactiveprofile')['name'] ?? '')|verbatim_value }}">
+                        {{ (session('glpiactiveprofile')['name'] ?? '')|verbatim_value }}
+                     </div>
+                  </div>
                {% endif %}
             </a>
             <div class="dropdown-menu dropdown-menu-end mt-1 dropdown-menu-arrow animate__animated animate__fadeInRight">
                <h6 class="dropdown-header">{{ get_item_name(user) }}</h6>
+               {% set u_loc_id = user.fields['locations_id']|default(0) %}
+               {% set u_loc_name = u_loc_id > 0 ? get_item_name('Location', u_loc_id) : 'Brago-DF' %}
+               <div class="px-3 py-1 small text-muted d-flex align-items-center justify-content-between">
+                  <span><i class="ti ti-map-pin text-primary me-1"></i> Região:</span>
+                  <a href="{{ path('/front/preference.php') }}" class="badge bg-primary text-white rounded-pill text-decoration-none" title="Clique para alterar nas preferências">
+                     {{ u_loc_name }}
+                  </a>
+               </div>
 
                {% if not anonymous %}
                   {{ include('layout/parts/profile_selector.html.twig') }}

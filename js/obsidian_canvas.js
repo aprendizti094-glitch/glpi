@@ -8,7 +8,16 @@
 
     class ObsidianCanvas {
         constructor(config) {
-            this.rootDoc = config.rootDoc || '/glpi';
+            config = config || {};
+            let detectedRoot = '';
+            if (window.location.pathname.startsWith('/glpi/') || window.location.pathname === '/glpi') {
+                detectedRoot = '/glpi';
+            } else if (typeof config.rootDoc === 'string' && config.rootDoc !== '/glpi') {
+                detectedRoot = config.rootDoc;
+            } else if (window.CFG_GLPI && typeof window.CFG_GLPI.root_doc === 'string' && window.CFG_GLPI.root_doc !== '/glpi') {
+                detectedRoot = window.CFG_GLPI.root_doc;
+            }
+            this.rootDoc = detectedRoot.replace(/\/+$/, '');
             this.kbId = config.kbId || 0;
             this.kbTitle = config.kbTitle || 'Canvas';
 
@@ -98,6 +107,28 @@
             if (this.viewport && this._onDblClick) {
                 this.viewport.removeEventListener('dblclick', this._onDblClick);
             }
+            if (this.viewport && this._onDragOver) {
+                this.viewport.removeEventListener('dragover', this._onDragOver);
+            }
+            if (this.viewport && this._onDrop) {
+                this.viewport.removeEventListener('drop', this._onDrop);
+            }
+        }
+
+        normalizeImageUrl(url) {
+            if (!url) return '';
+            if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            }
+            // If running at domain root (''), strip '/glpi/' if present
+            if (!this.rootDoc && url.startsWith('/glpi/')) {
+                return url.substring(5);
+            }
+            // If running under '/glpi', prepend if missing
+            if (this.rootDoc === '/glpi' && url.startsWith('/ajax/canvas.php')) {
+                return '/glpi' + url;
+            }
+            return url;
         }
 
         init() {
@@ -318,6 +349,35 @@
                 }
             };
             window.addEventListener('paste', this._onPaste);
+
+            // Drag & Drop image files onto Canvas Viewport
+            this._onDragOver = (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) {
+                    e.dataTransfer.dropEffect = 'copy';
+                }
+            };
+            this.viewport.addEventListener('dragover', this._onDragOver);
+
+            this._onDrop = (e) => {
+                e.preventDefault();
+                const files = e.dataTransfer ? e.dataTransfer.files : null;
+                if (files && files.length > 0) {
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (file.type && file.type.startsWith('image/')) {
+                            const canvasCoords = self.screenToCanvas(e.clientX, e.clientY);
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                self.uploadPastedImage(event.target.result, file.name, canvasCoords);
+                            };
+                            reader.readAsDataURL(file);
+                            return;
+                        }
+                    }
+                }
+            };
+            this.viewport.addEventListener('drop', this._onDrop);
 
             // Helper to bind events safely without stacking multiple listeners
             const safeOn = (id, event, handler) => {
@@ -606,7 +666,7 @@
             if (node.type === 'image') {
                 body.className += ' obs-node-image-wrap';
                 const img = document.createElement('img');
-                img.src = node.imageUrl;
+                img.src = self.normalizeImageUrl(node.imageUrl);
                 img.alt = node.title || 'Imagem';
                 img.draggable = false;
                 img.setAttribute('draggable', 'false');
@@ -614,6 +674,37 @@
                 img.style.userSelect = 'none';
                 img.style.webkitUserDrag = 'none';
                 img.addEventListener('dragstart', (e) => e.preventDefault());
+
+                img.onload = () => {
+                    if (img.naturalWidth && img.naturalHeight) {
+                        if (node.width === 280 && node.height === 200) {
+                            const aspect = img.naturalWidth / img.naturalHeight;
+                            let targetW = 320;
+                            let targetH = Math.round(targetW / aspect) + 38;
+                            if (targetH > 500) {
+                                targetH = 500;
+                                targetW = Math.round((targetH - 38) * aspect);
+                            }
+                            node.width = Math.max(180, Math.min(600, targetW));
+                            node.height = Math.max(120, Math.min(600, targetH));
+                            self.updateNodeElement(node);
+                            self.renderEdges();
+                            self.scheduleSave();
+                        }
+                    }
+                };
+
+                img.onerror = () => {
+                    img.style.display = 'none';
+                    if (!body.querySelector('.obs-img-error')) {
+                        const errBox = document.createElement('div');
+                        errBox.className = 'obs-img-error';
+                        errBox.innerHTML = '<i class="ti ti-photo-off" style="font-size:24px;color:#ef4444;display:block;margin-bottom:6px;"></i><span style="font-size:12px;color:#64748b;">Não foi possível carregar a imagem</span>';
+                        errBox.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;width:100%;height:100%;';
+                        body.appendChild(errBox);
+                    }
+                };
+
                 body.appendChild(img);
             } else {
                 body.contentEditable = true;
@@ -1287,11 +1378,11 @@
             }
         }
 
-        uploadPastedImage(base64, originalName) {
+        uploadPastedImage(base64, originalName, coords = null) {
             if (this._isUploadingImage) return;
             this._isUploadingImage = true;
             const self = this;
-            const center = this.getViewportCenter();
+            const center = coords || this.getViewportCenter();
 
             const unlock = () => {
                 setTimeout(() => {
@@ -1299,20 +1390,22 @@
                 }, 300);
             };
 
+            const targetUrl = (this.rootDoc ? this.rootDoc : '') + '/ajax/canvas.php?action=upload&id=' + self.kbId;
+
             $.ajax({
-                url: self.rootDoc + '/ajax/canvas.php?action=upload&id=' + self.kbId,
+                url: targetUrl,
                 type: 'POST',
                 data: JSON.stringify({ base64: base64 }),
                 contentType: 'application/json',
                 success: function (res) {
                     unlock();
-                    if (res.success) {
+                    if (res && res.success && res.url) {
                         self.addNode({
                             type: 'image',
-                            title: originalName || res.filename || 'Pasted image',
-                            imageUrl: res.url,
-                            x: center.x - 140,
-                            y: center.y - 100,
+                            title: originalName || res.filename || 'Imagem',
+                            imageUrl: self.normalizeImageUrl(res.url),
+                            x: Math.round(center.x - 140),
+                            y: Math.round(center.y - 100),
                             width: 280,
                             height: 200,
                             color: 'default'
@@ -1321,25 +1414,26 @@
                         // Fallback: direct data URL
                         self.addNode({
                             type: 'image',
-                            title: originalName || 'Pasted image',
+                            title: originalName || 'Imagem',
                             imageUrl: base64,
-                            x: center.x - 140,
-                            y: center.y - 100,
+                            x: Math.round(center.x - 140),
+                            y: Math.round(center.y - 100),
                             width: 280,
                             height: 200,
                             color: 'default'
                         });
                     }
                 },
-                error: function () {
+                error: function (xhr, status, error) {
+                    console.warn('[ObsidianCanvas] Image upload to server failed, using inline fallback:', status, error);
                     unlock();
                     // Fallback to inline base64
                     self.addNode({
                         type: 'image',
-                        title: originalName || 'Pasted image',
+                        title: originalName || 'Imagem',
                         imageUrl: base64,
-                        x: center.x - 140,
-                        y: center.y - 100,
+                        x: Math.round(center.x - 140),
+                        y: Math.round(center.y - 100),
                         width: 280,
                         height: 200,
                         color: 'default'
@@ -1369,26 +1463,39 @@
             // 1. Sync to local storage for zero latency
             try {
                 localStorage.setItem('glpi_canvas_kb_' + this.kbId, JSON.stringify(payload));
-            } catch (e) { }
+            } catch (e) {
+                try {
+                    const lightweight = {
+                        ...payload,
+                        nodes: this.nodes.map(n => n.type === 'image' && n.imageUrl && n.imageUrl.length > 50000 ? { ...n, imageUrl: '' } : n)
+                    };
+                    localStorage.setItem('glpi_canvas_kb_' + this.kbId, JSON.stringify(lightweight));
+                } catch (e2) { }
+            }
 
             // 2. Persist to GLPI backend
+            const saveUrl = (this.rootDoc ? this.rootDoc : '') + '/ajax/canvas.php?action=save&id=' + this.kbId;
             $.ajax({
-                url: this.rootDoc + '/ajax/canvas.php?action=save&id=' + this.kbId,
+                url: saveUrl,
                 type: 'POST',
                 data: JSON.stringify(payload),
                 contentType: 'application/json',
                 success: function () {
                     // Saved successfully
+                },
+                error: function (xhr, status, err) {
+                    console.warn('[ObsidianCanvas] Save error:', status, err);
                 }
             });
         }
 
         loadData() {
             const self = this;
+            const loadUrl = (this.rootDoc ? this.rootDoc : '') + '/ajax/canvas.php?action=load&id=' + self.kbId;
 
             // Check server data
             $.ajax({
-                url: self.rootDoc + '/ajax/canvas.php?action=load&id=' + self.kbId,
+                url: loadUrl,
                 type: 'GET',
                 dataType: 'json',
                 success: function (res) {
@@ -1407,7 +1514,8 @@
                         self.loadStarterCanvas();
                     }
                 },
-                error: function () {
+                error: function (xhr, status, err) {
+                    console.warn('[ObsidianCanvas] Load error from backend:', status, err);
                     const local = localStorage.getItem('glpi_canvas_kb_' + self.kbId);
                     if (local) {
                         try {

@@ -108,6 +108,10 @@ class EleraKanban
                 'glpi_tickets.impact',
                 'glpi_tickets.date',
                 'glpi_tickets.date_mod',
+                'glpi_tickets.solvedate',
+                'glpi_tickets.closedate',
+                'glpi_tickets.solve_delay_stat',
+                'glpi_tickets.actiontime',
                 'glpi_tickets.users_id_recipient',
                 'glpi_tickets.itilcategories_id',
                 'glpi_tickets.locations_id',
@@ -415,14 +419,48 @@ class EleraKanban
             $ticket['assigned_group'] = $group_name;
             $ticket['assignee'] = $tech_name ?: $group_name ?: '';
 
-            // Elapsed time
-            $time_diff = time() - strtotime($ticket['date_mod']);
-            if ($time_diff < 3600) {
-                $ticket['time_ago'] = max(1, round($time_diff / 60)) . 'm';
-            } elseif ($time_diff < 86400) {
-                $ticket['time_ago'] = round($time_diff / 3600) . 'h';
+            // Elapsed time or fixed resolution time
+            $is_solved = in_array((int)$ticket['status'], [CommonITILObject::SOLVED, CommonITILObject::CLOSED]);
+
+            if ($is_solved) {
+                // Ticket concluído: tempo total de atendimento / resolução fixo (não continua correndo)
+                $duration = 0;
+                if (!empty($ticket['actiontime']) && (int)$ticket['actiontime'] > 0) {
+                    $duration = (int)$ticket['actiontime'];
+                } elseif (!empty($ticket['solve_delay_stat']) && (int)$ticket['solve_delay_stat'] > 0) {
+                    $duration = (int)$ticket['solve_delay_stat'];
+                } elseif (!empty($ticket['solvedate'])) {
+                    $duration = max(0, strtotime($ticket['solvedate']) - strtotime($ticket['date']));
+                } elseif (!empty($ticket['closedate'])) {
+                    $duration = max(0, strtotime($ticket['closedate']) - strtotime($ticket['date']));
+                } else {
+                    $duration = max(0, strtotime($ticket['date_mod']) - strtotime($ticket['date']));
+                }
+
+                if ($duration < 3600) {
+                    $ticket['time_ago'] = max(1, round($duration / 60)) . 'm';
+                } elseif ($duration < 86400) {
+                    $ticket['time_ago'] = max(1, round($duration / 3600)) . 'h';
+                } else {
+                    $ticket['time_ago'] = max(1, round($duration / 86400)) . 'd';
+                }
+
+                $solved_date_val = !empty($ticket['solvedate']) ? $ticket['solvedate'] : (!empty($ticket['closedate']) ? $ticket['closedate'] : $ticket['date_mod']);
+                $ticket['time_tooltip'] = "Tempo de atendimento: {$ticket['time_ago']} (Concluído em: " . date('d/m/Y H:i', strtotime($solved_date_val)) . ")";
+                $ticket['time_is_solved'] = true;
             } else {
-                $ticket['time_ago'] = round($time_diff / 86400) . 'd';
+                // Ticket aberto: tempo decorrido desde a abertura
+                $time_diff = max(0, time() - strtotime($ticket['date']));
+                if ($time_diff < 3600) {
+                    $ticket['time_ago'] = max(1, round($time_diff / 60)) . 'm';
+                } elseif ($time_diff < 86400) {
+                    $ticket['time_ago'] = round($time_diff / 3600) . 'h';
+                } else {
+                    $ticket['time_ago'] = round($time_diff / 86400) . 'd';
+                }
+
+                $ticket['time_tooltip'] = "Aberto há {$ticket['time_ago']} (Criado em: " . date('d/m/Y H:i', strtotime($ticket['date'])) . ")";
+                $ticket['time_is_solved'] = false;
             }
 
             // High urgency/priority flag for amber card style

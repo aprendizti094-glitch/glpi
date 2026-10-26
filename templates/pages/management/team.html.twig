@@ -1,0 +1,719 @@
+{# Apple HIG Team & SLA Dashboard Template for GLPI #}
+
+<div class="apple-team-container my-3">
+    <!-- HERO HEADER: Apple HIG Style -->
+    <div class="apple-team-hero mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <div class="apple-hero-pill-badge mb-2">
+                    <i class="ti ti-users-group text-primary me-1"></i> Gerência &bull; Gestão de Atendimento
+                </div>
+                <h1 class="apple-hero-title mb-1">Equipe de T.I & SLAs</h1>
+                <p class="apple-hero-subtitle text-muted mb-0">
+                    Acompanhamento de performance, minutagem média de término e cumprimento de SLA dos técnicos.
+                </p>
+            </div>
+
+            <!-- Apple Segmented Control for Period Filtering -->
+            <div class="apple-segmented-control d-inline-flex align-self-start align-self-md-center">
+                <a href="?period=all" class="apple-segment-btn {{ current_period == 'all' ? 'active' : '' }}">
+                    Todos
+                </a>
+                <a href="?period=month" class="apple-segment-btn {{ current_period == 'month' ? 'active' : '' }}">
+                    Este Mês
+                </a>
+                <a href="?period=30days" class="apple-segment-btn {{ current_period == '30days' ? 'active' : '' }}">
+                    30 Dias
+                </a>
+                <a href="?period=7days" class="apple-segment-btn {{ current_period == '7days' ? 'active' : '' }}">
+                    7 Dias
+                </a>
+                <a href="?period=today" class="apple-segment-btn {{ current_period == 'today' ? 'active' : '' }}">
+                    Hoje
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOBAL KPI SUMMARY (Apple Bento Bar) -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Técnicos Ativos -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="apple-kpi-card">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="apple-kpi-label">Técnicos Ativos</span>
+                    <div class="apple-kpi-icon icon-blue">
+                        <i class="ti ti-users"></i>
+                    </div>
+                </div>
+                <div class="apple-kpi-value">{{ global_stats.total_techs }}</div>
+                <div class="apple-kpi-meta text-muted">
+                    <i class="ti ti-shield-check text-success me-1"></i> Perfil Technician
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Chamados Concluídos -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="apple-kpi-card">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="apple-kpi-label">Chamados Concluídos</span>
+                    <div class="apple-kpi-icon icon-emerald">
+                        <i class="ti ti-circle-check"></i>
+                    </div>
+                </div>
+                <div class="apple-kpi-value text-success">{{ global_stats.total_completed }}</div>
+                <div class="apple-kpi-meta text-muted">
+                    <i class="ti ti-clock text-primary me-1"></i> {{ global_stats.total_in_progress }} em atendimento
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Minutagem Média Global -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="apple-kpi-card">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="apple-kpi-label">Minutagem Média</span>
+                    <div class="apple-kpi-icon icon-purple">
+                        <i class="ti ti-clock-hour-4"></i>
+                    </div>
+                </div>
+                <div class="apple-kpi-value">{{ global_stats.global_avg_formatted }}</div>
+                <div class="apple-kpi-meta text-muted">
+                    <span class="fw-semibold">{{ global_stats.global_avg_minutes }}</span> min totais
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: SLA Global -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="apple-kpi-card">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="apple-kpi-label">SLA da Equipe</span>
+                    <div class="apple-kpi-icon icon-amber">
+                        <i class="ti ti-chart-pie"></i>
+                    </div>
+                </div>
+                <div class="apple-kpi-value {{ global_stats.global_sla_rate >= 80 ? 'text-success' : 'text-primary' }}">
+                    {{ global_stats.global_sla_rate }}%
+                </div>
+                <div class="apple-kpi-meta text-muted">
+                    No prazo de atendimento
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER / SEARCH BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0" style="font-weight: 700; font-size: 1.15rem;">
+                Integrantes da Equipe
+            </h3>
+            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                {{ technicians|length }} membros
+            </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <div class="apple-search-wrap">
+                <i class="ti ti-search apple-search-icon"></i>
+                <input type="text" id="techSearchInput" class="form-control apple-search-input" placeholder="Buscar técnico ou região..." />
+            </div>
+        </div>
+    </div>
+
+    <!-- TECHNICIANS GRID: Apple HIG Cards -->
+    <div class="row g-4" id="techCardsGrid">
+        {% for tech in technicians %}
+        <div class="col-12 col-md-6 col-xl-4 tech-card-item" data-name="{{ tech.full_name|lower }} {{ tech.name|lower }} {{ tech.location_name|lower }}">
+            <div class="apple-tech-card h-100 d-flex flex-column">
+                <!-- Card Header -->
+                <div class="apple-tech-header p-3 pb-2 d-flex justify-content-between align-items-start">
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Apple Avatar -->
+                        <div class="apple-avatar-wrap">
+                            <div class="apple-avatar avatar-color-{{ loop.index0 % 4 }}">
+                                <span>{{ tech.initials }}</span>
+                            </div>
+                            <span class="apple-status-indicator" title="Ativo no Sistema"></span>
+                        </div>
+                        <div>
+                            <h4 class="apple-tech-name mb-0">{{ tech.full_name }}</h4>
+                            <div class="apple-tech-role text-muted small">
+                                @{{ tech.name }} &bull; Técnico T.I
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLA Rate Pill Badge -->
+                    <div class="apple-sla-pill {{ tech.sla_status_badge.class }}" style="background: {{ tech.sla_status_badge.bg }}; color: {{ tech.sla_status_badge.color }};">
+                        <i class="ti ti-shield-check me-1"></i>
+                        <span>{{ tech.sla_rate }}% SLA</span>
+                    </div>
+                </div>
+
+                <!-- Region Tag -->
+                <div class="px-3 pt-1 pb-2">
+                    <span class="user-header-location-tag {{ tech.location_class }}">
+                        <i class="fas fa-map-marker-alt"></i> {{ tech.location_name }}
+                    </span>
+                </div>
+
+                <!-- Bento Metrics Grid (Exatamente o que o usuário pediu: nome, minutagem média e quantidade feita) -->
+                <div class="apple-metrics-grid p-3 pt-1 flex-grow-1">
+                    <div class="row g-2">
+                        <!-- Caixa 1: Minutagem Média de Término -->
+                        <div class="col-6">
+                            <div class="apple-metric-box metric-time">
+                                <div class="metric-header">
+                                    <i class="ti ti-clock-hour-4 text-primary"></i>
+                                    <span class="metric-label">Minutagem Média</span>
+                                </div>
+                                <div class="metric-val text-primary">
+                                    {{ tech.avg_minutes }} <span class="metric-unit">min</span>
+                                </div>
+                                <div class="metric-sub text-muted">
+                                    {{ tech.avg_minutes_formatted }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Caixa 2: Quantidade de Chamados Concluídos -->
+                        <div class="col-6">
+                            <div class="apple-metric-box metric-completed">
+                                <div class="metric-header">
+                                    <i class="ti ti-circle-check text-success"></i>
+                                    <span class="metric-label">Concluídos</span>
+                                </div>
+                                <div class="metric-val text-success">
+                                    {{ tech.completed_count }} <span class="metric-unit">feitos</span>
+                                </div>
+                                <div class="metric-sub text-muted">
+                                    Finalizados com sucesso
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Caixa 3: Em Atendimento -->
+                        <div class="col-6">
+                            <div class="apple-metric-box">
+                                <div class="metric-header">
+                                    <i class="ti ti-headset text-warning"></i>
+                                    <span class="metric-label">Em Aberto</span>
+                                </div>
+                                <div class="metric-val text-warning">
+                                    {{ tech.in_progress_count }}
+                                </div>
+                                <div class="metric-sub text-muted">
+                                    Em atendimento
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Caixa 4: Total Atribuído -->
+                        <div class="col-6">
+                            <div class="apple-metric-box">
+                                <div class="metric-header">
+                                    <i class="ti ti-stack text-secondary"></i>
+                                    <span class="metric-label">Total Atribuídos</span>
+                                </div>
+                                <div class="metric-val text-secondary">
+                                    {{ tech.total_assigned }}
+                                </div>
+                                <div class="metric-sub text-muted">
+                                    Histórico total
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLA Progress Bar -->
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted" style="font-size: 0.72rem; font-weight: 600;">Índice de SLA no Prazo</span>
+                            <span class="small fw-bold" style="font-size: 0.75rem; color: {{ tech.sla_status_badge.color }};">
+                                {{ tech.sla_rate }}%
+                            </span>
+                        </div>
+                        <div class="progress apple-progress-bar" style="height: 6px;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: {{ tech.sla_rate }}%; background-color: {{ tech.sla_status_badge.color }};"
+                                 aria-valuenow="{{ tech.sla_rate }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer with Collapsible Tickets Drawer -->
+                <div class="apple-tech-footer p-3 pt-0 border-0 bg-transparent mt-auto">
+                    {% if tech.tickets|length > 0 %}
+                    <button type="button" class="btn btn-sm btn-light w-100 rounded-3 text-secondary border-0 apple-toggle-tickets-btn"
+                            data-bs-toggle="collapse" data-bs-target="#techTicketsCollapse_{{ tech.id }}">
+                        <i class="ti ti-list-details me-1"></i> Ver Chamados Recentes ({{ tech.tickets|length }})
+                        <i class="ti ti-chevron-down ms-auto toggle-icon"></i>
+                    </button>
+
+                    <!-- Collapsible List -->
+                    <div class="collapse mt-2" id="techTicketsCollapse_{{ tech.id }}">
+                        <div class="apple-recent-tickets-box p-2 rounded-3">
+                            <ul class="list-unstyled mb-0 apple-tickets-list">
+                                {% for ticket in tech.tickets|slice(0, 5) %}
+                                <li class="apple-ticket-row py-1 px-2 mb-1 rounded-2 d-flex justify-content-between align-items-center">
+                                    <div class="text-truncate me-2">
+                                        <a href="{{ path('/front/ticket.form.php?id=' ~ ticket.id) }}" class="text-reset text-decoration-none fw-semibold small">
+                                            #{{ ticket.id }} {{ ticket.name }}
+                                        </a>
+                                        <div class="text-muted" style="font-size: 0.68rem;">
+                                            {{ ticket.status_label }} &bull; {{ ticket.date|date('d/m H:i') }}
+                                        </div>
+                                    </div>
+                                    <div class="text-end text-nowrap">
+                                        {% if ticket.is_solved %}
+                                        <span class="badge bg-success-subtle text-success border-0 px-2 py-1" style="font-size: 0.68rem;" title="Tempo de resolução">
+                                            <i class="ti ti-clock me-1"></i>{{ ticket.duration_formatted }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning-subtle text-warning border-0 px-2 py-1" style="font-size: 0.68rem;">
+                                            Aberto
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% if tech.tickets|length > 5 %}
+                            <div class="text-center pt-1">
+                                <a href="{{ path('/front/ticket.php') }}?criteria[0][field]=5&criteria[0][searchtype]=equals&criteria[0][value]={{ tech.id }}"
+                                   class="text-primary small text-decoration-none" style="font-size: 0.72rem;">
+                                    Ver todos os {{ tech.tickets|length }} chamados &rarr;
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-2 text-muted small">
+                        Nenhum chamado no período selecionado
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="apple-empty-state">
+                <i class="ti ti-user-x display-4 text-muted mb-3"></i>
+                <h4>Nenhum técnico encontrado</h4>
+                <p class="text-muted">Não há usuários atribuídos ao perfil Technician no momento.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- APPLE HIG STYLING FOR TEAM DASHBOARD -->
+<style>
+/* =========================================================================
+ * APPLE HIG TEAM DASHBOARD STYLING
+ * ====================================================================== */
+.apple-team-container {
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Hero Pill Badge */
+.apple-hero-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0, 122, 255, 0.08);
+    color: #007AFF;
+    border-radius: 9999px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.apple-hero-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.03em;
+}
+
+.apple-hero-subtitle {
+    font-size: 0.92rem;
+    color: #64748B;
+    max-width: 600px;
+}
+
+/* Apple Segmented Control */
+.apple-segmented-control {
+    background: #E2E8F0;
+    padding: 3px;
+    border-radius: 12px;
+    gap: 2px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.apple-segment-btn {
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    border-radius: 9px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.apple-segment-btn:hover {
+    color: #0F172A;
+}
+
+.apple-segment-btn.active {
+    background: #FFFFFF;
+    color: #0F172A;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Apple KPI Bento Bar */
+.apple-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 20px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.apple-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+.apple-kpi-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.apple-kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+}
+
+.icon-blue { background: #EFF6FF; color: #2563EB; }
+.icon-emerald { background: #ECFDF5; color: #059669; }
+.icon-purple { background: #F5F3FF; color: #7C3AED; }
+.icon-amber { background: #FEF3C7; color: #D97706; }
+
+.apple-kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+
+.apple-kpi-meta {
+    font-size: 0.76rem;
+    font-weight: 500;
+}
+
+/* Search Box */
+.apple-search-wrap {
+    position: relative;
+    width: 260px;
+}
+
+.apple-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+}
+
+.apple-search-input {
+    border-radius: 12px;
+    padding-left: 36px;
+    font-size: 0.84rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #FFFFFF;
+    transition: all 0.2s ease;
+}
+
+.apple-search-input:focus {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Apple Technician Card */
+.apple-tech-card {
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 22px;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    overflow: hidden;
+}
+
+.apple-tech-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px -4px rgba(37, 99, 235, 0.12), 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Avatar Styling */
+.apple-avatar-wrap {
+    position: relative;
+}
+
+.apple-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.avatar-color-0 { background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%); }
+.avatar-color-1 { background: linear-gradient(135deg, #5856D6 0%, #3634A3 100%); }
+.avatar-color-2 { background: linear-gradient(135deg, #34C759 0%, #248A3D 100%); }
+.avatar-color-3 { background: linear-gradient(135deg, #FF9500 0%, #C97200 100%); }
+
+.apple-status-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 13px;
+    height: 13px;
+    background: #34C759;
+    border: 2px solid #FFFFFF;
+    border-radius: 50%;
+}
+
+.apple-tech-name {
+    font-size: 1.12rem;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.01em;
+}
+
+.apple-tech-role {
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+/* SLA Pill */
+.apple-sla-pill {
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* Bento Metrics Grid */
+.apple-metric-box {
+    background: #F8FAFC;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    padding: 10px 12px;
+    transition: background 0.2s ease;
+}
+
+.apple-metric-box:hover {
+    background: #F1F5F9;
+}
+
+.apple-metric-box.metric-time {
+    background: #EFF6FF;
+    border-color: #DBEAFE;
+}
+
+.apple-metric-box.metric-completed {
+    background: #ECFDF5;
+    border-color: #D1FAE5;
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.metric-header i {
+    font-size: 0.85rem;
+}
+
+.metric-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748B;
+    letter-spacing: 0.02em;
+}
+
+.metric-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+
+.metric-unit {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.metric-sub {
+    font-size: 0.68rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Progress Bar */
+.apple-progress-bar {
+    background-color: #E2E8F0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+/* Recent Tickets Drawer */
+.apple-toggle-tickets-btn {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 8px 12px;
+    background: #F1F5F9 !important;
+}
+
+.apple-toggle-tickets-btn:hover {
+    background: #E2E8F0 !important;
+}
+
+.apple-toggle-tickets-btn .toggle-icon {
+    transition: transform 0.2s ease;
+}
+
+.apple-toggle-tickets-btn[aria-expanded="true"] .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.apple-recent-tickets-box {
+    background: #F8FAFC;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.apple-ticket-row {
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    transition: background 0.15s ease;
+}
+
+.apple-ticket-row:hover {
+    background: #F1F5F9;
+}
+
+/* DARK MODE SUPPORT */
+[data-bs-theme="dark"] .apple-hero-title,
+[data-bs-theme="dark"] .apple-kpi-value,
+[data-bs-theme="dark"] .apple-tech-name,
+[data-bs-theme="dark"] .card-title {
+    color: #F8FAFC !important;
+}
+
+[data-bs-theme="dark"] .apple-kpi-card,
+[data-bs-theme="dark"] .apple-tech-card,
+[data-bs-theme="dark"] .apple-search-input {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .apple-segmented-control {
+    background: #0F172A !important;
+}
+
+[data-bs-theme="dark"] .apple-segment-btn.active {
+    background: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+[data-bs-theme="dark"] .apple-metric-box {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .apple-metric-box.metric-time {
+    background: rgba(37, 99, 235, 0.15) !important;
+    border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .apple-metric-box.metric-completed {
+    background: rgba(5, 150, 105, 0.15) !important;
+    border-color: rgba(5, 150, 105, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .apple-toggle-tickets-btn,
+[data-bs-theme="dark"] .apple-recent-tickets-box {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .apple-ticket-row {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+</style>
+
+<!-- CLIENT-SIDE INSTANT FILTER -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('techSearchInput');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function(e) {
+        const query = (e.target.value || '').toLowerCase().trim();
+        const cards = document.querySelectorAll('.tech-card-item');
+
+        cards.forEach(card => {
+            const data = (card.getAttribute('data-name') || '').toLowerCase();
+            if (!query || data.includes(query)) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+</script>

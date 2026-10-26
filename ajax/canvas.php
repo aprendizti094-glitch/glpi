@@ -7,8 +7,13 @@
 
 require_once __DIR__ . '/../inc/includes.php';
 
-header('Content-Type: application/json; charset=UTF-8');
-Html::header_nocache();
+$action = $_REQUEST['action'] ?? 'load';
+
+if ($action !== 'view_img') {
+    header('Content-Type: application/json; charset=UTF-8');
+    Html::header_nocache();
+}
+
 Session::checkLoginUser();
 
 $canvasDir = GLPI_ROOT . '/files/_canvas';
@@ -21,12 +26,14 @@ if (!is_dir($imagesDir)) {
     @mkdir($imagesDir, 0777, true);
 }
 
-$action = $_REQUEST['action'] ?? 'load';
 $rawId = $_REQUEST['id'] ?? 'default';
 $kbId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawId);
 if (empty($kbId)) {
     $kbId = 'default';
 }
+
+global $CFG_GLPI;
+$rootDoc = rtrim($CFG_GLPI['root_doc'] ?? '', '/');
 
 if ($action === 'load') {
     $filePath = $canvasDir . "/canvas_{$kbId}.json";
@@ -68,10 +75,7 @@ if ($action === 'save') {
 }
 
 if ($action === 'upload') {
-    // Handle pasted / uploaded image
-    global $CFG_GLPI;
-    $rootDoc = $CFG_GLPI['root_doc'] ?? '/glpi';
-
+    // 1. Multipart form file upload
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'])) {
@@ -80,7 +84,7 @@ if ($action === 'upload') {
         $filename = 'img_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 6) . '.' . $ext;
         $dest = $imagesDir . '/' . $filename;
         if (move_uploaded_file($_FILES['image']['tmp_name'], $dest)) {
-            $url = $rootDoc . '/front/document.send.php?canvas_img=' . urlencode($filename);
+            $url = $rootDoc . '/ajax/canvas.php?action=view_img&name=' . urlencode($filename);
             echo json_encode([
                 'success' => true,
                 'url' => $url,
@@ -90,7 +94,7 @@ if ($action === 'upload') {
         }
     }
 
-    // Base64 upload
+    // 2. Base64 JSON upload
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
     if (!empty($data['base64'])) {
@@ -100,13 +104,13 @@ if ($action === 'upload') {
             $ext = strtolower($type[1]);
             if ($ext === 'jpeg') $ext = 'jpg';
             if ($ext === 'svg+xml') $ext = 'svg';
-            $base64 = base64_decode($base64);
-            if ($base64 !== false) {
+            $decodedBin = base64_decode($base64);
+            if ($decodedBin !== false) {
                 if (!is_dir($imagesDir)) {
                     @mkdir($imagesDir, 0777, true);
                 }
                 $filename = 'pasted_' . date('YmdHis') . '_' . substr(md5(uniqid()), 0, 6) . '.' . $ext;
-                file_put_contents($imagesDir . '/' . $filename, $base64);
+                file_put_contents($imagesDir . '/' . $filename, $decodedBin);
                 $url = $rootDoc . '/ajax/canvas.php?action=view_img&name=' . urlencode($filename);
                 echo json_encode([
                     'success' => true,
@@ -128,6 +132,8 @@ if ($action === 'view_img') {
     if (!empty($filename) && file_exists($dest)) {
         $mime = mime_content_type($dest) ?: 'image/png';
         header('Content-Type: ' . $mime);
+        header('Cache-Control: public, max-age=86400');
+        header('Content-Length: ' . filesize($dest));
         readfile($dest);
         exit;
     }

@@ -149,16 +149,18 @@ function fetchNgrokPublicUrl() {
     });
 }
 
-// Fallback: se a API 4040 não responder (ex: ngrok em outra sessão/usuário),
-// verifica se o endpoint público reservado está respondendo com 200/302
+// Fallback: se a API 4040 não responder imediatamente (ex: delay de inicialização),
+// testa se o último link público conhecido está respondendo
 function checkKnownPublicEndpoint(resolve) {
-    const candidateUrl = lastPublicUrl || 'https://erupt-stony-briskly.ngrok-free.dev/glpi/';
+    if (!lastPublicUrl) {
+        return resolve(null);
+    }
+    const candidateUrl = lastPublicUrl;
     try {
         const u = new URL(candidateUrl);
         const client = u.protocol === 'https:' ? https : http;
         const testReq = client.get(candidateUrl, { timeout: 3000 }, (res) => {
             if (res.statusCode >= 200 && res.statusCode < 400) {
-                lastPublicUrl = candidateUrl;
                 return resolve(candidateUrl);
             }
             resolve(lastPublicUrl);
@@ -240,13 +242,19 @@ async function getSystemStatus() {
 async function restartNgrokOnly() {
     addLog('Restaurando apenas o túnel Ngrok (mantendo Apache e MySQL intactos)...', 'warning');
     exec('taskkill /F /IM ngrok.exe', () => {
-        setTimeout(() => {
+        setTimeout(async () => {
+            const url = await fetchNgrokPublicUrl();
+            if (url) {
+                addLog(`Túnel Ngrok já ativo e respondendo: ${url}`, 'success');
+                return;
+            }
             const ngrokExe = findNgrokExe();
             const apachePort = getApacheConfiguredPort();
+            const ngrokDomain = 'skillet-hypnotic-create.ngrok-free.dev';
             if (fs.existsSync(ngrokExe)) {
-                exec(`start "Ngrok-Tunnel" /B "${ngrokExe}" http 127.0.0.1:${apachePort}`, { cwd: GLPI_DIR }, (err) => {
+                exec(`powershell -NoProfile -Command "Start-Process -FilePath '${ngrokExe}' -ArgumentList 'http', '127.0.0.1:${apachePort}', '--url=${ngrokDomain}' -WindowStyle Hidden"`, { cwd: GLPI_DIR }, (err) => {
                     if (err) addLog(`[AVISO] Erro ao iniciar ngrok: ${err.message}`, 'warning');
-                    else addLog('Túnel Ngrok relançado em segundo plano.', 'success');
+                    else addLog(`Túnel Ngrok relançado com domínio fixo (${ngrokDomain}).`, 'success');
                 });
             }
         }, 1500);

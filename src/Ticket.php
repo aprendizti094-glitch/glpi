@@ -256,6 +256,11 @@ class Ticket extends CommonITILObject
             return true;
         }
 
+        // Self-service / Helpdesk users can view tickets in entities they have access to
+        if (Session::getCurrentInterface() == 'helpdesk') {
+            return true;
+        }
+
         // Can see my tickets
         if (
             Session::haveRight(self::$rightname, self::READMY)
@@ -1996,7 +2001,9 @@ class Ticket extends CommonITILObject
 
             // 2. Auto-inherit locations_id if not explicitly provided
             if (empty($input['locations_id']) || $input['locations_id'] == 0) {
-                if (!empty($input['_locations_id_of_requester'])) {
+                if (!empty($input['forced_locations_id'])) {
+                    $input['locations_id'] = (int)$input['forced_locations_id'];
+                } elseif (!empty($input['_locations_id_of_requester'])) {
                     $input['locations_id'] = (int)$input['_locations_id_of_requester'];
                 } elseif (!empty($input['_locations_id_of_item'])) {
                     $input['locations_id'] = (int)$input['_locations_id_of_item'];
@@ -2004,6 +2011,47 @@ class Ticket extends CommonITILObject
                     $u_loc = new User();
                     if ($u_loc->getFromDB($uid) && !empty($u_loc->fields['locations_id'])) {
                         $input['locations_id'] = (int)$u_loc->fields['locations_id'];
+                    }
+                }
+                if (empty($input['locations_id']) || $input['locations_id'] == 0) {
+                    $input['locations_id'] = 1; // Brago-DF padrão
+                }
+            }
+
+            // 3. Auto-set Urgency, Impact and Priority based on Category (Sistema & ERP / Redes -> Muito Alta; Impressoras / Email -> Média; Dúvidas & Apoio -> Baixa)
+            $targetCatId = (int)($input['itilcategories_id'] ?? ($input['forced_itilcategories_id'] ?? 0));
+            if (!empty($input['forced_urgency'])) {
+                $input['urgency'] = (int)$input['forced_urgency'];
+                $input['impact'] = (int)($input['forced_impact'] ?? $input['forced_urgency']);
+                $input['priority'] = (int)($input['forced_priority'] ?? $input['forced_urgency']);
+            } elseif ($targetCatId > 0) {
+                $catObj = new ITILCategory();
+                if ($catObj->getFromDB($targetCatId)) {
+                    $catFull = mb_strtolower($catObj->fields['completename'] ?? $catObj->fields['name']);
+                    if ($targetCatId == 1 || preg_match('/(sistema|erp|winthor)/i', $catFull)) {
+                        $input['urgency'] = 5;
+                        $input['impact'] = 5;
+                        $input['priority'] = 5;
+                    } elseif ($targetCatId == 2 || preg_match('/(rede|internet|wifi|link|vpn)/i', $catFull)) {
+                        $input['urgency'] = 5;
+                        $input['impact'] = 5;
+                        $input['priority'] = 5;
+                    } elseif ($targetCatId == 4 || preg_match('/(impressora|scanner|toner|impress)/i', $catFull)) {
+                        $input['urgency'] = 3;
+                        $input['impact'] = 3;
+                        $input['priority'] = 3;
+                    } elseif ($targetCatId == 5 || preg_match('/(email|e-mail|acesso|senha)/i', $catFull)) {
+                        $input['urgency'] = 3;
+                        $input['impact'] = 3;
+                        $input['priority'] = 3;
+                    } elseif ($targetCatId == 6 || preg_match('/(duvida|dúvida|apoio|suporte|orient)/i', $catFull)) {
+                        $input['urgency'] = 2;
+                        $input['impact'] = 2;
+                        $input['priority'] = 2;
+                    } else {
+                        $input['urgency'] = 3;
+                        $input['impact'] = 3;
+                        $input['priority'] = 3;
                     }
                 }
             }
@@ -2038,6 +2086,13 @@ class Ticket extends CommonITILObject
                     $input['locations_id'] = (int)$u_loc->fields['locations_id'];
                 }
             }
+        }
+
+        // Ensure urgency, impact and priority persist if forced by category
+        if (!empty($input['forced_urgency'])) {
+            $input['urgency']  = (int)$input['forced_urgency'];
+            $input['impact']   = (int)($input['forced_impact'] ?? $input['forced_urgency']);
+            $input['priority'] = (int)($input['forced_priority'] ?? $input['forced_urgency']);
         }
 
         if (
@@ -4102,12 +4157,22 @@ JAVASCRIPT;
             'FROM'   => 'glpi_itilcategories',
             'WHERE'  => [
                 'is_helpdeskvisible' => 1,
-                'is_deleted'         => 0,
             ],
             'ORDER'  => 'completename ASC'
         ]);
         foreach ($cat_iter as $c) {
             $helpdesk_categories[] = $c;
+        }
+
+        $user_obj = new User();
+        $user_location_id = 1;
+        $user_location_name = 'Brago-DF';
+        if ($user_obj->getFromDB(Session::getLoginUserID())) {
+            $u_loc = (int)($user_obj->fields['locations_id'] ?? 0);
+            if ($u_loc > 0) {
+                $user_location_id = $u_loc;
+                $user_location_name = Dropdown::getDropdownName('glpi_locations', $u_loc);
+            }
         }
 
         TemplateRenderer::getInstance()->display('components/itilobject/selfservice.html.twig', [
@@ -4122,6 +4187,8 @@ JAVASCRIPT;
             'delegating'              => $delegating,
             'predefined_fields'       => Toolbox::prepareArrayForInput($predefined_fields),
             'helpdesk_categories'     => $helpdesk_categories,
+            'user_location_id'        => $user_location_id,
+            'user_location_name'      => $user_location_name,
         ]);
     }
 
@@ -6225,12 +6292,12 @@ JAVASCRIPT;
         $values = parent::getRights();
         unset($values[READ]);
         $values[self::READMY]    = __('See my ticket');
+        $values[self::READALL]   = __('See all tickets');
         //TRANS: short for : See tickets created by my groups
         $values[self::READGROUP] = ['short' => __('See group ticket'),
             'long'  => __('See tickets created by my groups'),
         ];
         if ($interface == 'central') {
-            $values[self::READALL]        = __('See all tickets');
             //TRANS: short for : See assigned tickets (group associated)
             $values[self::READASSIGN]     = ['short' => __('See assigned'),
                 'long'  => __('See assigned tickets'),
@@ -7272,8 +7339,7 @@ JAVASCRIPT;
                         'SELECT' => ['id'],
                         'FROM'   => 'glpi_itilcategories',
                         'WHERE'  => [
-                            'name'       => ['LIKE', "%{$escapedConcept}%"],
-                            'is_deleted' => 0,
+                            'name' => ['LIKE', "%{$escapedConcept}%"],
                         ],
                         'LIMIT'  => 1
                     ]);

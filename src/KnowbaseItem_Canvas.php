@@ -55,7 +55,7 @@ class KnowbaseItem_Canvas extends CommonDBTM
         if ($isTicket) {
             $title = sprintf(__('Chamado #%d - %s'), $id, $title);
         }
-        $rootDoc = $CFG_GLPI['root_doc'] ?? '/glpi';
+        $rootDoc = rtrim($CFG_GLPI['root_doc'] ?? '', '/');
         $v = time(); // cache buster for development
 
         echo "<!-- Obsidian Canvas Stylesheet -->\n";

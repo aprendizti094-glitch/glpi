@@ -1358,7 +1358,7 @@ HTML;
                 'types' => [
                     'SoftwareLicense', 'Budget', 'Supplier', 'Contact', 'Contract',
                     'Document', 'Line', 'Certificate', 'Datacenter', 'Cluster', 'Domain',
-                    'Appliance', 'Database',
+                    'Appliance', 'Database', 'Team',
                 ],
                 'icon'  => 'ti ti-wallet',
             ],
@@ -1510,6 +1510,19 @@ HTML;
                     $menu['assets']['content']['allassets']['links']['search']  = '/front/allassets.php';
                     break;
                 }
+            }
+
+            // Sub-aba Equipe na aba Gerência (Management)
+            if (isset($menu['management'])) {
+                $menu['management']['content']['team'] = [
+                    'title'           => 'Equipe',
+                    'shortcut'        => '',
+                    'page'            => '/front/team.php',
+                    'icon'            => 'ti ti-users-group',
+                    'links'           => [
+                        'search' => '/front/team.php',
+                    ],
+                ];
             }
 
             $_SESSION['glpimenu'] = $menu;

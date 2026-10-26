@@ -95,7 +95,12 @@ if (
 
 Session::checkValidSessionId();
 
-if (isset($_GET['create_ticket'])) {
+$is_mobile = false;
+if (isset($_SERVER['HTTP_USER_AGENT']) && preg_match('/(android|iphone|ipad|ipod|mobile|phone|tablet|webos|blackberry|iemobile|opera mini)/i', $_SERVER['HTTP_USER_AGENT'])) {
+    $is_mobile = true;
+}
+
+if (isset($_GET['create_ticket']) || ($is_mobile && !isset($_GET['desktop_home']))) {
     Html::helpHeader(__('New ticket'), "create_ticket");
     $ticket = new Ticket();
     $ticket->showFormHelpdesk(Session::getLoginUserID());

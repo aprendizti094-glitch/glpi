@@ -245,15 +245,27 @@ class DBmysql
         }
 
         $hostport = explode(":", $host);
-        if (count($hostport) < 2) {
-            // Host
-            $this->dbh->real_connect($host, $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault);
-        } elseif (intval($hostport[1]) > 0) {
-            // Host:port
-            $this->dbh->real_connect($hostport[0], $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault, $hostport[1]);
-        } else {
-            // :Socket
-            $this->dbh->real_connect($hostport[0], $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault, ini_get('mysqli.default_port'), $hostport[1]);
+        $max_retries = 4;
+        for ($retry = 0; $retry < $max_retries; $retry++) {
+            if (count($hostport) < 2) {
+                // Host
+                @$this->dbh->real_connect($host, $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault);
+            } elseif (intval($hostport[1]) > 0) {
+                // Host:port
+                @$this->dbh->real_connect($hostport[0], $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault, $hostport[1]);
+            } else {
+                // :Socket
+                @$this->dbh->real_connect($hostport[0], $this->dbuser, rawurldecode($this->dbpassword), $this->dbdefault, ini_get('mysqli.default_port'), $hostport[1]);
+            }
+
+            if (!$this->dbh->connect_errno) {
+                break;
+            }
+
+            if ($retry < $max_retries - 1) {
+                // Wait briefly for other parallel requests to complete and release connection
+                usleep(60000 + mt_rand(10000, 50000)); // 60ms - 110ms
+            }
         }
 
         if ($this->dbh->connect_error) {

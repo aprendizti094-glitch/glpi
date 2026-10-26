@@ -37,16 +37,16 @@ if (!defined('GLPI_ROOT')) {
     define('GLPI_ROOT', dirname(__FILE__, 2));
 }
 
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
 // Notice problem  for date function :
 $tz = ini_get('date.timezone');
-if (!empty($tz)) {
+if (!empty($tz) && !in_array($tz, ['UTC', 'Europe/Berlin'])) {
     date_default_timezone_set($tz);
 } else {
-    date_default_timezone_set(@date_default_timezone_get());
+    date_default_timezone_set('America/Sao_Paulo');
 }
 
 include_once(GLPI_ROOT . "/inc/autoload.function.php");

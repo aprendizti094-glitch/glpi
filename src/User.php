@@ -3387,21 +3387,325 @@ HTML;
         </script>";
         echo "</td></tr>";
 
-        echo "<tr class='tab_bg_1'>";
-        if (!empty($ID)) {
-            $locrand = mt_rand();
-            echo "<td><label for='dropdown_locations_id$locrand'>" . Location::getTypeName(1) . "</label></td><td>";
-            $entities = $this->getEntities();
-            if (count($entities) <= 0) {
-                $entities = -1;
-            }
-            Location::dropdown(['value'  => $this->fields["locations_id"],
-                'rand'   => $locrand,
-                'entity' => $entities,
-            ]);
-            echo "</td>";
+        $locrand = mt_rand();
+        $current_loc_id = (int)($this->fields["locations_id"] ?? 0);
+        $cur_loc_name = ($current_loc_id > 0) ? Dropdown::getDropdownName('glpi_locations', $current_loc_id) : 'Brago-DF';
+
+        echo "<tr class='tab_bg_1'><td colspan='4' style='padding: 12px 16px !important;'>";
+        echo "<style>
+        .user-location-selector-box {
+            width: 100% !important;
+            background: #FFFFFF !important;
+            border: 1.5px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            padding: 16px 20px !important;
+            margin: 8px 0 14px 0 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+            font-family: inherit !important;
         }
-        echo "</tr>";
+        [data-bs-theme='dark'] .user-location-selector-box {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+        }
+        .user-location-stamp-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 14px !important;
+            padding-bottom: 12px !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+        }
+        [data-bs-theme='dark'] .user-location-stamp-header {
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        .user-location-stamp-title-wrap {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        .user-location-stamp-title-wrap i {
+            font-size: 20px !important;
+            color: #0071E3 !important;
+        }
+        .user-location-stamp-title-wrap span.title-text {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            color: #1D1D1F !important;
+        }
+        [data-bs-theme='dark'] .user-location-stamp-title-wrap span.title-text {
+            color: #F5F5F7 !important;
+        }
+        .user-location-stamp-tag {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            padding: 5px 14px !important;
+            border-radius: 9999px !important;
+            font-size: 11.5px !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.6px !important;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+        }
+        .user-location-stamp-tag.stamp-df {
+            background: rgba(37, 99, 235, 0.12) !important;
+            color: #1D4ED8 !important;
+            border: 1.5px solid rgba(37, 99, 235, 0.35) !important;
+        }
+        .user-location-stamp-tag.stamp-to {
+            background: rgba(5, 150, 105, 0.12) !important;
+            color: #047857 !important;
+            border: 1.5px solid rgba(5, 150, 105, 0.35) !important;
+        }
+        .user-location-stamp-tag.stamp-go {
+            background: rgba(217, 119, 6, 0.12) !important;
+            color: #B45309 !important;
+            border: 1.5px solid rgba(217, 119, 6, 0.35) !important;
+        }
+        .user-location-stamp-tag.stamp-ms {
+            background: rgba(124, 58, 237, 0.12) !important;
+            color: #6D28D9 !important;
+            border: 1.5px solid rgba(124, 58, 237, 0.35) !important;
+        }
+        .user-location-cards-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+            gap: 12px !important;
+        }
+        .user-location-card {
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 12px 14px !important;
+            background: #F8FAFC !important;
+            border: 2px solid #E2E8F0 !important;
+            border-radius: 12px !important;
+            cursor: pointer !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            user-select: none !important;
+        }
+        [data-bs-theme='dark'] .user-location-card {
+            background: #0F172A !important;
+            border-color: #334155 !important;
+        }
+        .user-location-card:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+            border-color: #CBD5E1 !important;
+        }
+        .user-location-card.is-selected {
+            border-width: 2px !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+        }
+        .user-location-card.card-df.is-selected {
+            border-color: #2563EB !important;
+            background: rgba(37, 99, 235, 0.06) !important;
+        }
+        .user-location-card.card-to.is-selected {
+            border-color: #059669 !important;
+            background: rgba(5, 150, 105, 0.06) !important;
+        }
+        .user-location-card.card-go.is-selected {
+            border-color: #D97706 !important;
+            background: rgba(217, 119, 6, 0.06) !important;
+        }
+        .user-location-card.card-ms.is-selected {
+            border-color: #7C3AED !important;
+            background: rgba(124, 58, 237, 0.06) !important;
+        }
+        .loc-card-top {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 4px !important;
+        }
+        .loc-card-badge {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            font-size: 13px !important;
+            font-weight: 700 !important;
+        }
+        .loc-card-radio-indicator {
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 50% !important;
+            border: 2px solid #CBD5E1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 10px !important;
+            color: transparent !important;
+            transition: all 0.2s ease !important;
+        }
+        .user-location-card.is-selected .loc-card-radio-indicator {
+            color: #FFFFFF !important;
+        }
+        .user-location-card.card-df.is-selected .loc-card-radio-indicator {
+            background: #2563EB !important;
+            border-color: #2563EB !important;
+        }
+        .user-location-card.card-to.is-selected .loc-card-radio-indicator {
+            background: #059669 !important;
+            border-color: #059669 !important;
+        }
+        .user-location-card.card-go.is-selected .loc-card-radio-indicator {
+            background: #D97706 !important;
+            border-color: #D97706 !important;
+        }
+        .user-location-card.card-ms.is-selected .loc-card-radio-indicator {
+            background: #7C3AED !important;
+            border-color: #7C3AED !important;
+        }
+        .loc-card-desc {
+            font-size: 11px !important;
+            color: #64748B !important;
+            line-height: 1.35 !important;
+            margin-top: 2px !important;
+        }
+        [data-bs-theme='dark'] .loc-card-desc {
+            color: #94A3B8 !important;
+        }
+        .user-location-actions-bar {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-top: 14px !important;
+            padding-top: 12px !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+            flex-wrap: wrap !important;
+            gap: 10px !important;
+        }
+        </style>";
+
+        echo "<div class='user-location-selector-box'>";
+        echo "  <div class='user-location-stamp-header'>";
+        echo "    <div class='user-location-stamp-title-wrap'>";
+        echo "      <i class='ti ti-map-pin'></i>";
+        echo "      <span class='title-text'>" . __('Região / Localização do Usuário (Tag Padrão)') . "</span>";
+        echo "    </div>";
+        echo "    <div id='user-location-stamp-display$locrand' class='user-location-stamp-tag stamp-df'>";
+        echo "      <i class='ti ti-map-pin'></i> <span id='userLocationStampText$locrand'>BRAGO-DF</span>";
+        echo "    </div>";
+        echo "  </div>";
+
+        echo "  <div class='user-location-cards-grid'>";
+
+        // Card Brago-DF (ID 1)
+        $is_df = ($current_loc_id === 1 || $current_loc_id === 0) ? 'is-selected' : '';
+        echo "    <div class='user-location-card card-df $is_df' onclick='selectUserLocation$locrand(1, \"Brago-DF\", \"stamp-df\", \"ti ti-building\")'>";
+        echo "      <div class='loc-card-top'>";
+        echo "        <span class='loc-card-badge' style='color: #2563EB !important;'><i class='ti ti-building'></i> Brago-DF</span>";
+        echo "        <div class='loc-card-radio-indicator'><i class='ti ti-check'></i></div>";
+        echo "      </div>";
+        echo "      <div class='loc-card-desc'>" . __('Distrito Federal / Sede Matriz') . "</div>";
+        echo "    </div>";
+
+        // Card Brago-TO (ID 5)
+        $is_to = ($current_loc_id === 5) ? 'is-selected' : '';
+        echo "    <div class='user-location-card card-to $is_to' onclick='selectUserLocation$locrand(5, \"Brago-TO\", \"stamp-to\", \"ti ti-map-pin\")'>";
+        echo "      <div class='loc-card-top'>";
+        echo "        <span class='loc-card-badge' style='color: #059669 !important;'><i class='ti ti-map-pin'></i> Brago-TO</span>";
+        echo "        <div class='loc-card-radio-indicator'><i class='ti ti-check'></i></div>";
+        echo "      </div>";
+        echo "      <div class='loc-card-desc'>" . __('Tocantins / Regional') . "</div>";
+        echo "    </div>";
+
+        // Card Brago-GO (ID 6)
+        $is_go = ($current_loc_id === 6) ? 'is-selected' : '';
+        echo "    <div class='user-location-card card-go $is_go' onclick='selectUserLocation$locrand(6, \"Brago-GO\", \"stamp-go\", \"ti ti-map-pin\")'>";
+        echo "      <div class='loc-card-top'>";
+        echo "        <span class='loc-card-badge' style='color: #D97706 !important;'><i class='ti ti-map-pin'></i> Brago-GO</span>";
+        echo "        <div class='loc-card-radio-indicator'><i class='ti ti-check'></i></div>";
+        echo "      </div>";
+        echo "      <div class='loc-card-desc'>" . __('Goiás / Regional') . "</div>";
+        echo "    </div>";
+
+        // Card Brago-MS (ID 7)
+        $is_ms = ($current_loc_id === 7) ? 'is-selected' : '';
+        echo "    <div class='user-location-card card-ms $is_ms' onclick='selectUserLocation$locrand(7, \"Brago-MS\", \"stamp-ms\", \"ti ti-map-pin\")'>";
+        echo "      <div class='loc-card-top'>";
+        echo "        <span class='loc-card-badge' style='color: #7C3AED !important;'><i class='ti ti-map-pin'></i> Brago-MS</span>";
+        echo "        <div class='loc-card-radio-indicator'><i class='ti ti-check'></i></div>";
+        echo "      </div>";
+        echo "      <div class='loc-card-desc'>" . __('Mato Grosso do Sul / Regional') . "</div>";
+        echo "    </div>";
+
+        echo "  </div>";
+
+        // Barra de Ações: Dropdown para outras localizações + Links para Adicionar / Editar
+        echo "  <div class='user-location-actions-bar'>";
+        echo "    <div style='display: flex; align-items: center; gap: 8px;'>";
+        echo "      <span style='font-size: 12px; color: #64748B; font-weight: 600;'><i class='ti ti-list'></i> " . __('Outra localização:') . "</span>";
+        $entities = $this->getEntities();
+        if (count($entities) <= 0) {
+            $entities = -1;
+        }
+        Location::dropdown([
+            'value'  => $current_loc_id,
+            'rand'   => $locrand,
+            'entity' => $entities,
+            'name'   => 'custom_locations_id'
+        ]);
+        echo "    </div>";
+        echo "    <div style='display: flex; gap: 8px;'>";
+        echo "      <a href='location.form.php' target='_blank' class='btn btn-sm btn-outline-primary' style='border-radius: 9999px; font-size: 11.5px; padding: 4px 12px;'><i class='ti ti-plus'></i> " . __('Adicionar Localização') . "</a>";
+        echo "      <a href='location.php' target='_blank' class='btn btn-sm btn-outline-secondary' style='border-radius: 9999px; font-size: 11.5px; padding: 4px 12px;'><i class='ti ti-edit'></i> " . __('Gerenciar Localizações') . "</a>";
+        echo "    </div>";
+        echo "  </div>";
+
+        echo "  <input type='hidden' name='locations_id' id='dropdown_locations_id$locrand' value='" . ($current_loc_id > 0 ? $current_loc_id : 1) . "' />";
+        echo "</div>";
+
+        echo "<script>
+        function selectUserLocation$locrand(id, name, stampClass, iconClass) {
+            var hiddenInput = document.getElementById('dropdown_locations_id$locrand');
+            if (hiddenInput) {
+                hiddenInput.value = id;
+            }
+            document.querySelectorAll('.user-location-card').forEach(function(card) {
+                card.classList.remove('is-selected');
+            });
+            if (window.event && window.event.currentTarget) {
+                window.event.currentTarget.classList.add('is-selected');
+            }
+            var stamp = document.getElementById('user-location-stamp-display$locrand');
+            if (stamp) {
+                stamp.className = 'user-location-stamp-tag ' + stampClass;
+                stamp.innerHTML = '<i class=\"' + iconClass + '\"></i> <span>' + name.toUpperCase() + '</span>';
+            }
+        }
+        (function() {
+            function updateInitialLocStamp() {
+                var curId = parseInt('" . ($current_loc_id > 0 ? $current_loc_id : 1) . "');
+                var stamp = document.getElementById('user-location-stamp-display$locrand');
+                if (!stamp) return;
+                if (curId === 5) {
+                    stamp.className = 'user-location-stamp-tag stamp-to';
+                    stamp.innerHTML = '<i class=\"ti ti-map-pin\"></i> <span>BRAGO-TO</span>';
+                } else if (curId === 6) {
+                    stamp.className = 'user-location-stamp-tag stamp-go';
+                    stamp.innerHTML = '<i class=\"ti ti-map-pin\"></i> <span>BRAGO-GO</span>';
+                } else if (curId === 7) {
+                    stamp.className = 'user-location-stamp-tag stamp-ms';
+                    stamp.innerHTML = '<i class=\"ti ti-map-pin\"></i> <span>BRAGO-MS</span>';
+                } else if (curId === 1 || curId === 0) {
+                    stamp.className = 'user-location-stamp-tag stamp-df';
+                    stamp.innerHTML = '<i class=\"ti ti-building\"></i> <span>BRAGO-DF</span>';
+                } else {
+                    stamp.className = 'user-location-stamp-tag stamp-df';
+                    stamp.innerHTML = '<i class=\"ti ti-map-pin\"></i> <span>" . addslashes(strtoupper($cur_loc_name)) . "</span>';
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', updateInitialLocStamp);
+            } else {
+                updateInitialLocStamp();
+            }
+        })();
+        </script>";
+        echo "</td></tr>";
 
         if (empty($ID)) {
             echo "<tr class='tab_bg_1'>";

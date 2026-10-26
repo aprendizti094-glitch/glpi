@@ -2628,6 +2628,9 @@ class Entity extends CommonTreeDropdown
      */
     public function getCustomCssTag()
     {
+        if (!isset($this->fields['id'])) {
+            return '';
+        }
 
         $enable_custom_css = self::getUsedConfig(
             'enable_custom_css',

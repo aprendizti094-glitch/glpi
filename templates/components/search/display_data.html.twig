@@ -276,6 +276,181 @@
         transform: translateY(-1px) !important;
         box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35) !important;
     }
+
+    /* Regras Mobile Self-Service (Escopo exclusivo: <= 767.98px e body.glpi-selfservice) */
+    @media (max-width: 767.98px) {
+        /* Ocultar formulário nativo de busca avançada / critérios (destaque em vermelho) */
+        body.glpi-selfservice .search-form-container,
+        body.glpi-selfservice .search-form.card,
+        body.glpi-selfservice form[data-glpi-search-form],
+        body.glpi-selfservice .search-criteria-container,
+        body.glpi-selfservice [id^="searchcriteria"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* Grid moderna para os Cards de KPI (Dividindo em grades) */
+        body.glpi-selfservice .elera-kpi-row {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+            margin-bottom: 12px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card {
+            padding: 9px 10px !important;
+            border-radius: 14px !important;
+            gap: 8px !important;
+            min-width: 0 !important;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+            position: relative !important;
+        }
+
+        /* Total Chamados ocupa largura total das 2 colunas como resumo superior */
+        body.glpi-selfservice .elera-kpi-card:first-child {
+            grid-column: span 2 !important;
+            padding: 10px 14px !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card .kpi-icon-wrap {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+            border-radius: 10px !important;
+            font-size: 1.05rem !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card .kpi-label {
+            font-size: 0.68rem !important;
+            letter-spacing: 0.02em !important;
+            line-height: 1.15 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card .kpi-value {
+            font-size: 1.25rem !important;
+            line-height: 1.1 !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card .kpi-unit {
+            font-size: 0.65rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        /* Ocultar badge/tag nos cards das 2 colunas para manter o layout limpo e legível */
+        body.glpi-selfservice .elera-kpi-card:not(:first-child) .kpi-tag {
+            display: none !important;
+        }
+
+        body.glpi-selfservice .elera-kpi-card:first-child .kpi-tag {
+            top: 10px !important;
+            right: 12px !important;
+            font-size: 0.65rem !important;
+            padding: 2px 7px !important;
+        }
+
+        /* Barra de filtros simplificada: Apenas Kanban/Lista, Meus chamados e Todos */
+        body.glpi-selfservice .elera-ticket-filter-bar {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            padding: 8px 12px !important;
+            margin-bottom: 12px !important;
+            border-radius: 16px !important;
+            background: #FFFFFF !important;
+            border: 1px solid rgba(0, 0, 0, 0.06) !important;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+            flex-wrap: wrap !important;
+            box-sizing: border-box !important;
+        }
+
+        body.glpi-selfservice .elera-filter-chips {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex: 1 1 auto !important;
+        }
+
+        /* Ocultar filtros de status intermediários (mantém apenas Todos e Meus chamados) */
+        body.glpi-selfservice .elera-filter-chips .elera-pill:not(:first-child):not(:nth-child(2)) {
+            display: none !important;
+        }
+
+        body.glpi-selfservice .elera-filter-chips .elera-pill {
+            padding: 5px 11px !important;
+            font-size: 0.78rem !important;
+            gap: 5px !important;
+            border-radius: 9999px !important;
+        }
+
+        body.glpi-selfservice .elera-filter-actions {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin-left: auto !important;
+        }
+
+        /* Ocultar busca em texto, botão de filtros avançados, contagem e botão de novo chamado */
+        body.glpi-selfservice .elera-quick-search-form,
+        body.glpi-selfservice .elera-btn-filters,
+        body.glpi-selfservice .elera-showing-count,
+        body.glpi-selfservice .elera-btn-new-ticket {
+            display: none !important;
+        }
+
+        /* Manter apenas o toggle Kanban / Lista */
+        body.glpi-selfservice .elera-view-toggle {
+            display: inline-flex !important;
+            padding: 2px !important;
+            background: #F0F2F5 !important;
+            border-radius: 9999px !important;
+        }
+
+        body.glpi-selfservice .elera-view-toggle-btn {
+            padding: 4px 10px !important;
+            font-size: 0.76rem !important;
+            gap: 4px !important;
+            border-radius: 9999px !important;
+        }
+
+        /* Suporte a Dark Mode para os cards e filtros no mobile self-service */
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-kpi-card {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+            color: #F8FAFC !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-kpi-card .kpi-value {
+            color: #F8FAFC !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-kpi-card .kpi-label {
+            color: #94A3B8 !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-kpi-card .kpi-unit {
+            color: #64748B !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-ticket-filter-bar {
+            background: #1E293B !important;
+            border-color: #334155 !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-view-toggle {
+            background: #0F172A !important;
+        }
+        [data-bs-theme='dark'] body.glpi-selfservice .elera-view-toggle-btn.active {
+            background: #334155 !important;
+            color: #F8FAFC !important;
+        }
+    }
     </style>
 
     <!-- Top KPI Metric Cards (Elera Style) -->

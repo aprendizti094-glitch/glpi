@@ -71,3 +71,8 @@ live_ticket_*
 node_modules/
 __pycache__/
 *.pyc
+
+# Arquivos sensíveis de credenciais
+senhaftp.txt
+*senha*
+*credentials*

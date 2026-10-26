@@ -2,7 +2,8 @@
 #           INICIALIZADOR DO GLPI + TUNEL NGROK (ALTA PERFORMANCE)
 # ===================================================================
 param(
-    [int]$Port = 0
+    [int]$Port = 0,
+    [string]$Domain = "skillet-hypnotic-create.ngrok-free.dev"
 )
 
 $Host.UI.RawUI.WindowTitle = "GLPI - Tunel Ngrok (Alta Performance)"
@@ -79,10 +80,21 @@ if ($Port -gt 0) {
         }
     }
     
-    # 2. Se a porta detectada nao estiver ativa, testa 80 e 8088
-    if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded) {
+    # 2. Se a porta detectada nao estiver ativa, testa 80 e 8088 de forma instantanea
+    function Test-PortFast([string]$ip, [int]$p) {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        try {
+            $ar = $tcp.BeginConnect($ip, $p, $null, $null)
+            $ok = $ar.AsyncWaitHandle.WaitOne(400, $false)
+            if ($ok) { $tcp.EndConnect($ar); return $true }
+            return $false
+        } catch { return $false }
+        finally { $tcp.Close() }
+    }
+
+    if (-not (Test-PortFast "127.0.0.1" $targetPort)) {
         foreach ($p in @(80, 8088, 8080)) {
-            if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+            if (Test-PortFast "127.0.0.1" $p) {
                 $targetPort = $p
                 break
             }
@@ -107,21 +119,21 @@ if (-not $mysql) {
 }
 
 # Apache
-$apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
+$apacheRunning = Test-PortFast "127.0.0.1" $targetPort
 if (-not $apacheRunning) {
     Write-Host "   - Iniciando Apache do XAMPP..." -ForegroundColor Yellow
     
     # Tenta como servico primeiro se existir
     Start-Service -Name "Apache2.4" -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
-    $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
+    $apacheRunning = Test-PortFast "127.0.0.1" $targetPort
 
     # Se ainda nao estiver rodando, sobe pelo executavel
     if (-not $apacheRunning -and (Test-Path "$xamppDir\apache\bin\httpd.exe")) {
         Start-Process -FilePath "$xamppDir\apache\bin\httpd.exe" -WorkingDirectory "$xamppDir\apache" -WindowStyle Hidden
         for ($i = 0; $i -lt 5; $i++) {
             Start-Sleep -Seconds 1
-            $apacheRunning = (Test-NetConnection -ComputerName 127.0.0.1 -Port $targetPort -WarningAction SilentlyContinue).TcpTestSucceeded
+            $apacheRunning = Test-PortFast "127.0.0.1" $targetPort
             if ($apacheRunning) { break }
         }
     }
@@ -130,7 +142,7 @@ if (-not $apacheRunning) {
 # Re-checa se alguma outra porta comum subiu caso targetPort nao tenha respondido
 if (-not $apacheRunning) {
     foreach ($p in @(8088, 80, 8080)) {
-        if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded) {
+        if (Test-PortFast "127.0.0.1" $p) {
             $targetPort = $p
             $apacheRunning = $true
             break
@@ -206,22 +218,35 @@ try {
     $existingRes = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -TimeoutSec 2 -ErrorAction Stop
     if ($existingRes.tunnels -and $existingRes.tunnels.Count -gt 0) {
         $httpsTunnel = $existingRes.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
-        $publicUrl = if ($httpsTunnel) { $httpsTunnel.public_url } else { $existingRes.tunnels[0].public_url }
-        Write-Host "   [OK] Tunel Ngrok ja esta ativo e respondendo na porta 4040!" -ForegroundColor Green
+        $foundUrl = if ($httpsTunnel) { $httpsTunnel.public_url } else { $existingRes.tunnels[0].public_url }
+        if (-not $Domain -or $foundUrl -like "*$Domain*") {
+            $publicUrl = $foundUrl
+            Write-Host "   [OK] Tunel Ngrok com dominio fixo ja esta ativo e respondendo na porta 4040!" -ForegroundColor Green
+        } else {
+            Write-Host "   - Tunel ativo com URL dinamica/diferente ($foundUrl)." -ForegroundColor Yellow
+            Write-Host "   - Reiniciando com o dominio fixo: $Domain ..." -ForegroundColor Cyan
+        }
     }
 } catch {}
 
 if (-not $publicUrl) {
-    # Encerrar qualquer processo orfao antigo do Ngrok caso nao haja tunel ativo
+    # Encerrar qualquer processo orfao antigo do Ngrok caso nao haja tunel ativo ou precisa trocar de dominio
     Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Milliseconds 800
 
-    # 7. Iniciar Ngrok apontando para a porta 127.0.0.1:$targetPort em segundo plano independente
+    # 7. Iniciar Ngrok apontando para a porta 127.0.0.1:$targetPort com o Dominio Fixo
     Write-Host ""
     Write-Host "4. Conectando Ngrok a porta $targetPort e gerando Link Publico..." -ForegroundColor White
+    if ($Domain -and $Domain.Trim() -ne "") {
+        Write-Host "   Dominio Fixo: $Domain" -ForegroundColor Cyan
+    }
     Write-Host "   Aguarde alguns segundos..." -ForegroundColor Gray
 
-    $ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList "http", "127.0.0.1:$targetPort" -PassThru -WindowStyle Hidden
+    $ngrokArgs = @("http", "127.0.0.1:$targetPort")
+    if ($Domain -and $Domain.Trim() -ne "") {
+        $ngrokArgs += "--url=$($Domain.Trim())"
+    }
+    $ngrokProc = Start-Process -FilePath $ngrokExe -ArgumentList $ngrokArgs -PassThru -WindowStyle Hidden
 
     # 8. Obter Link Publico da API local do Ngrok (porta 4040)
     for ($i = 0; $i -lt 15; $i++) {
