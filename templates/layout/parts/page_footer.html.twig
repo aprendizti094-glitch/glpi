@@ -60,6 +60,6 @@
     {% endif %}
 
     <!-- GLPI Live Broadcast Notifications & Anti-Duplication Feed -->
-    <script type="text/javascript" src="{{ path('js/glpi_live_notifications.js') }}"></script>
+    <script type="text/javascript" src="{{ path('js/glpi_live_notifications.js') }}?v={{ 'now'|date('U') }}"></script>
 </body>
 </html>

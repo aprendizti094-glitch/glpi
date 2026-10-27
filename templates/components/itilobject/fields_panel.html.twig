@@ -205,10 +205,20 @@
             {{ include('components/itilobject/fields/priority_matrix.html.twig') }}
 
             {% if item.isField('locations_id') %}
+               {% set effective_panel_loc = item.fields['locations_id']|default(0) %}
+               {% if effective_panel_loc == 0 and item.fields['users_id_recipient']|default(0) > 0 %}
+                  {% set recipient_user = get_item('User', item.fields['users_id_recipient']) %}
+                  {% if recipient_user and recipient_user.fields['locations_id'] is defined %}
+                     {% set effective_panel_loc = recipient_user.fields['locations_id']|default(0) %}
+                  {% endif %}
+               {% endif %}
+               {% if effective_panel_loc == 0 and params['locations_id'] is defined and params['locations_id'] > 0 %}
+                  {% set effective_panel_loc = params['locations_id'] %}
+               {% endif %}
                {{ fields.dropdownField(
                   'Location',
                   'locations_id',
-                  item.fields['locations_id'],
+                  effective_panel_loc,
                   'Location'|itemtype_name,
                   field_options|merge({
                      'hide_if_no_elements': true,
@@ -548,7 +558,12 @@
                      })
                      .then(function(res) { return res.json(); })
                      .then(function(data) {
-                        window.location.reload();
+                        if (data && data.event && typeof window.showLiveToast === 'function') {
+                           window.showLiveToast(data.event);
+                        }
+                        setTimeout(function() {
+                           window.location.reload();
+                        }, 750);
                      })
                      .catch(function(err) {
                         // Fallback: submete formulário tradicional se o fetch falhar

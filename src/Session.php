@@ -155,6 +155,9 @@ class Session
                             $_SESSION["glpi$field"] = $auth->user->fields[$field];
                         }
                     }
+                    if (!isset($_SESSION["glpinames_format"]) || $_SESSION["glpinames_format"] == User::REALNAME_BEFORE) {
+                        $_SESSION["glpinames_format"] = User::FIRSTNAME_BEFORE;
+                    }
 
                     if (isset($_SESSION['glpidefault_central_tab']) && $_SESSION['glpidefault_central_tab']) {
                         Session::setActiveTab("central", "Central$" . $_SESSION['glpidefault_central_tab']);
@@ -239,6 +242,9 @@ class Session
             session_name(self::buildSessionName());
 
             @session_start();
+        }
+        if (isset($_SESSION["glpinames_format"]) && $_SESSION["glpinames_format"] == User::REALNAME_BEFORE) {
+            $_SESSION["glpinames_format"] = User::FIRSTNAME_BEFORE;
         }
         // Define current time for sync of action timing
         $_SESSION["glpi_currenttime"] = date("Y-m-d H:i:s");

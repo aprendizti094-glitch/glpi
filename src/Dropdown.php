@@ -2026,6 +2026,8 @@ JAVASCRIPT;
 
                 //TRANS: %1$d the number of hours, %2$s the number of minutes : display 3h15
                 $values[$i] = sprintf(__('%1$dh%2$s'), $hour, $minute);
+            } elseif ($i > 0) {
+                $values[$i] = sprintf(_n('%d second', '%d seconds', $i), $i);
             }
         }
 
@@ -2364,6 +2366,10 @@ JAVASCRIPT;
     {
 
         $tab = [];
+
+        // Opções de 10 e 30 segundos para automações rápidas em tempo real
+        $tab[10] = sprintf(_n('%d second', '%d seconds', 10), 10);
+        $tab[30] = sprintf(_n('%d second', '%d seconds', 30), 30);
 
         $tab[MINUTE_TIMESTAMP] = sprintf(_n('%d minute', '%d minutes', 1), 1);
 

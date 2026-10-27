@@ -326,6 +326,7 @@
                         <div class="elera-ticket-card {{ ticket['is_urgent'] ? 'card-urgent' : '' }} {{ ticket['is_my_ticket'] ? 'card-my-ticket' : '' }}" 
                              id="kanban-ticket-{{ ticket['id'] }}" 
                              data-id="{{ ticket['id'] }}" 
+                             data-status="{{ col['id'] }}" 
                              draggable="true" 
                              onclick="onKanbanCardClick(event, {{ ticket['id'] }})"
                              ondragstart="onKanbanDragStart(event, {{ ticket['id'] }})"
@@ -500,6 +501,9 @@ function onKanbanDrop(e, targetStatus) {
                     location.reload();
                 } else {
                     card.setAttribute('data-status', targetStatus);
+                    if (targetStatus === 3 && data.event && typeof window.showLiveToast === 'function') {
+                        window.showLiveToast(data.event);
+                    }
                 }
             },
             error: function(xhr, status, err) {
@@ -532,6 +536,9 @@ function onKanbanDrop(e, targetStatus) {
                 location.reload();
             } else {
                 card.setAttribute('data-status', targetStatus);
+                if (targetStatus === 3 && data.event && typeof window.showLiveToast === 'function') {
+                    window.showLiveToast(data.event);
+                }
             }
         })
         .catch(function(err) {
@@ -541,4 +548,110 @@ function onKanbanDrop(e, targetStatus) {
         });
     }
 }
+
+let isReloadingKanban = false;
+function reloadKanbanBoard() {
+    if (isDraggingKanban || isReloadingKanban) return;
+    isReloadingKanban = true;
+
+    // Se estiver na tela de busca nativa do GLPI, atualiza via método oficial sem reload de página
+    if (window.$) {
+        const searchContainer = $('div.ajax-container.search-display-data');
+        if (searchContainer.length > 0 && searchContainer.data('js_class') !== undefined && typeof searchContainer.data('js_class').getView === 'function') {
+            searchContainer.data('js_class').getView().refreshResults();
+            setTimeout(function() { isReloadingKanban = false; }, 2000);
+            return;
+        }
+    }
+
+    // Busca o HTML atualizado do Kanban via endpoint AJAX dedicado
+    fetch(glpiRootDoc + '/ajax/get_kanban.php?t=' + Date.now(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(res) { return res.text(); })
+    .then(function(html) {
+        if (!html || html.trim().length < 50) return;
+        const currentWrapper = document.getElementById('eleraKanbanWrapper');
+        if (currentWrapper) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newWrapper = doc.getElementById('eleraKanbanWrapper');
+            if (newWrapper) {
+                currentWrapper.replaceWith(newWrapper);
+            }
+        }
+    })
+    .catch(function(err) {
+        console.warn('[Elera Kanban Reload] Error:', err);
+    })
+    .finally(function() {
+        setTimeout(function() { isReloadingKanban = false; }, 1000);
+    });
+}
+
+window.reloadKanbanBoard = reloadKanbanBoard;
+
+window.addEventListener('glpi:reload_kanban', function() {
+    reloadKanbanBoard();
+});
+
+// Sincronização em tempo real do Kanban (propagação instantânea quando alguém assume ou move chamado)
+window.addEventListener('glpi:live_ticket_update', function(e) {
+    const evt = e.detail;
+    if (!evt || !evt.ticket_id) return;
+    
+    const card = document.getElementById('kanban-ticket-' + evt.ticket_id);
+    if (!card) {
+        // Se o card ainda não existe no quadro, recarrega o quadro via AJAX imediatamente
+        reloadKanbanBoard();
+        return;
+    }
+
+    // 1. Atualiza dados do técnico atribuído no card
+    if (evt.technician_name) {
+        const techSpan = card.querySelector('.tech-name');
+        if (techSpan) techSpan.textContent = evt.technician_name;
+
+        const techPill = card.querySelector('.card-tech-pill');
+        if (techPill) {
+            techPill.classList.remove('tech-unassigned');
+            techPill.title = 'Atribuído para: ' + evt.technician_name;
+            const icon = techPill.querySelector('i');
+            if (icon) icon.className = 'ti ti-user-check';
+        }
+
+        const avatar = card.querySelector('.card-avatar');
+        if (avatar && evt.technician_initial) {
+            avatar.textContent = evt.technician_initial;
+        }
+    }
+
+    // 2. Se o status mudou, move o card para a nova coluna em tempo real
+    if (evt.status) {
+        const targetCol = document.querySelector('.elera-kanban-col[data-status="' + evt.status + '"]');
+        if (targetCol) {
+            const container = targetCol.querySelector('.elera-cards-container');
+            if (container && card.parentElement !== container) {
+                container.prepend(card);
+                card.setAttribute('data-status', evt.status);
+
+                // Destaque visual suave (pulso Apple)
+                card.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                card.style.boxShadow = '0 0 0 3px rgba(0, 113, 227, 0.45), 0 8px 24px rgba(0, 113, 227, 0.18)';
+                card.style.transform = 'translateY(-2px)';
+                setTimeout(function() {
+                    card.style.boxShadow = '';
+                    card.style.transform = '';
+                }, 2200);
+
+                // Atualizar contadores das colunas
+                document.querySelectorAll('.elera-kanban-col').forEach(function(c) {
+                    const count = c.querySelectorAll('.elera-ticket-card').length;
+                    const countBadge = c.querySelector('.col-count-pill');
+                    if (countBadge) countBadge.textContent = count;
+                });
+            }
+        }
+    }
+});
 </script>

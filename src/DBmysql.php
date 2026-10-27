@@ -281,6 +281,7 @@ class DBmysql
             $this->dbh->options(MYSQLI_OPT_INT_AND_FLOAT_NATIVE, true);
 
             $this->dbh->query("SET SESSION sql_mode = (SELECT REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''))");
+            @$this->dbh->query("SET SESSION time_zone = '-03:00'");
 
             $this->connected = true;
 

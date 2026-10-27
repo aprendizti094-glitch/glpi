@@ -684,7 +684,8 @@
                                     <div class="user-location-cards-grid">
                                         <!-- Card Brago-DF (ID 1) -->
                                         <div class="user-location-card card-df {{ current_loc_id == 1 or current_loc_id == 0 ? 'is-selected' : '' }}" 
-                                             onclick="selectUserLocation(1, 'Brago-DF', 'stamp-df', 'ti ti-building')">
+                                             data-loc-id="1"
+                                             onclick="selectUserLocation(1, 'Brago-DF', 'stamp-df', 'ti ti-building', this)">
                                             <div class="loc-card-top">
                                                 <span class="loc-card-badge" style="color: #2563EB !important;"><i class="ti ti-building"></i> Brago-DF</span>
                                                 <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
@@ -694,7 +695,8 @@
 
                                         <!-- Card Brago-TO (ID 5) -->
                                         <div class="user-location-card card-to {{ current_loc_id == 5 ? 'is-selected' : '' }}" 
-                                             onclick="selectUserLocation(5, 'Brago-TO', 'stamp-to', 'ti ti-map-pin')">
+                                             data-loc-id="5"
+                                             onclick="selectUserLocation(5, 'Brago-TO', 'stamp-to', 'ti ti-map-pin', this)">
                                             <div class="loc-card-top">
                                                 <span class="loc-card-badge" style="color: #059669 !important;"><i class="ti ti-map-pin"></i> Brago-TO</span>
                                                 <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
@@ -704,7 +706,8 @@
 
                                         <!-- Card Brago-GO (ID 6) -->
                                         <div class="user-location-card card-go {{ current_loc_id == 6 ? 'is-selected' : '' }}" 
-                                             onclick="selectUserLocation(6, 'Brago-GO', 'stamp-go', 'ti ti-map-pin')">
+                                             data-loc-id="6"
+                                             onclick="selectUserLocation(6, 'Brago-GO', 'stamp-go', 'ti ti-map-pin', this)">
                                             <div class="loc-card-top">
                                                 <span class="loc-card-badge" style="color: #D97706 !important;"><i class="ti ti-map-pin"></i> Brago-GO</span>
                                                 <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
@@ -714,7 +717,8 @@
 
                                         <!-- Card Brago-MS (ID 7) -->
                                         <div class="user-location-card card-ms {{ current_loc_id == 7 ? 'is-selected' : '' }}" 
-                                             onclick="selectUserLocation(7, 'Brago-MS', 'stamp-ms', 'ti ti-map-pin')">
+                                             data-loc-id="7"
+                                             onclick="selectUserLocation(7, 'Brago-MS', 'stamp-ms', 'ti ti-map-pin', this)">
                                             <div class="loc-card-top">
                                                 <span class="loc-card-badge" style="color: #7C3AED !important;"><i class="ti ti-map-pin"></i> Brago-MS</span>
                                                 <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
@@ -754,7 +758,8 @@
                                 </div>
 
                                 <script>
-                                function selectUserLocation(id, name, stampClass, iconClass) {
+                                function selectUserLocation(id, name, stampClass, iconClass, el) {
+                                    id = parseInt(id);
                                     const hiddenInput = document.getElementById('hidden_user_locations_id');
                                     if (hiddenInput) {
                                         hiddenInput.value = id;
@@ -763,8 +768,14 @@
                                     document.querySelectorAll('.user-location-card').forEach(function(card) {
                                         card.classList.remove('is-selected');
                                     });
-                                    if (window.event && window.event.currentTarget) {
-                                        window.event.currentTarget.classList.add('is-selected');
+
+                                    if (el) {
+                                        el.classList.add('is-selected');
+                                    } else {
+                                        const matchingCard = document.querySelector('.user-location-card[data-loc-id="' + id + '"]');
+                                        if (matchingCard) {
+                                            matchingCard.classList.add('is-selected');
+                                        }
                                     }
 
                                     const stamp = document.getElementById('user-location-stamp-display');
@@ -777,7 +788,9 @@
                                     // Sincronizar select nativo se existir
                                     const $customSelect = $('select[name="custom_locations_id"]');
                                     if ($customSelect.length && $customSelect.find('option[value="' + id + '"]').length) {
-                                        $customSelect.val(id).trigger('change.select2');
+                                        if ($customSelect.val() != id) {
+                                            $customSelect.val(id).trigger('change.select2');
+                                        }
                                     }
                                 }
 
@@ -816,16 +829,12 @@
                                                 card.classList.remove('is-selected');
                                             });
                                             if (val === 1) {
-                                                $('.user-location-card.card-df').addClass('is-selected');
                                                 selectUserLocation(1, 'Brago-DF', 'stamp-df', 'ti ti-building');
                                             } else if (val === 5) {
-                                                $('.user-location-card.card-to').addClass('is-selected');
                                                 selectUserLocation(5, 'Brago-TO', 'stamp-to', 'ti ti-map-pin');
                                             } else if (val === 6) {
-                                                $('.user-location-card.card-go').addClass('is-selected');
                                                 selectUserLocation(6, 'Brago-GO', 'stamp-go', 'ti ti-map-pin');
                                             } else if (val === 7) {
-                                                $('.user-location-card.card-ms').addClass('is-selected');
                                                 selectUserLocation(7, 'Brago-MS', 'stamp-ms', 'ti ti-map-pin');
                                             } else {
                                                 const stamp = document.getElementById('user-location-stamp-display');

@@ -1303,6 +1303,17 @@ class Ticket extends CommonITILObject
                 $input = Toolbox::stripslashes_deep($input);
             }
 
+            // Auto-inherit locations_id if not explicitly provided or empty during update
+            if (isset($input['locations_id']) && (empty($input['locations_id']) || $input['locations_id'] == 0)) {
+                if (!empty($input['forced_locations_id'])) {
+                    $input['locations_id'] = (int)$input['forced_locations_id'];
+                } elseif (!empty($input['_locations_id_of_requester'])) {
+                    $input['locations_id'] = (int)$input['_locations_id_of_requester'];
+                } elseif ($this->fields['locations_id'] > 0) {
+                    $input['locations_id'] = (int)$this->fields['locations_id'];
+                }
+            }
+
             // Clean actors fields added for rules
             foreach ($tocleanafterrules as $key => $values_to_drop) {
                 if (!array_key_exists($key, $input) || !is_array($input[$key])) {
@@ -2018,7 +2029,24 @@ class Ticket extends CommonITILObject
                 }
             }
 
-            // 3. Auto-set Urgency, Impact and Priority based on Category (Sistema & ERP / Redes -> Muito Alta; Impressoras / Email -> Média; Dúvidas & Apoio -> Baixa)
+            // Check for explicit Urgency tags in Subject/Name (e.g. [URGENTE], [ALTA], [MÉDIA], [BAIXA], [CRÍTICA])
+            if (empty($input['forced_urgency']) && !empty($input['name'])) {
+                $subClean = mb_strtolower($input['name'], 'UTF-8');
+                if (preg_match('/\[(critica|crítica|critico|crítico|emergencia|emergência|muito[\s\-_]alta)\]/iu', $subClean)) {
+                    $input['forced_urgency'] = 5; // Muito Alta
+                } elseif (preg_match('/\[(alta|urgente)\]/iu', $subClean)) {
+                    $input['forced_urgency'] = 4; // Alta
+                } elseif (preg_match('/\[(media|média|normal)\]/iu', $subClean)) {
+                    $input['forced_urgency'] = 3; // Média
+                } elseif (preg_match('/\[(baixa)\]/iu', $subClean)) {
+                    $input['forced_urgency'] = 2; // Baixa
+                } elseif (preg_match('/\[(muito[\s\-_]baixa)\]/iu', $subClean)) {
+                    $input['forced_urgency'] = 1; // Muito Baixa
+                }
+            }
+
+            // 3. Auto-set Urgency, Impact and Priority based on Category:
+            // Sistema&ERP: Alta (4), Redes&Internet: Média (3), Computadores: Alta (4), Impressoras: Média (3), E-mail&Acessos: Baixa (2), Dúvidas&Apoio: Baixa (2)
             $targetCatId = (int)($input['itilcategories_id'] ?? ($input['forced_itilcategories_id'] ?? 0));
             if (!empty($input['forced_urgency'])) {
                 $input['urgency'] = (int)$input['forced_urgency'];
@@ -2029,27 +2057,31 @@ class Ticket extends CommonITILObject
                 if ($catObj->getFromDB($targetCatId)) {
                     $catFull = mb_strtolower($catObj->fields['completename'] ?? $catObj->fields['name']);
                     if ($targetCatId == 1 || preg_match('/(sistema|erp|winthor)/i', $catFull)) {
-                        $input['urgency'] = 5;
-                        $input['impact'] = 5;
-                        $input['priority'] = 5;
+                        $input['urgency'] = 4; // Alta
+                        $input['impact'] = 4;
+                        $input['priority'] = 4;
+                    } elseif ($targetCatId == 3 || preg_match('/(computador|computadores|hardware|notebook|pc)/i', $catFull)) {
+                        $input['urgency'] = 4; // Alta
+                        $input['impact'] = 4;
+                        $input['priority'] = 4;
                     } elseif ($targetCatId == 2 || preg_match('/(rede|internet|wifi|link|vpn)/i', $catFull)) {
-                        $input['urgency'] = 5;
-                        $input['impact'] = 5;
-                        $input['priority'] = 5;
+                        $input['urgency'] = 3; // Média
+                        $input['impact'] = 3;
+                        $input['priority'] = 3;
                     } elseif ($targetCatId == 4 || preg_match('/(impressora|scanner|toner|impress)/i', $catFull)) {
-                        $input['urgency'] = 3;
+                        $input['urgency'] = 3; // Média
                         $input['impact'] = 3;
                         $input['priority'] = 3;
                     } elseif ($targetCatId == 5 || preg_match('/(email|e-mail|acesso|senha)/i', $catFull)) {
-                        $input['urgency'] = 3;
-                        $input['impact'] = 3;
-                        $input['priority'] = 3;
-                    } elseif ($targetCatId == 6 || preg_match('/(duvida|dúvida|apoio|suporte|orient)/i', $catFull)) {
-                        $input['urgency'] = 2;
+                        $input['urgency'] = 2; // Baixa
+                        $input['impact'] = 2;
+                        $input['priority'] = 2;
+                    } elseif ($targetCatId == 6 || preg_match('/(duvida|dúvida|apoio|suporte|orient|ajuda)/i', $catFull)) {
+                        $input['urgency'] = 2; // Baixa
                         $input['impact'] = 2;
                         $input['priority'] = 2;
                     } else {
-                        $input['urgency'] = 3;
+                        $input['urgency'] = 3; // Média default
                         $input['impact'] = 3;
                         $input['priority'] = 3;
                     }
@@ -2088,11 +2120,35 @@ class Ticket extends CommonITILObject
             }
         }
 
-        // Ensure urgency, impact and priority persist if forced by category
+        // Ensure urgency, impact and priority persist according to category mapping
         if (!empty($input['forced_urgency'])) {
             $input['urgency']  = (int)$input['forced_urgency'];
             $input['impact']   = (int)($input['forced_impact'] ?? $input['forced_urgency']);
             $input['priority'] = (int)($input['forced_priority'] ?? $input['forced_urgency']);
+        } elseif (!empty($input['itilcategories_id'])) {
+            $catId = (int)$input['itilcategories_id'];
+            $catObj = new ITILCategory();
+            if ($catObj->getFromDB($catId)) {
+                $cname = mb_strtolower($catObj->fields['completename'] ?? $catObj->fields['name']);
+                if ($catId == 1 || preg_match('/(sistema|erp|winthor)/i', $cname)) {
+                    $autoUrg = 4; // Alta
+                } elseif ($catId == 3 || preg_match('/(computador|computadores|hardware|notebook|pc)/i', $cname)) {
+                    $autoUrg = 4; // Alta
+                } elseif ($catId == 2 || preg_match('/(rede|internet|wifi|link|vpn)/i', $cname)) {
+                    $autoUrg = 3; // Média
+                } elseif ($catId == 4 || preg_match('/(impressora|scanner|toner|impress)/i', $cname)) {
+                    $autoUrg = 3; // Média
+                } elseif ($catId == 5 || preg_match('/(email|e-mail|acesso|senha)/i', $cname)) {
+                    $autoUrg = 2; // Baixa
+                } elseif ($catId == 6 || preg_match('/(duvida|dúvida|apoio|suporte|orient|ajuda)/i', $cname)) {
+                    $autoUrg = 2; // Baixa
+                } else {
+                    $autoUrg = 3; // Média
+                }
+                $input['urgency']  = $autoUrg;
+                $input['impact']   = $autoUrg;
+                $input['priority'] = $autoUrg;
+            }
         }
 
         if (
@@ -2348,6 +2404,12 @@ class Ticket extends CommonITILObject
         parent::post_addItem();
 
         $this->handleNewItemNotifications();
+
+        try {
+            $ticketId = (int)$this->fields['id'];
+            $status = (int)($this->fields['status'] ?? self::INCOMING);
+            self::emitLiveBroadcastEvent($ticketId, 0, $status, 'Novo Chamado');
+        } catch (\Throwable $e) {}
     }
 
 
@@ -4103,8 +4165,13 @@ JAVASCRIPT;
         // Pre-populate locations_id from user if not set
         if (empty($options['locations_id']) || $options['locations_id'] == 0) {
             $user_obj = new User();
-            if ($user_obj->getFromDB($ID) && !empty($user_obj->fields['locations_id'])) {
+            $target_uid = ($ID > 0) ? (int)($this->fields['users_id_recipient'] ?? 0) : Session::getLoginUserID();
+            if ($target_uid > 0 && $user_obj->getFromDB($target_uid) && !empty($user_obj->fields['locations_id'])) {
                 $options['locations_id'] = (int)$user_obj->fields['locations_id'];
+            } elseif ($current_uid = Session::getLoginUserID()) {
+                if ($user_obj->getFromDB($current_uid) && !empty($user_obj->fields['locations_id'])) {
+                    $options['locations_id'] = (int)$user_obj->fields['locations_id'];
+                }
             }
         }
 
@@ -4167,12 +4234,19 @@ JAVASCRIPT;
         $user_obj = new User();
         $user_location_id = 1;
         $user_location_name = 'Brago-DF';
-        if ($user_obj->getFromDB(Session::getLoginUserID())) {
+        $login_uid = Session::getLoginUserID();
+        if ($login_uid && $user_obj->getFromDB($login_uid)) {
             $u_loc = (int)($user_obj->fields['locations_id'] ?? 0);
             if ($u_loc > 0) {
                 $user_location_id = $u_loc;
                 $user_location_name = Dropdown::getDropdownName('glpi_locations', $u_loc);
             }
+        }
+        if (empty($options['locations_id']) || $options['locations_id'] == 0) {
+            $options['locations_id'] = $user_location_id;
+        }
+        if (empty($options['urgency']) || $options['urgency'] == 0) {
+            $options['urgency'] = 4; // Alta (padrão inicial para Sistemas & ERP)
         }
 
         TemplateRenderer::getInstance()->display('components/itilobject/selfservice.html.twig', [
@@ -7322,12 +7396,40 @@ JAVASCRIPT;
         }
         $clean = mb_strtolower($text, 'UTF-8');
 
+        // 1. First priority: Check explicit category tags in brackets, e.g. [ERP], [PC], [REDE], [IMPRESSORA], [ACESSO], [SUPORTE]
+        $tagPatterns = [
+            'sistema'    => '/\[(erp|sistema|winthor|protheus|totvs)\]/iu',
+            'computador' => '/\[(pc|computador|computadores|notebook|hardware|desktop)\]/iu',
+            'rede'       => '/\[(rede|redes|internet|wifi|wi-fi|vpn|link)\]/iu',
+            'impressora' => '/\[(impressora|impressoras|toner|scanner)\]/iu',
+            'acesso'     => '/\[(acesso|acessos|email|e-mail|senha|login)\]/iu',
+            'suporte'    => '/\[(suporte|duvida|dúvida|apoio|ajuda)\]/iu',
+        ];
+
+        foreach ($tagPatterns as $concept => $regex) {
+            if (preg_match($regex, $clean)) {
+                $escapedConcept = $DB->escape($concept);
+                $iterator = $DB->request([
+                    'SELECT' => ['id'],
+                    'FROM'   => 'glpi_itilcategories',
+                    'WHERE'  => [
+                        'name' => ['LIKE', "%{$escapedConcept}%"],
+                    ],
+                    'LIMIT'  => 1
+                ]);
+                if ($row = $iterator->current()) {
+                    return (int)$row['id'];
+                }
+            }
+        }
+
+        // 2. Second priority: Natural language keywords in subject or body
         $patterns = [
-            'computador' => ['computador', 'pc', 'notebook', 'desktop', 'travando', 'travamento', 'lento', 'lentidão', 'tela azul', 'mouse', 'teclado', 'monitor', 'hardware'],
-            'impressora' => ['impressora', 'toner', 'imprimir', 'impressão', 'scanner', 'etiqueta', 'etiquetadora', 'papel'],
-            'rede'       => ['internet', 'wifi', 'wi-fi', 'rede', 'vpn', 'queda', 'cabo de rede', 'sem conexão', 'conexão'],
             'sistema'    => ['winthor', 'erp', 'sistema', 'nota fiscal', 'nf-e', 'danfe', 'relatório', 'protheus', 'totvs'],
+            'rede'       => ['internet', 'wifi', 'wi-fi', 'rede', 'vpn', 'queda', 'cabo de rede', 'sem conexão', 'conexão'],
+            'impressora' => ['impressora', 'toner', 'imprimir', 'impressão', 'scanner', 'etiqueta', 'etiquetadora', 'papel'],
             'acesso'     => ['senha', 'email', 'e-mail', 'acesso', 'desbloqueio', 'login', 'usuário', 'permissão'],
+            'computador' => ['computador', 'pc', 'notebook', 'desktop', 'travando', 'travamento', 'lento', 'lentidão', 'tela azul', 'mouse', 'teclado', 'monitor', 'hardware'],
             'suporte'    => ['suporte', 'duvida', 'dúvida', 'apoio', 'ajuda', 'orientação']
         ];
 
@@ -7665,4 +7767,135 @@ JAVASCRIPT;
 
         return $input;
     }
+
+    /**
+     * Emit a live broadcast event to glpi_live_events.json for real-time notifications and Kanban sync.
+     *
+     * @param int $ticket_id
+     * @param int $technician_id
+     * @param int $status
+     * @param string $status_name
+     * @return array
+     */
+    public static function emitLiveBroadcastEvent(int $ticket_id, int $technician_id, int $status = 0, string $status_name = ''): array
+    {
+        try {
+            $ticket = new self();
+            if (!$ticket->getFromDB($ticket_id)) {
+                return ['success' => false];
+            }
+
+            if ($status <= 0) {
+                $status = (int)$ticket->fields['status'];
+            }
+
+            $techName = '';
+            if ($technician_id > 0) {
+                $techUser = new User();
+                if ($techUser->getFromDB($technician_id)) {
+                    $techName = $techUser->getFriendlyName();
+                }
+            }
+            if (empty($techName)) {
+                $techName = getUserName($technician_id);
+            }
+            if (empty($techName)) {
+                $techName = 'Técnico de TI';
+            }
+
+            $techInitial = mb_strtoupper(mb_substr($techName, 0, 1, 'UTF-8'), 'UTF-8') ?: 'T';
+            $ticketTitle = trim($ticket->fields['name'] ?? ('Chamado #' . $ticket_id));
+
+            if (empty($status_name)) {
+                if ($status === self::PLANNED) {
+                    $status_name = 'Em Execução';
+                } elseif ($status === self::ASSIGNED) {
+                    $status_name = 'Em Atendimento';
+                } elseif ($status === self::WAITING) {
+                    $status_name = 'Aguardando';
+                } elseif ($status === self::SOLVED) {
+                    $status_name = 'Concluído';
+                } else {
+                    $status_name = 'Chamado Assumido';
+                }
+            }
+
+            $event = [
+                'id'                 => 'evt_' . time() . '_' . $ticket_id . '_' . mt_rand(100, 999),
+                'ticket_id'          => $ticket_id,
+                'ticket_title'       => $ticketTitle,
+                'technician_id'      => $technician_id,
+                'technician_name'    => $techName,
+                'technician_initial' => $techInitial,
+                'status'             => $status,
+                'status_name'        => $status_name,
+                'timestamp'          => time(),
+                'time_str'           => date('H:i')
+            ];
+
+            $cacheDir = defined('GLPI_CACHE_DIR') ? GLPI_CACHE_DIR : (GLPI_ROOT . '/files/_cache');
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0777, true);
+            }
+            $cacheFile = $cacheDir . '/glpi_live_events.json';
+
+            $cacheData = [
+                'events'  => [],
+                'tickets' => []
+            ];
+
+            if (file_exists($cacheFile)) {
+                $content = @file_get_contents($cacheFile);
+                $decoded = json_decode($content, true);
+                if (is_array($decoded)) {
+                    if (isset($decoded['events'])) {
+                        $cacheData['events'] = $decoded['events'];
+                        $cacheData['tickets'] = $decoded['tickets'] ?? [];
+                    } else {
+                        // backward compatibility if previously simple list
+                        $cacheData['events'] = $decoded;
+                    }
+                }
+            }
+
+            if (!is_array($cacheData['events'])) {
+                $cacheData['events'] = [];
+            }
+            if (!is_array($cacheData['tickets'])) {
+                $cacheData['tickets'] = [];
+            }
+
+            // Adiciona evento na lista para Toasts pop-up
+            array_unshift($cacheData['events'], $event);
+            if (count($cacheData['events']) > 40) {
+                $cacheData['events'] = array_slice($cacheData['events'], 0, 40);
+            }
+
+            // Atualiza mapa de estado do ticket para sincronização contínua do Kanban
+            $cacheData['tickets'][(string)$ticket_id] = [
+                'id'                 => $ticket_id,
+                'status'             => $status,
+                'status_name'        => $status_name,
+                'technician_id'      => $technician_id,
+                'technician_name'    => $techName,
+                'technician_initial' => $techInitial,
+                'updated_at'         => time()
+            ];
+
+            // Limpa tickets do mapa com mais de 24h
+            $cutoffTickets = time() - 86400;
+            foreach ($cacheData['tickets'] as $tid => $tinfo) {
+                if (!empty($tinfo['updated_at']) && $tinfo['updated_at'] < $cutoffTickets) {
+                    unset($cacheData['tickets'][$tid]);
+                }
+            }
+
+            @file_put_contents($cacheFile, json_encode($cacheData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+            return ['success' => true, 'event' => $event];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
 }
+

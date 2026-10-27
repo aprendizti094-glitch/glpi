@@ -7334,7 +7334,8 @@ HTML;
     public static function getFriendlyNameFields(string $alias = "name")
     {
         $config = Config::getConfigurationValues('core');
-        if ($config['names_format'] == User::FIRSTNAME_BEFORE) {
+        $names_format = $config['names_format'] ?? User::FIRSTNAME_BEFORE;
+        if ($names_format == User::FIRSTNAME_BEFORE || $names_format == User::REALNAME_BEFORE) {
             $first = "firstname";
             $second = "realname";
         } else {

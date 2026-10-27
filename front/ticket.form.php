@@ -287,6 +287,14 @@ if (isset($_POST["add"])) {
             sprintf(__('%s assume a responsabilidade do chamado'), $_SESSION["glpiname"] ?? 'Usuário')
         );
 
+        // Propagar evento em tempo real para todos os usuários simultaneamente
+        $live_res = Ticket::emitLiveBroadcastEvent(
+            $id,
+            $current_user_id,
+            (int)$track->fields['status'],
+            'Chamado Assumido'
+        );
+
         Session::addMessageAfterRedirect(
             __('Chamado assumido com sucesso! Você agora é o único técnico responsável.'),
             false,
@@ -300,6 +308,7 @@ if (isset($_POST["add"])) {
                 'message'         => __('Chamado assumido com sucesso! Você agora é o único técnico responsável.'),
                 'technician_name' => getUserName($current_user_id),
                 'status'          => $track->fields['status'],
+                'event'           => $live_res['event'] ?? null,
             ]);
             exit();
         }

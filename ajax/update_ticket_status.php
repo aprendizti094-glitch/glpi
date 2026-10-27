@@ -74,11 +74,11 @@ if (!$success) {
     }
 }
 
-// Emissão de evento de notificação em tempo real quando o chamado é assumido ou colocado em execução
-if ($success && in_array($status, [CommonITILObject::ASSIGNED, CommonITILObject::PLANNED])) {
+// Emissão de evento de notificação em tempo real quando o chamado muda de status
+$broadcastResult = null;
+if ($success && $status >= 1 && $status <= 6) {
     try {
         global $DB;
-        $techName = '';
         $techId = 0;
 
         // Verifica se já existe técnico atribuído
@@ -95,70 +95,32 @@ if ($success && in_array($status, [CommonITILObject::ASSIGNED, CommonITILObject:
         if ($tu && (int)$tu['users_id'] > 0) {
             $techId = (int)$tu['users_id'];
         } else {
-            // Se ainda não tiver técnico, atribui o usuário logado que arrastou o card
-            $techId = (int)$loginUserId;
-            $ticketUser = new Ticket_User();
-            $ticketUser->add([
-                'tickets_id'       => $id,
-                'users_id'         => $techId,
-                'type'             => CommonITILActor::ASSIGN,
-                'use_notification' => 1
-            ]);
-        }
-
-        if ($techId > 0) {
-            $techUser = new User();
-            if ($techUser->getFromDB($techId)) {
-                $fname = trim($techUser->fields['firstname'] ?? '');
-                $rname = trim($techUser->fields['realname'] ?? '');
-                if (!empty($fname) && !empty($rname)) {
-                    $techName = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
-                } else {
-                    $techName = !empty($fname) ? $fname : (!empty($rname) ? $rname : $techUser->getName());
-                }
-            }
-        }
-        if (empty($techName)) {
-            $techName = 'Técnico de TI';
-        }
-
-        $techInitial = mb_strtoupper(mb_substr($techName, 0, 1, 'UTF-8'), 'UTF-8') ?: 'T';
-        $ticketTitle = trim($ticket->fields['name'] ?? ('Chamado #' . $id));
-
-        $event = [
-            'id'                 => 'evt_' . time() . '_' . $id . '_' . mt_rand(100, 999),
-            'ticket_id'          => $id,
-            'ticket_title'       => $ticketTitle,
-            'technician_id'      => $techId,
-            'technician_name'    => $techName,
-            'technician_initial' => $techInitial,
-            'status'             => $status,
-            'status_name'        => ($status === CommonITILObject::PLANNED ? 'Em Execução' : 'Em Atendimento'),
-            'timestamp'          => time(),
-            'time_str'           => date('H:i')
-        ];
-
-        $cacheDir = defined('GLPI_CACHE_DIR') ? GLPI_CACHE_DIR : (GLPI_ROOT . '/files/_cache');
-        if (!is_dir($cacheDir)) {
-            @mkdir($cacheDir, 0777, true);
-        }
-        $cacheFile = $cacheDir . '/glpi_live_events.json';
-
-        $events = [];
-        if (file_exists($cacheFile)) {
-            $content = @file_get_contents($cacheFile);
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $events = $decoded;
+            // Se ainda não tiver técnico e estiver entrando em Triagem ou Execução, atribui o usuário logado
+            if (in_array($status, [CommonITILObject::ASSIGNED, CommonITILObject::PLANNED])) {
+                $techId = (int)$loginUserId;
+                $ticketUser = new Ticket_User();
+                $ticketUser->add([
+                    'tickets_id'       => $id,
+                    'users_id'         => $techId,
+                    'type'             => CommonITILActor::ASSIGN,
+                    'use_notification' => 1
+                ]);
             }
         }
 
-        array_unshift($events, $event);
-        if (count($events) > 20) {
-            $events = array_slice($events, 0, 20);
+        $statusName = Ticket::getStatus($status);
+        if ($status === CommonITILObject::PLANNED) {
+            $statusName = 'Em Execução';
+        } elseif ($status === CommonITILObject::ASSIGNED) {
+            $statusName = 'Em Atendimento';
+        } elseif ($status === CommonITILObject::WAITING) {
+            $statusName = 'Aguardando';
+        } elseif ($status === CommonITILObject::SOLVED) {
+            $statusName = 'Concluído';
         }
-        @file_put_contents($cacheFile, json_encode($events, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    } catch (Exception $e) {
+
+        $broadcastResult = Ticket::emitLiveBroadcastEvent($id, $techId, $status, $statusName);
+    } catch (\Throwable $e) {
         // Silently fail event write so ticket status change is never blocked
     }
 }
@@ -166,6 +128,8 @@ if ($success && in_array($status, [CommonITILObject::ASSIGNED, CommonITILObject:
 echo json_encode([
     'success' => (bool)$success,
     'id'      => $id,
-    'status'  => $status
+    'status'  => $status,
+    'event'   => $broadcastResult['event'] ?? null
 ]);
+
 

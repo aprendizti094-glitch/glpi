@@ -41,13 +41,9 @@ ini_set('display_errors', '0');
 ini_set('display_startup_errors', '0');
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
-// Notice problem  for date function :
-$tz = ini_get('date.timezone');
-if (!empty($tz) && !in_array($tz, ['UTC', 'Europe/Berlin'])) {
-    date_default_timezone_set($tz);
-} else {
-    date_default_timezone_set('America/Sao_Paulo');
-}
+// Enforce Brazil / Brasília timezone across all GLPI operations:
+date_default_timezone_set('America/Sao_Paulo');
+@ini_set('date.timezone', 'America/Sao_Paulo');
 
 include_once(GLPI_ROOT . "/inc/autoload.function.php");
 include_once(GLPI_ROOT . "/inc/normalizer_polyfill.php");

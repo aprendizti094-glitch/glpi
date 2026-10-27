@@ -64,7 +64,12 @@ if (!isCommandLine()) {
     echo $image;
     flush();
 
-    CronTask::launch(CronTask::MODE_INTERNAL);
+    $requestedTask = $_GET['task'] ?? '';
+    if (!empty($requestedTask)) {
+        CronTask::launch(-CronTask::MODE_INTERNAL, 1, $requestedTask);
+    } else {
+        CronTask::launch(CronTask::MODE_INTERNAL, 5);
+    }
 } elseif (isset($_SERVER['argc']) && ($_SERVER['argc'] > 1)) {
     // Parse command line options
 

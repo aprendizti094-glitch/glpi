@@ -3630,3 +3630,183 @@ body:has(#itil-object-container.is-ticket-page) .itil-right-side::-webkit-scroll
     background: rgba(0, 0, 0, 0.2) !important;
 }
 
+
+/* ==========================================================================
+   CORRECAO DEFINITIVA: EVITA QUE .small OU #page .small QUEBRE TEXTOS VERTICALMENTE
+   (Anula regra legada do GLPI: #page .small { width: 1%; })
+   ========================================================================== */
+#page .small,
+#page small,
+#page p.small,
+#page span.small,
+#page div.small,
+#page p,
+body.glpi-selfservice #page .small,
+body.glpi-selfservice .small,
+.apple-wizard-step .small,
+.apple-section-card .small,
+#sectionLocation .small,
+.card-body .small,
+.form-label .small,
+p.small,
+span.small {
+    width: auto !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    letter-spacing: normal !important;
+}
+
+#page p.small,
+p.small,
+#sectionLocation p,
+.apple-section-card p,
+.apple-wizard-step p {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    line-height: 1.5 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+}
+
+#sectionLocation,
+#sectionLocation .card-body,
+#sectionLocation .mb-3,
+#sectionLocation .select2-container,
+.apple-wizard-step .select2-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#sectionLocation .select2-container .select2-selection {
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(15, 23, 42, 0.15) !important;
+}
+
+
+/* ==========================================================================
+   DASHBOARD TOOLBAR & ICON BUTTONS (CORREÇÃO DE ÍCONES TOFU NA ABA ATIVOS)
+   ========================================================================== */
+
+/* 1. Barra de ferramentas do Dashboard */
+.dashboard .toolbar {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    position: absolute !important;
+    top: 10px !important;
+    right: 14px !important;
+    z-index: 20 !important;
+}
+
+/* 2. Botões de ícones do Toolbar (Visual Apple HIG) */
+.dashboard .toolbar .btn,
+.dashboard .toolbar i.btn,
+.dashboard .toolbar i.fas,
+.dashboard .toolbar i.ti,
+.dashboard .toolbar i {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    line-height: 1 !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    background: #FFFFFF !important;
+    color: #475569 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    text-decoration: none !important;
+}
+
+.dashboard .toolbar .btn:hover,
+.dashboard .toolbar i.btn:hover,
+.dashboard .toolbar i.fas:hover,
+.dashboard .toolbar i.ti:hover {
+    background: #F1F5F9 !important;
+    color: #0F172A !important;
+    border-color: rgba(15, 23, 42, 0.24) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* 3. Restauração forçada da família de fontes de ícones */
+html[data-glpi-theme="apple_hig"] .ti,
+html[data-glpi-theme="apple_hig"] [class*="ti-"],
+html[data-glpi-theme="apple_hig"] i.ti,
+html[data-glpi-theme="apple_hig"] i.btn.ti,
+html[data-glpi-theme="apple_hig"] .btn.ti,
+html[data-glpi-theme="apple_hig"] .btn[class*="ti-"],
+.dashboard .toolbar i.ti,
+.dashboard .toolbar [class*="ti-"] {
+    font-family: "tabler-icons" !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    line-height: 1 !important;
+    speak: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-glpi-theme="apple_hig"] .fas,
+html[data-glpi-theme="apple_hig"] .fa-solid,
+html[data-glpi-theme="apple_hig"] i.fas,
+html[data-glpi-theme="apple_hig"] i.btn.fas,
+html[data-glpi-theme="apple_hig"] .btn.fas,
+html[data-glpi-theme="apple_hig"] .btn.fa-solid,
+.dashboard .toolbar i.fas,
+.dashboard .toolbar i.fa-solid {
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", "FontAwesome" !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    line-height: 1 !important;
+    speak: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-glpi-theme="apple_hig"] .far,
+html[data-glpi-theme="apple_hig"] .fa-regular,
+html[data-glpi-theme="apple_hig"] i.far,
+html[data-glpi-theme="apple_hig"] i.btn.far,
+html[data-glpi-theme="apple_hig"] .btn.far,
+html[data-glpi-theme="apple_hig"] .btn.fa-regular,
+.dashboard .toolbar i.far,
+.dashboard .toolbar i.fa-regular {
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", "FontAwesome" !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    line-height: 1 !important;
+    speak: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 4. Evita que qualquer botão com ícone receba padding excessivo */
+html[data-glpi-theme="apple_hig"] i.btn,
+html[data-glpi-theme="apple_hig"] .btn.btn-icon,
+html[data-glpi-theme="apple_hig"] .btn-icon {
+    padding: 0 !important;
+}

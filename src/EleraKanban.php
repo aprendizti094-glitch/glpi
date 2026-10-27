@@ -192,13 +192,47 @@ class EleraKanban
                 continue;
             }
 
-            // Requester
-            $user_name = 'Solicitante';
-            if ($ticket['users_id_recipient']) {
+            // Requester: check glpi_tickets_users (REQUESTER = 1) first, fallback to alternative_email or recipient
+            $user_name = '';
+            $requester_iterator = $DB->request([
+                'SELECT' => ['users_id', 'alternative_email'],
+                'FROM' => 'glpi_tickets_users',
+                'WHERE' => [
+                    'tickets_id' => $ticket['id'],
+                    'type' => CommonITILActor::REQUESTER
+                ],
+                'LIMIT' => 1
+            ]);
+            foreach ($requester_iterator as $ru) {
+                if (!empty($ru['users_id'])) {
+                    $u = new User();
+                    if ($u->getFromDB((int)$ru['users_id'])) {
+                        $fname = trim($u->fields['firstname'] ?? '');
+                        $rname = trim($u->fields['realname'] ?? '');
+                        if (!empty($fname) && !empty($rname)) {
+                            $user_name = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                        } else {
+                            $user_name = $fname ?: ($rname ?: ($u->fields['name'] ?? ''));
+                        }
+                    }
+                }
+                if (empty($user_name) && !empty($ru['alternative_email'])) {
+                    // Extract friendly name from email (e.g. "brenan.araujo@empresa.com" -> "Brenan Araujo")
+                    $emailParts = explode('@', $ru['alternative_email']);
+                    $cleanName = str_replace(['.', '_', '-'], ' ', $emailParts[0]);
+                    $user_name = ucwords(trim($cleanName));
+                }
+            }
+
+            if (empty($user_name) && !empty($ticket['users_id_recipient'])) {
                 $u = new User();
                 if ($u->getFromDB($ticket['users_id_recipient'])) {
                     $user_name = $u->getFriendlyName();
                 }
+            }
+
+            if (empty($user_name)) {
+                $user_name = 'Solicitante';
             }
             $ticket['requester'] = $user_name;
 

@@ -34,9 +34,6 @@
     <!-- =========================================================================
          APPLE HIG STEPPER BAR (INDICADOR DE ETAPAS PREMIUM)
          ========================================================================= -->
-    <!-- =========================================================================
-         APPLE HIG STEPPER BAR (INDICADOR DE ETAPAS PREMIUM)
-         ========================================================================= -->
     <div class="apple-wizard-stepper-wrap mb-3">
         <div class="apple-wizard-stepper">
             <!-- Etapa 1 -->
@@ -47,7 +44,7 @@
                 </div>
                 <div class="stepper-meta">
                     <span class="stepper-step-label">Etapa 1</span>
-                    <span class="stepper-step-title"><span class="d-none d-md-inline">Categoria & Tipo</span><span class="d-md-none">Categoria</span></span>
+                    <span class="stepper-step-title">Categoria & Tipo</span>
                 </div>
             </div>
 
@@ -64,7 +61,24 @@
                 </div>
                 <div class="stepper-meta">
                     <span class="stepper-step-label">Etapa 2</span>
-                    <span class="stepper-step-title"><span class="d-none d-md-inline">Detalhes & Envio</span><span class="d-md-none">Detalhes</span></span>
+                    <span class="stepper-step-title">Detalhes do Chamado</span>
+                </div>
+            </div>
+
+            <!-- Conector 2 -> 3 -->
+            <div class="stepper-track" id="stepperTrack2">
+                <div class="stepper-track-fill" id="trackFill2"></div>
+            </div>
+
+            <!-- Etapa 3 -->
+            <div class="stepper-step pending" id="stepperStep3" onclick="goToStep(3)">
+                <div class="stepper-indicator">
+                    <span class="step-num">3</span>
+                    <i class="fas fa-check step-check"></i>
+                </div>
+                <div class="stepper-meta">
+                    <span class="stepper-step-label">Etapa 3</span>
+                    <span class="stepper-step-title">Localização & Envio</span>
                 </div>
             </div>
         </div>
@@ -147,13 +161,16 @@
 
            <!-- Grid de Cards de Categorias Premium Apple HIG -->
            <div class="apple-categories-grid mb-3">
-               <!-- Card 1: Sistemas / ERP -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_sistema }}" data-urgency="5" data-keywords="winthor,erp,sistema,sistemas">
+               <!-- Card 1: Sistemas / ERP (Urgência: Alta) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_sistema }}" data-keywords="winthor,erp,sistema,sistemas" data-urgency="4" data-urgency-name="Alta" data-urgency-color="#F59E0B">
                    <div class="apple-cat-icon-wrap icon-purple">
                        <i class="fas fa-layer-group"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">Sistemas & ERP</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">Sistemas & ERP</h4>
+                           <span class="apple-cat-urgency-pill pill-alta"><i class="fas fa-circle me-1"></i> Alta</span>
+                       </div>
                        <p class="apple-cat-desc">Winthor, relatórios gerenciais, notas fiscais e módulos de gestão</p>
                    </div>
                    <div class="apple-cat-check">
@@ -161,13 +178,16 @@
                    </div>
                </div>
 
-               <!-- Card 2: Redes / Internet -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_rede }}" data-urgency="5" data-keywords="internet,rede,redes,wifi,vpn">
+               <!-- Card 2: Redes / Internet (Urgência: Média) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_rede }}" data-keywords="internet,rede,redes,wifi,vpn" data-urgency="3" data-urgency-name="Média" data-urgency-color="#3B82F6">
                    <div class="apple-cat-icon-wrap icon-blue">
                        <i class="fas fa-wifi"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">Redes & Internet</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">Redes & Internet</h4>
+                           <span class="apple-cat-urgency-pill pill-media"><i class="fas fa-circle me-1"></i> Média</span>
+                       </div>
                        <p class="apple-cat-desc">Quedas de conexão, lentidão de navegação, cabos de rede e VPN</p>
                    </div>
                    <div class="apple-cat-check">
@@ -175,13 +195,16 @@
                    </div>
                </div>
 
-               <!-- Card 3: Computadores / Hardware -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_pc }}" data-urgency="3" data-keywords="computador,computadores,hardware,notebook,pc">
+               <!-- Card 3: Computadores / Hardware (Urgência: Alta) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_pc }}" data-keywords="computador,computadores,hardware,notebook,pc" data-urgency="4" data-urgency-name="Alta" data-urgency-color="#F59E0B">
                    <div class="apple-cat-icon-wrap icon-cyan">
                        <i class="fas fa-desktop"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">Computadores</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">Computadores</h4>
+                           <span class="apple-cat-urgency-pill pill-alta"><i class="fas fa-circle me-1"></i> Alta</span>
+                       </div>
                        <p class="apple-cat-desc">Máquina travando ou lenta, monitor, teclado, mouse ou energia</p>
                    </div>
                    <div class="apple-cat-check">
@@ -189,13 +212,16 @@
                    </div>
                </div>
 
-               <!-- Card 4: Impressoras -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_impressora }}" data-urgency="3" data-keywords="impressora,impressoras,impressao,toner">
+               <!-- Card 4: Impressoras (Urgência: Média) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_impressora }}" data-keywords="impressora,impressoras,impressao,toner" data-urgency="3" data-urgency-name="Média" data-urgency-color="#3B82F6">
                    <div class="apple-cat-icon-wrap icon-amber">
                        <i class="fas fa-print"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">Impressoras</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">Impressoras</h4>
+                           <span class="apple-cat-urgency-pill pill-media"><i class="fas fa-circle me-1"></i> Média</span>
+                       </div>
                        <p class="apple-cat-desc">Impressora travada, troca de toner, scanner ou etiquetadora</p>
                    </div>
                    <div class="apple-cat-check">
@@ -203,13 +229,16 @@
                    </div>
                </div>
 
-               <!-- Card 5: E-mail / Acessos -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_acesso }}" data-urgency="3" data-keywords="email,e-mail,senha,acesso,acessos">
+               <!-- Card 5: E-mail / Acessos (Urgência: Baixa) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_acesso }}" data-keywords="email,e-mail,senha,acesso,acessos" data-urgency="2" data-urgency-name="Baixa" data-urgency-color="#10B981">
                    <div class="apple-cat-icon-wrap icon-red">
                        <i class="fas fa-key"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">E-mail & Acessos</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">E-mail & Acessos</h4>
+                           <span class="apple-cat-urgency-pill pill-baixa"><i class="fas fa-circle me-1"></i> Baixa</span>
+                       </div>
                        <p class="apple-cat-desc">Reset de senhas, desbloqueio de conta e criação de novos usuários</p>
                    </div>
                    <div class="apple-cat-check">
@@ -217,13 +246,16 @@
                    </div>
                </div>
 
-               <!-- Card 6: Dúvidas / Suporte -->
-               <div class="apple-category-card" data-category-id="{{ real_cat_suporte }}" data-urgency="2" data-keywords="duvida,duvidas,suporte,ajuda">
+               <!-- Card 6: Dúvidas / Suporte (Urgência: Baixa) -->
+               <div class="apple-category-card" data-category-id="{{ real_cat_suporte }}" data-keywords="duvida,duvidas,suporte,ajuda" data-urgency="2" data-urgency-name="Baixa" data-urgency-color="#10B981">
                    <div class="apple-cat-icon-wrap icon-green">
                        <i class="fas fa-headset"></i>
                    </div>
                    <div class="apple-cat-info">
-                       <h4 class="apple-cat-title">Dúvidas & Apoio</h4>
+                       <div class="d-flex align-items-center justify-content-between mb-1">
+                           <h4 class="apple-cat-title mb-0">Dúvidas & Apoio</h4>
+                           <span class="apple-cat-urgency-pill pill-baixa"><i class="fas fa-circle me-1"></i> Baixa</span>
+                       </div>
                        <p class="apple-cat-desc">Orientações de uso, instalação de programas autorizados e suporte</p>
                    </div>
                    <div class="apple-cat-check">
@@ -231,8 +263,9 @@
                    </div>
                </div>
            </div>
+       </div>
 
-           <!-- Seletor nativo GLPI de Categoria (integrado e expansível para qualquer categoria customizada) -->
+       <!-- Seletor nativo GLPI de Categoria (integrado e expansível para qualquer categoria customizada) -->
            <div class="text-center mt-2">
                <button type="button" class="btn btn-sm btn-ghost-secondary apple-cat-toggle-btn" id="btnToggleOtherCategory">
                    <i class="fas fa-list-ul me-1"></i> Ver todas as categorias / subcategorias do sistema
@@ -271,32 +304,32 @@
                        <span class="apple-step-badge">2</span>
                        <div>
                            <h3 class="card-title mb-0">Detalhes do Chamado</h3>
-                           <span class="text-muted apple-section-subtitle">Dê um título e descreva a situação</span>
+                           <span class="text-muted" style="font-size: 0.82rem; display: block; width: 100% !important; white-space: normal !important;">Dê um título e descreva a situação</span>
                        </div>
                    </div>
-                    <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-normal" style="font-size: 0.72rem;">Etapa 2 de 2</span>
+                    <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-normal" style="font-size: 0.72rem;">Etapa 2 de 3</span>
                 </div>
             </div>
             <div class="card-body p-3">
 
-               <!-- Nível de Urgência & Prioridade Ocultos (Definidos Automaticamente com base na Categoria) -->
-                <div style="display: none !important;">
-                    {{ fields.field(
-                       'urgency',
-                       item.dropdownUrgency({
-                          'value': params['urgency'] ?? 5,
-                          'width': '100%',
-                          'display': false,
-                       }),
-                       __('Urgency'),
-                       right_field_options
-                    ) }}
-                    <input type="hidden" name="forced_urgency" id="forcedUrgency" value="{{ params['urgency'] ?? 5 }}" />
-                    <input type="hidden" name="forced_impact" id="forcedImpact" value="{{ params['impact'] ?? 5 }}" />
-                    <input type="hidden" name="forced_priority" id="forcedPriority" value="{{ params['priority'] ?? 5 }}" />
-                </div>
+               <!-- Urgência Automática vinculada à Categoria (Sem seleção manual do solicitante) -->
+               <input type="hidden" name="forced_urgency" id="forcedUrgency" value="{{ params['urgency'] ?? 4 }}" />
+               <input type="hidden" name="forced_impact" id="forcedImpact" value="{{ params['impact'] ?? 4 }}" />
+               <input type="hidden" name="forced_priority" id="forcedPriority" value="{{ params['priority'] ?? 4 }}" />
+               <div style="display: none !important;">
+                   {{ fields.field(
+                      'urgency',
+                      item.dropdownUrgency({
+                         'value': params['urgency'] ?? 4,
+                         'width': '100%',
+                         'display': false,
+                      }),
+                      __('Urgency'),
+                      right_field_options
+                   ) }}
+               </div>
 
-                <!-- 2.2 Título do Chamado Redesenhado -->
+               <!-- 2.2 Título do Chamado Redesenhado -->
                <div class="mb-4" id="titleInputGroup">
                    <label class="form-label fw-bold d-flex justify-content-between align-items-center mb-2" for="ticketTitleInput">
                        <span><i class="fas fa-heading text-primary me-1"></i> Título do Chamado <span class="text-danger">*</span></span>
@@ -383,64 +416,146 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle text-danger"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
                         <span><strong>A descrição é obrigatória:</strong> Por favor, descreva a situação ou o problema ocorrido antes de prosseguir.</span>
                     </div>
+               </div>
+           </div>
+
+            <!-- Rodapé de Navegação da Etapa 2 -->
+            <div class="card-footer bg-transparent border-top py-2 px-3">
+               <div class="d-flex justify-content-between align-items-center">
+                   <button type="button" class="btn apple-nav-btn apple-nav-btn-ghost" onclick="goToStep(1)">
+                       <i class="fas fa-arrow-left me-2"></i> Voltar para Categoria
+                   </button>
+                   <button type="button" class="btn btn-primary apple-nav-btn apple-nav-btn-primary" id="btnNextToStep3">
+                       <span>Continuar para Localização</span>
+                       <i class="fas fa-arrow-right ms-2"></i>
+                   </button>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- =========================================================================
+        ETAPA 3: LOCALIZAÇÃO & ENVIO
+        ========================================================================= -->
+   <div class="apple-wizard-step" id="step3Location" style="display: none;">
+       <!-- Resumo do Chamado (Ticket Preview) -->
+       <div class="apple-ticket-preview-box mb-4">
+           <div class="preview-header d-flex align-items-center justify-content-between mb-3">
+               <div class="d-flex align-items-center">
+                   <span class="preview-badge-icon"><i class="fas fa-receipt text-primary"></i></span>
+                   <div>
+                       <h5 class="mb-0 fw-bold">Resumo do seu Chamado</h5>
+                       <span class="text-muted" style="font-size: 0.82rem; display: block; width: 100% !important; white-space: normal !important;">Confira as informações antes de enviar</span>
+                   </div>
+               </div>
+               <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-semibold" id="previewTypeBadge">Incidente</span>
+           </div>
+           <div class="preview-grid">
+               <div class="preview-item">
+                   <span class="preview-label">Categoria</span>
+                   <span class="preview-val fw-semibold" id="previewCatVal">Sistemas & ERP</span>
+               </div>
+               <div class="preview-item">
+                   <span class="preview-label">Urgência</span>
+                   <span class="preview-val fw-semibold" id="previewUrgVal"><span class="urgency-dot-sm me-1" style="background-color: #3B82F6;"></span> Média</span>
+               </div>
+               <div class="preview-item">
+                   <span class="preview-label">Localização</span>
+                   <span class="preview-val fw-semibold" id="previewLocVal">Local padrão</span>
+               </div>
+               <div class="preview-item preview-item-full">
+                   <span class="preview-label">Título</span>
+                   <span class="preview-val fw-semibold text-break" id="previewTitleVal">-</span>
+               </div>
+           </div>
+       </div>
+
+       <div class="card apple-section-card mb-4" id="sectionLocation">
+           <div class="card-header apple-section-header">
+               <div class="d-flex align-items-center justify-content-between">
+                   <div class="d-flex align-items-center">
+                       <span class="apple-step-badge">3</span>
+                       <div>
+                           <h3 class="card-title mb-0">Localização e Envio</h3>
+                           <span class="text-muted" style="font-size: 0.82rem; display: block; width: 100% !important; white-space: normal !important;">Informe onde o atendimento presencial ou suporte deve ocorrer</span>
+                       </div>
+                   </div>
+                    <span class="badge bg-light text-secondary rounded-pill px-2 py-1 fw-normal" style="font-size: 0.72rem;">Etapa 3 de 3</span>
                 </div>
+            </div>
+            <div class="card-body p-3">               {% set effective_loc_id = params['locations_id']|default(user_location_id|default(1)) %}
+               {% if effective_loc_id <= 0 %}{% set effective_loc_id = user_location_id|default(1) %}{% endif %}
+               {% if effective_loc_id <= 0 %}{% set effective_loc_id = 1 %}{% endif %}
 
-                <!-- 2.4 Tag e Informação da Região do Chamado (Localização Automática) -->
-                {% set cur_loc_id = params['locations_id'] ?? user_location_id|default(1) %}
-                {% set cur_loc_name = user_location_name|default('Brago-DF') %}
-                {% set cur_loc_slug = cur_loc_id == 5 ? 'to' : (cur_loc_id == 6 ? 'go' : (cur_loc_id == 7 ? 'ms' : (cur_loc_id == 1 or cur_loc_id == 0 ? 'df' : 'custom'))) %}
+               <div class="user-location-selector-box user-location-locked mb-3" style="user-select: none;">
+                   <div class="user-location-stamp-header">
+                       <div class="user-location-stamp-title-wrap d-flex align-items-center gap-2">
+                           <i class="ti ti-map-pin text-primary"></i>
+                           <span class="title-text fw-bold">{{ __('Local do Atendimento / Onde você se encontra') }}</span>
+                           <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 ms-1" style="font-size: 0.72rem; font-weight: 500;">
+                               <i class="ti ti-lock me-1"></i> {{ __('Vínculo Automático') }}
+                           </span>
+                       </div>
+                       <div id="ticket-location-stamp-display" class="user-location-stamp-tag {{ effective_loc_id == 5 ? 'stamp-to' : (effective_loc_id == 6 ? 'stamp-go' : (effective_loc_id == 7 ? 'stamp-ms' : 'stamp-df')) }}">
+                           <i class="{{ effective_loc_id == 1 ? 'ti ti-building' : 'ti ti-map-pin' }}"></i>
+                           <span id="ticketLocationStampText">{{ effective_loc_id == 5 ? 'BRAGO-TO' : (effective_loc_id == 6 ? 'BRAGO-GO' : (effective_loc_id == 7 ? 'BRAGO-MS' : 'BRAGO-DF')) }}</span>
+                       </div>
+                   </div>
+                   <p class="text-muted mb-3" style="font-size: 0.85rem; width: 100% !important; max-width: 100% !important; display: block !important; white-space: normal !important; word-break: normal !important; line-height: 1.5;">
+                       <i class="ti ti-info-circle me-1 text-primary"></i> {{ __('Localização vinculada automaticamente ao seu cadastro. O chamado será direcionado para sua base regional.') }}
+                   </p>
 
-                <div class="apple-location-tag-banner p-3 mb-3 mt-3">
-                    <div class="location-banner-header d-flex align-items-center justify-content-between gap-2 mb-2">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
-                            <div class="apple-location-icon-circle flex-shrink-0">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </div>
-                            <div class="location-banner-texts min-w-0">
-                                <div class="location-banner-title fw-bold text-dark">
-                                    Local de Atendimento / Região
-                                </div>
-                                <div class="location-banner-subtitle text-muted">
-                                    Definido automaticamente pelo seu perfil
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 flex-shrink-0" id="btnToggleCustomLocation" title="Alterar local caso esteja em outra filial ou sala">
-                            <i class="fas fa-pen"></i>
-                            <span class="fw-semibold">Alterar</span>
-                        </button>
-                    </div>
+                   <!-- 4 Cards Regionais Apenas para Ilustração (Bloqueados) -->
+                   <div class="user-location-cards-grid">
+                       <!-- Card Brago-DF (ID 1) -->
+                       <div class="user-location-card card-df {{ effective_loc_id == 1 ? 'is-selected' : 'is-disabled' }}" 
+                            data-loc-id="1">
+                           <div class="loc-card-top">
+                               <span class="loc-card-badge" style="color: #2563EB !important;"><i class="ti ti-building"></i> Brago-DF</span>
+                               <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
+                           </div>
+                           <div class="loc-card-desc">{{ __('Distrito Federal / Sede Matriz') }}</div>
+                       </div>
 
-                    <!-- Tag da Região e Confirmação -->
-                    <div class="location-banner-tags d-flex align-items-center gap-2 flex-wrap pt-2 border-top">
-                        <span class="user-header-location-tag loc-{{ cur_loc_slug }}" style="font-size: 0.8rem; padding: 3px 12px;" id="ticketLocationBadgeDisplay">
-                            <i class="fas fa-tag me-1"></i> <span id="locationBadgeText">{{ cur_loc_name }}</span>
-                        </span>
-                        <span class="badge bg-light text-muted border rounded-pill px-2 py-1">
-                            <i class="fas fa-check-circle text-success me-1"></i> Vinculado ao seu usuário
-                        </span>
-                    </div>
+                       <!-- Card Brago-TO (ID 5) -->
+                       <div class="user-location-card card-to {{ effective_loc_id == 5 ? 'is-selected' : 'is-disabled' }}" 
+                            data-loc-id="5">
+                           <div class="loc-card-top">
+                               <span class="loc-card-badge" style="color: #059669 !important;"><i class="ti ti-map-pin"></i> Brago-TO</span>
+                               <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
+                           </div>
+                           <div class="loc-card-desc">{{ __('Tocantins / Unidade Regional') }}</div>
+                       </div>
 
-                    <!-- Seletor opcional expansível para casos específicos -->
-                    <div id="wrapperCustomLocation" class="mt-3 pt-3 border-top d-none">
-                        <label class="form-label fw-bold mb-1 text-secondary">
-                            <i class="fas fa-map-pin me-1 text-primary"></i> Selecionar outra localização para este chamado:
-                        </label>
-                        <p class="text-muted mb-2">Se você estiver temporariamente em outra unidade ou sala, selecione abaixo:</p>
-                        {{ fields.dropdownField(
-                           'Location',
-                           'locations_id',
-                           params['locations_id'] ?? user_location_id|default(1),
-                           'Location'|itemtype_name,
-                           right_field_options
-                        ) }}
-                    </div>
-                </div>
-                <input type="hidden" name="forced_locations_id" id="forcedLocationsId" value="{{ params['locations_id'] ?? user_location_id|default(1) }}" />
+                       <!-- Card Brago-GO (ID 6) -->
+                       <div class="user-location-card card-go {{ effective_loc_id == 6 ? 'is-selected' : 'is-disabled' }}" 
+                            data-loc-id="6">
+                           <div class="loc-card-top">
+                               <span class="loc-card-badge" style="color: #D97706 !important;"><i class="ti ti-map-pin"></i> Brago-GO</span>
+                               <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
+                           </div>
+                           <div class="loc-card-desc">{{ __('Goiás / Unidade Regional') }}</div>
+                       </div>
+
+                       <!-- Card Brago-MS (ID 7) -->
+                       <div class="user-location-card card-ms {{ effective_loc_id == 7 ? 'is-selected' : 'is-disabled' }}" 
+                            data-loc-id="7">
+                           <div class="loc-card-top">
+                               <span class="loc-card-badge" style="color: #7C3AED !important;"><i class="ti ti-map-pin"></i> Brago-MS</span>
+                               <div class="loc-card-radio-indicator"><i class="ti ti-check"></i></div>
+                           </div>
+                           <div class="loc-card-desc">{{ __('Mato Grosso do Sul / Regional') }}</div>
+                       </div>
+                   </div>
+
+                   <!-- Campos ocultos para envio do ID de localização ao salvar o chamado -->
+                   <input type="hidden" name="locations_id" id="ticket_locations_id" value="{{ effective_loc_id }}" />
+                   <input type="hidden" name="forced_locations_id" id="forced_locations_id" value="{{ effective_loc_id }}" />
+               </div>
 
                <!-- Informações de Delegação (se houver) -->
                {% if delegating|length %}
-                   <div class="mt-3 pt-3 border-top">
+                   <div class="mt-4 pt-3 border-top">
                        <div class="row">
                            <div class="col-sm-8">
                                {% set actor_add_form %}
@@ -469,23 +584,19 @@
                    </div>
                {% endif %}
            </div>
-
-           <!-- Rodapé de Navegação da Etapa 2 (Envio Direto) -->
-       </div>
-   </div>
-
-   <!-- Barra de Acoes Flutuante da Etapa 2 (Substitui Temporariamente a Navbar Movel) -->
-   <div class="apple-floating-action-bar" id="step2ActionFooter">
-       <div class="apple-floating-action-inner">
-           <button type="button" class="btn apple-nav-btn apple-nav-btn-ghost" onclick="goToStep(1)" aria-label="Voltar para Categoria" title="Voltar para Categoria">
-               <i class="fas fa-arrow-left"></i>
-               <span class="d-none d-md-inline ms-2">Voltar</span>
-           </button>
-           <input type="hidden" name="entities_id" value="{{ entities_id }}" />
-           <button type="submit" class="btn btn-primary apple-submit-cta-btn" name="add" id="btnSubmitTicket">
-               <i class="fas fa-paper-plane"></i>
-               <span>Confirmar e Abrir Chamado</span>
-           </button>
+           
+                      <div class="card-footer bg-transparent border-top py-2 px-3">
+               <div class="d-flex justify-content-between align-items-center">
+                   <button type="button" class="btn apple-nav-btn apple-nav-btn-ghost" onclick="goToStep(2)">
+                       <i class="fas fa-arrow-left me-2"></i> Voltar aos Detalhes
+                   </button>
+                   <input type="hidden" name="entities_id" value="{{ entities_id }}" />
+                   <button type="submit" class="btn btn-primary apple-submit-cta-btn" name="add" id="btnSubmitTicket">
+                       <i class="fas fa-paper-plane me-2"></i>
+                       <span>Confirmar e Abrir Chamado</span>
+                   </button>
+               </div>
+           </div>
        </div>
    </div>
 
@@ -514,20 +625,165 @@
 var currentStep = 1;
 
 function updateStepperUI(step) {
-    var $step1 = $('#stepperStep1');
-    var $step2 = $('#stepperStep2');
-    $step1.removeClass('active completed pending');
-    $step2.removeClass('active completed pending');
+    for (var i = 1; i <= 3; i++) {
+        var $stepEl = $('#stepperStep' + i);
+        $stepEl.removeClass('active completed pending');
+        if (i < step) {
+            $stepEl.addClass('completed');
+        } else if (i === step) {
+            $stepEl.addClass('active');
+        } else {
+            $stepEl.addClass('pending');
+        }
+    }
 
     if (step === 1) {
-        $step1.addClass('active');
-        $step2.addClass('pending');
         $('#trackFill1').css('width', '0%');
-    } else {
-        $step1.addClass('completed');
-        $step2.addClass('active');
+        $('#trackFill2').css('width', '0%');
+    } else if (step === 2) {
         $('#trackFill1').css('width', '100%');
+        $('#trackFill2').css('width', '0%');
+    } else if (step >= 3) {
+        $('#trackFill1').css('width', '100%');
+        $('#trackFill2').css('width', '100%');
     }
+
+    if (step === 3) {
+        updateTicketPreview();
+    }
+}
+
+function selectTicketLocation(id, name, stampClass, iconClass, el) {
+    id = parseInt(id);
+    $('#forced_locations_id').val(id);
+
+    $('.user-location-card').removeClass('is-selected');
+    if (el) {
+        $(el).addClass('is-selected');
+    } else {
+        var $matching = $('.user-location-card[data-loc-id="' + id + '"]');
+        if ($matching.length) {
+            $matching.addClass('is-selected');
+        }
+    }
+
+    var $stamp = $('#ticket-location-stamp-display');
+    if ($stamp.length) {
+        $stamp.attr('class', 'user-location-stamp-tag ' + stampClass);
+        $stamp.html('<i class="' + iconClass + '"></i> <span id="ticketLocationStampText">' + name.toUpperCase() + '</span>');
+    }
+
+    var $locSelect = $('select[name="locations_id"]');
+    if ($locSelect.length) {
+        if ($locSelect.val() != id && $locSelect.find('option[value="' + id + '"]').length) {
+            $locSelect.val(id).trigger('change.select2');
+        }
+    }
+
+    $('#previewLocVal').text(name);
+}
+
+
+function resolveUrgencyForCategory(catId, catTitle) {
+    catId = parseInt(catId) || 0;
+    var title = (catTitle || '').toLowerCase();
+
+    // 1. Verificar atributos data do card correspondente
+    var $card = $('.apple-category-card[data-category-id="' + catId + '"]');
+    if (!$card.length && catId === 0) {
+        $card = $('.apple-category-card.active');
+    }
+    if ($card.length && $card.data('urgency')) {
+        var uVal = parseInt($card.data('urgency'));
+        return {
+            urgency: uVal,
+            name: $card.data('urgency-name') || (uVal === 4 ? 'Alta' : (uVal === 2 ? 'Baixa' : 'Média')),
+            color: $card.data('urgency-color') || (uVal === 4 ? '#F59E0B' : (uVal === 2 ? '#10B981' : '#3B82F6'))
+        };
+    }
+
+    // 2. Sistema & ERP: Alta (4)
+    if (title.indexOf('sistema') !== -1 || title.indexOf('erp') !== -1 || title.indexOf('winthor') !== -1) {
+        return { urgency: 4, name: 'Alta', color: '#F59E0B' };
+    }
+    // 3. Computadores: Alta (4)
+    if (title.indexOf('computador') !== -1 || title.indexOf('hardware') !== -1 || title.indexOf('notebook') !== -1 || title.indexOf('pc') !== -1) {
+        return { urgency: 4, name: 'Alta', color: '#F59E0B' };
+    }
+    // 4. Redes & Internet: Média (3)
+    if (title.indexOf('rede') !== -1 || title.indexOf('internet') !== -1 || title.indexOf('wifi') !== -1 || title.indexOf('vpn') !== -1 || title.indexOf('link') !== -1) {
+        return { urgency: 3, name: 'Média', color: '#3B82F6' };
+    }
+    // 5. Impressoras: Média (3)
+    if (title.indexOf('impressora') !== -1 || title.indexOf('impress') !== -1 || title.indexOf('toner') !== -1 || title.indexOf('scanner') !== -1) {
+        return { urgency: 3, name: 'Média', color: '#3B82F6' };
+    }
+    // 6. E-mail & Acessos: Baixa (2)
+    if (title.indexOf('email') !== -1 || title.indexOf('e-mail') !== -1 || title.indexOf('acesso') !== -1 || title.indexOf('senha') !== -1) {
+        return { urgency: 2, name: 'Baixa', color: '#10B981' };
+    }
+    // 7. Dúvidas & Apoio: Baixa (2)
+    if (title.indexOf('duvida') !== -1 || title.indexOf('dúvida') !== -1 || title.indexOf('apoio') !== -1 || title.indexOf('suporte') !== -1 || title.indexOf('ajuda') !== -1) {
+        return { urgency: 2, name: 'Baixa', color: '#10B981' };
+    }
+
+    // Padrão: Média (3)
+    return { urgency: 3, name: 'Média', color: '#3B82F6' };
+}
+
+function applyAutomaticUrgency(urgVal, urgName, urgColor) {
+    urgVal = parseInt(urgVal) || 3;
+    if (!urgName) {
+        if (urgVal === 4) { urgName = 'Alta'; urgColor = '#F59E0B'; }
+        else if (urgVal === 2) { urgName = 'Baixa'; urgColor = '#10B981'; }
+        else { urgName = 'Média'; urgColor = '#3B82F6'; }
+    }
+    $('#forcedUrgency').val(urgVal);
+    $('#forcedImpact').val(urgVal);
+    $('#forcedPriority').val(urgVal);
+
+    var $urgSelect = $('select[name="urgency"]');
+    if ($urgSelect.length) {
+        if (!$urgSelect.find('option[value="' + urgVal + '"]').length) {
+            $urgSelect.append(new Option(urgName, urgVal, true, true));
+        }
+        $urgSelect.val(urgVal).trigger('change.select2').trigger('change');
+    }
+
+    $('#previewUrgVal').html('<span class="urgency-dot-sm me-1" style="background-color: ' + urgColor + ';"></span> ' + urgName);
+}
+
+function updateTicketPreview() {
+    var isIncident = $('#appleTypeSegment .apple-segment-btn[data-type="1"]').hasClass('active');
+    $('#previewTypeBadge').text(isIncident ? 'Incidente (Problema)' : 'Requisição (Serviço)');
+    if (isIncident) {
+        $('#previewTypeBadge').removeClass('bg-primary-subtle text-primary').addClass('bg-danger-subtle text-danger');
+    } else {
+        $('#previewTypeBadge').removeClass('bg-danger-subtle text-danger').addClass('bg-primary-subtle text-primary');
+    }
+
+    var activeCatTitle = $('.apple-category-card.active .apple-cat-title').text();
+    if (!activeCatTitle || activeCatTitle.trim() === '') {
+        var nativeCatText = $('select[name="itilcategories_id"] option:selected').text();
+        activeCatTitle = (nativeCatText && nativeCatText.trim() !== '' && nativeCatText.indexOf('-----') === -1) ? nativeCatText : 'Sistemas & ERP';
+    }
+    $('#previewCatVal').text(activeCatTitle.trim());
+
+    // Sincronizar Urgência Automática baseada na Categoria
+    var catId = $('#forcedItilCategoryId').val() || $('select[name="itilcategories_id"]').val();
+    var urgInfo = resolveUrgencyForCategory(catId, activeCatTitle);
+    applyAutomaticUrgency(urgInfo.urgency, urgInfo.name, urgInfo.color);
+
+    var $locSelect = $('select[name="locations_id"]');
+    var locText = $locSelect.find('option:selected').text();
+    if (!locText || locText.trim() === '' || locText.indexOf('-----') !== -1) {
+        var activeCardText = $('.user-location-card.is-selected .loc-card-badge').text();
+        locText = activeCardText && activeCardText.trim() !== '' ? activeCardText : '{{ user_location_name|default("Brago-DF") }}';
+    }
+    $('#previewLocVal').text(locText.trim());
+
+    var titleVal = $('input[name="name"]').val();
+    $('#previewTitleVal').text(titleVal && titleVal.trim() !== '' ? titleVal : '(Sem título informado)');
 }
 
 function hasDescriptionContent() {
@@ -540,6 +796,7 @@ function hasDescriptionContent() {
         var ed = (editorId && tinymce.get(editorId)) ? tinymce.get(editorId) : tinymce.activeEditor;
         if (ed && !ed.isHidden()) {
             var html = ed.getContent();
+            // If it has images, audio, video, attachments, or tables, it's not empty
             if (/<(img|video|audio|table|figure|iframe|object|embed)/i.test(html) || html.indexOf('data:image') !== -1) {
                 return true;
             }
@@ -558,6 +815,7 @@ function hasDescriptionContent() {
         return true;
     }
 
+    // Check if any files are attached in GLPI's file upload container in the description group
     if ($('#descriptionInputGroup').find('.fileupload-item, .file-item, .uploaded-file, .upload-element').length > 0) {
         return true;
     }
@@ -574,52 +832,78 @@ function goToStep(targetStep) {
         }
     }
 
-    if (targetStep === 2) {
-        // Transição para Etapa 2 (Detalhes do Chamado)
-        $('#step1Category').hide();
-        $('#step2Details').fadeIn(220);
+    // Validação ao tentar avançar para a Etapa 3 (Localização e Envio)
+    if (targetStep === 3) {
+        var titleVal = $('input[name="name"]').val();
+        if (!titleVal || titleVal.trim() === '') {
+            if (currentStep !== 2) {
+                currentStep = 2;
+                $('.apple-wizard-step').hide();
+                $('#step2Details').fadeIn(240);
+                updateStepperUI(2);
+            }
+            $('#titleRequiredAlert').removeClass('d-none');
+            var $titleInput = $('input[name="name"]');
+            $titleInput.addClass('input-shake').focus();
+            setTimeout(function() {
+                $titleInput.removeClass('input-shake');
+            }, 500);
+            $('html, body').animate({
+                scrollTop: $('#titleInputGroup').offset().top - 20
+            }, 200);
+            return;
+        } else {
+            $('#titleRequiredAlert').addClass('d-none');
+        }
 
-        currentStep = 2;
-        updateStepperUI(currentStep);
-
-        // Dispara a animação fluida: navbar desce desaparecendo e botões de ação sobem
-        setTimeout(function() {
-            $('body').addClass('glpi-step-details-active');
-            $('html').addClass('glpi-step-details-active');
-        }, 20);
-
-        $('html, body').animate({
-            scrollTop: $('.apple-wizard-stepper-wrap').offset().top - 20
-        }, 280);
-    } else {
-        // Transição de volta para Etapa 1 (Categorias)
-        // Dispara imediatamente a animação reversa: botões de ação descem e navbar sobe
-        $('body').removeClass('glpi-step-details-active');
-        $('html').removeClass('glpi-step-details-active');
-
-        currentStep = 1;
-        updateStepperUI(currentStep);
-
-        $('html, body').animate({
-            scrollTop: $('.apple-wizard-stepper-wrap').offset().top - 20
-        }, 280);
-
-        // Troca suave dos blocos após início da animação de saída dos botões
-        setTimeout(function() {
-            $('#step2Details').fadeOut(160, function() {
-                $('#step1Category').fadeIn(200);
-            });
-        }, 120);
+        if (!hasDescriptionContent()) {
+            if (currentStep !== 2) {
+                currentStep = 2;
+                $('.apple-wizard-step').hide();
+                $('#step2Details').fadeIn(240);
+                updateStepperUI(2);
+            }
+            $('#descriptionRequiredAlert').removeClass('d-none');
+            var $textarea = $('textarea[name="content"]');
+            var editorId = $textarea.attr('id');
+            var $editorBox = $('#descriptionInputGroup .tox-tinymce');
+            if ($editorBox.length) {
+                $editorBox.addClass('input-shake');
+                setTimeout(function() {
+                    $editorBox.removeClass('input-shake');
+                }, 500);
+                if (typeof tinymce !== 'undefined') {
+                    var ed = (editorId && tinymce.get(editorId)) ? tinymce.get(editorId) : tinymce.activeEditor;
+                    if (ed) ed.focus();
+                }
+            } else {
+                $textarea.addClass('input-shake').focus();
+                setTimeout(function() {
+                    $textarea.removeClass('input-shake');
+                }, 500);
+            }
+            $('html, body').animate({
+                scrollTop: $('#descriptionInputGroup').offset().top - 30
+            }, 200);
+            return;
+        } else {
+            $('#descriptionRequiredAlert').addClass('d-none');
+        }
     }
+
+    $('.apple-wizard-step').hide();
+    var targetContainerId = (targetStep === 1) ? '#step1Category' : ((targetStep === 2) ? '#step2Details' : '#step3Location');
+    $(targetContainerId).fadeIn(240);
+
+    currentStep = targetStep;
+    updateStepperUI(currentStep);
+
+    $('html, body').animate({
+        scrollTop: $('.apple-wizard-stepper-wrap').offset().top - 20
+    }, 280);
 }
 
 $(function () {
-    // Sincronizar estado inicial da barra de ações com a etapa ativa
-    if ($('#step2Details').is(':visible')) {
-        $('body, html').addClass('glpi-step-details-active');
-    } else {
-        $('body, html').removeClass('glpi-step-details-active');
-    }
     // 1. Alternância de Tipo (Incidente / Requisição)
     $('#appleTypeSegment .apple-segment-btn').on('click', function(e) {
         e.preventDefault();
@@ -637,6 +921,7 @@ $(function () {
 
         var catId = $(this).data('category-id');
         var catTitle = $(this).find('.apple-cat-title').text().trim();
+        var keywords = ($(this).data('keywords') || '').toLowerCase().split(',');
 
         if (catId) {
             $('#forcedItilCategoryId').val(catId);
@@ -651,10 +936,19 @@ $(function () {
             $catSelect.val(catId).trigger('change.select2').trigger('change');
         }
 
-        var cardUrgency = $(this).data('urgency') || getUrgencyForCategory(catId, catTitle);
-        applyAutoUrgency(cardUrgency);
+        var cardUrg = $(this).data('urgency');
+        var cardUrgName = $(this).data('urgency-name');
+        var cardUrgColor = $(this).data('urgency-color');
+        if (cardUrg) {
+            applyAutomaticUrgency(cardUrg, cardUrgName, cardUrgColor);
+        } else {
+            var urgInfo = resolveUrgencyForCategory(catId, catTitle);
+            applyAutomaticUrgency(urgInfo.urgency, urgInfo.name, urgInfo.color);
+        }
 
-        // Avança suavemente para a etapa 2 (Detalhes & Envio)
+        updateTicketPreview();
+
+        // Feedback suave: Avança automaticamente para o passo 2
         setTimeout(function() {
             goToStep(2);
         }, 220);
@@ -695,82 +989,80 @@ $(function () {
         if (val && val != '0') {
             $('#forcedItilCategoryId').val(val);
             $('.apple-category-card').removeClass('active');
-            $('.apple-category-card[data-category-id="' + val + '"]').addClass('active');
-            var optText = $(this).find('option:selected').text();
-            applyAutoUrgency(getUrgencyForCategory(val, optText));
+            var $matchingCard = $('.apple-category-card[data-category-id="' + val + '"]');
+            if ($matchingCard.length) {
+                $matchingCard.addClass('active');
+            }
+            var text = $(this).find('option:selected').text().trim();
+            var urgInfo = resolveUrgencyForCategory(val, text);
+            applyAutomaticUrgency(urgInfo.urgency, urgInfo.name, urgInfo.color);
+            updateTicketPreview();
         }
     });
 
-    // 3. Localização customizada / toggle
-    $('#btnToggleCustomLocation').on('click', function() {
-        $('#wrapperCustomLocation').toggleClass('d-none');
-    });
-
+    // Sincronizar quando a localização for alterada
     $(document).on('change', 'select[name="locations_id"]', function() {
-        var val = $(this).val();
-        var text = $(this).find('option:selected').text();
-        if (val && val != '0') {
-            $('#forcedLocationsId').val(val);
-            if (text && text.trim() !== '' && text.indexOf('-----') === -1) {
-                $('#locationBadgeText').text(text.trim());
+        var val = parseInt($(this).val() || '0');
+        var text = $(this).find('option:selected').text().trim();
+        if (val > 0) {
+            $('#forced_locations_id').val(val);
+            $('#previewLocVal').text(text);
+
+            $('.user-location-card').removeClass('is-selected');
+            var $stamp = $('#ticket-location-stamp-display');
+
+            if (val === 1) {
+                $('.user-location-card.card-df').addClass('is-selected');
+                if ($stamp.length) {
+                    $stamp.attr('class', 'user-location-stamp-tag stamp-df');
+                    $stamp.html('<i class="ti ti-building"></i> <span id="ticketLocationStampText">BRAGO-DF</span>');
+                }
+            } else if (val === 5) {
+                $('.user-location-card.card-to').addClass('is-selected');
+                if ($stamp.length) {
+                    $stamp.attr('class', 'user-location-stamp-tag stamp-to');
+                    $stamp.html('<i class="ti ti-map-pin"></i> <span id="ticketLocationStampText">BRAGO-TO</span>');
+                }
+            } else if (val === 6) {
+                $('.user-location-card.card-go').addClass('is-selected');
+                if ($stamp.length) {
+                    $stamp.attr('class', 'user-location-stamp-tag stamp-go');
+                    $stamp.html('<i class="ti ti-map-pin"></i> <span id="ticketLocationStampText">BRAGO-GO</span>');
+                }
+            } else if (val === 7) {
+                $('.user-location-card.card-ms').addClass('is-selected');
+                if ($stamp.length) {
+                    $stamp.attr('class', 'user-location-stamp-tag stamp-ms');
+                    $stamp.html('<i class="ti ti-map-pin"></i> <span id="ticketLocationStampText">BRAGO-MS</span>');
+                }
+            } else {
+                if ($stamp.length) {
+                    $stamp.attr('class', 'user-location-stamp-tag stamp-custom');
+                    $stamp.html('<i class="ti ti-map-pin"></i> <span id="ticketLocationStampText">' + (text || 'LOCAL ' + val).toUpperCase() + '</span>');
+                }
             }
         }
+        updateTicketPreview();
     });
 
-    // 4. Auto-gerenciamento de Urgência & Prioridade por Categoria
-    function getUrgencyForCategory(catId, catText) {
-        var id = parseInt(catId, 10);
-        var text = (catText || '').toLowerCase();
-
-        // 1. Sistemas & ERP (Winthor) -> Muito Alta (5)
-        if (id === {{ real_cat_sistema }} || text.indexOf('sistema') !== -1 || text.indexOf('erp') !== -1 || text.indexOf('winthor') !== -1) {
-            return 5;
-        }
-        // 2. Redes & Internet -> Muito Alta (5)
-        if (id === {{ real_cat_rede }} || text.indexOf('rede') !== -1 || text.indexOf('internet') !== -1 || text.indexOf('wifi') !== -1 || text.indexOf('vpn') !== -1) {
-            return 5;
-        }
-        // 3. Impressoras -> Média (3)
-        if (id === {{ real_cat_impressora }} || text.indexOf('impressora') !== -1 || text.indexOf('toner') !== -1 || text.indexOf('scanner') !== -1) {
-            return 3;
-        }
-        // 4. E-mail & Acessos -> Média (3)
-        if (id === {{ real_cat_acesso }} || text.indexOf('email') !== -1 || text.indexOf('e-mail') !== -1 || text.indexOf('acesso') !== -1 || text.indexOf('senha') !== -1) {
-            return 3;
-        }
-        // 5. Dúvidas & Apoio -> Baixa (2)
-        if (id === {{ real_cat_suporte }} || text.indexOf('duvida') !== -1 || text.indexOf('dúvida') !== -1 || text.indexOf('apoio') !== -1 || text.indexOf('suporte') !== -1) {
-            return 2;
-        }
-        // 6. Computadores / Hardware e outras categorias -> Média (3)
-        return 3;
+    // Auto-selecionar a localização registrada do usuário ao carregar
+    var autoLocId = parseInt($('#forced_locations_id').val() || '{{ effective_loc_id }}');
+    if (autoLocId === 5) {
+        selectTicketLocation(5, 'Brago-TO', 'stamp-to', 'ti ti-map-pin');
+    } else if (autoLocId === 6) {
+        selectTicketLocation(6, 'Brago-GO', 'stamp-go', 'ti ti-map-pin');
+    } else if (autoLocId === 7) {
+        selectTicketLocation(7, 'Brago-MS', 'stamp-ms', 'ti ti-map-pin');
+    } else if (autoLocId === 1) {
+        selectTicketLocation(1, 'Brago-DF', 'stamp-df', 'ti ti-building');
+    } else if (autoLocId > 0) {
+        var $locSel = $('select[name="locations_id"]');
+        var custName = $locSel.find('option[value="' + autoLocId + '"]').text() || 'Local ' + autoLocId;
+        selectTicketLocation(autoLocId, custName, 'stamp-custom', 'ti ti-map-pin');
     }
 
-    function applyAutoUrgency(urgencyVal) {
-        var urg = parseInt(urgencyVal, 10) || 3;
-        var $urgSelect = $('select[name="urgency"]');
-        if ($urgSelect.length) {
-            $urgSelect.val(urg).trigger('change.select2').trigger('change');
-        }
-        $('#forcedUrgency').val(urg);
-        $('#forcedImpact').val(urg);
-        $('#forcedPriority').val(urg);
-    }
 
-    // Sincronizar urgência inicial com a categoria ativa no carregamento
-    (function initCategoryUrgency() {
-        var $activeCard = $('.apple-category-card.active');
-        if ($activeCard.length) {
-            var activeUrg = $activeCard.data('urgency') || getUrgencyForCategory($activeCard.data('category-id'), $activeCard.find('.apple-cat-title').text());
-            applyAutoUrgency(activeUrg);
-        } else {
-            var initialCatId = $('#forcedItilCategoryId').val() || $('select[name="itilcategories_id"]').val();
-            var initialCatText = $('select[name="itilcategories_id"] option:selected').text();
-            applyAutoUrgency(getUrgencyForCategory(initialCatId, initialCatText));
-        }
-    })();
-
-    // 5. Chips de Sugestão Rápida para o Título
+    // 4. Chips de Sugestão Rápida para o Título
     $('.suggestion-chip').on('click', function() {
         var suggested = $(this).data('title');
         var $input = $('input[name="name"]');
@@ -801,6 +1093,8 @@ $(function () {
                 }
             }
         });
+
+        updateTicketPreview();
     });
 
     // Limpeza de alerta de título em tempo real
@@ -809,6 +1103,7 @@ $(function () {
             $('#titleRequiredAlert').addClass('d-none');
             $(this).removeClass('input-shake');
         }
+        updateTicketPreview();
     });
 
     // Limpeza de alerta de descrição em tempo real (Textarea nativo)
@@ -841,6 +1136,19 @@ $(function () {
         }
     }
 
+    // Enter no campo de título avança para a etapa 3
+    $('input[name="name"]').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            goToStep(3);
+        }
+    });
+
+    // 5. Botão de Avanço da Etapa 2
+    $('#btnNextToStep3').on('click', function() {
+        goToStep(3);
+    });
+
     // 6. Interceptador de Envio Final para Garantir Integridade
     $('#btnSubmitTicket').closest('form').on('submit', function(e) {
         var forcedCat = $('#forcedItilCategoryId').val();
@@ -855,12 +1163,14 @@ $(function () {
             }
         }
 
-        var forcedLoc = $('#forcedLocationsId').val();
-        if (forcedLoc && forcedLoc != '0') {
-            var $locSelect = $('select[name="locations_id"]');
-            if ($locSelect.length) {
-                $locSelect.val(forcedLoc);
+        // Garante envio da urgência automática calculada
+        var urgVal = parseInt($('#forcedUrgency').val() || '4');
+        var $urgSelect = $('select[name="urgency"]');
+        if ($urgSelect.length) {
+            if (!$urgSelect.find('option[value="' + urgVal + '"]').length) {
+                $urgSelect.append(new Option('Urgência', urgVal, true, true));
             }
+            $urgSelect.val(urgVal);
         }
 
         var titleVal = $('input[name="name"]').val();
@@ -921,6 +1231,9 @@ $(function () {
     if (typeof saveActorsToDom === 'function') {
         saveActorsToDom();
     }
+
+    // Inicialização da Urgência Automática
+    updateTicketPreview();
 });
 </script>
 

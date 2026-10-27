@@ -1652,9 +1652,12 @@ final class DbUtils
         $before = "";
         $after  = "";
 
-        $order = $CFG_GLPI["names_format"] ?? User::REALNAME_BEFORE;
+        $order = $CFG_GLPI["names_format"] ?? User::FIRSTNAME_BEFORE;
         if (isset($_SESSION["glpinames_format"]) && !$force_config) {
             $order = $_SESSION["glpinames_format"];
+        }
+        if ($order == User::REALNAME_BEFORE) {
+            $order = User::FIRSTNAME_BEFORE;
         }
 
         $id_visible = $CFG_GLPI["is_ids_visible"] ?? 0;
@@ -1662,25 +1665,26 @@ final class DbUtils
             $id_visible = $_SESSION["glpiis_ids_visible"];
         }
 
-        if (strlen($realname ?? '') > 0) {
+        $realname = trim($realname ?? '');
+        $firstname = trim($firstname ?? '');
+
+        if ($firstname !== '' && $realname !== '') {
+            $formatted = ($order == User::REALNAME_BEFORE)
+                ? $realname . " " . $firstname
+                : $firstname . " " . $realname;
+        } elseif ($firstname !== '') {
+            $formatted = $firstname;
+        } elseif ($realname !== '') {
             $formatted = $realname;
-
-            if (strlen($firstname ?? '') > 0) {
-                if ($order == User::FIRSTNAME_BEFORE) {
-                    $formatted = $firstname . " " . $formatted;
-                } else {
-                    $formatted .= " " . $firstname;
-                }
-            }
-
-            if (
-                ($cut > 0)
-                && (Toolbox::strlen($formatted) > $cut)
-            ) {
-                $formatted = Toolbox::substr($formatted, 0, $cut) . " ...";
-            }
         } else {
             $formatted = $login ?? '';
+        }
+
+        if (
+            ($cut > 0)
+            && (Toolbox::strlen($formatted) > $cut)
+        ) {
+            $formatted = Toolbox::substr($formatted, 0, $cut) . " ...";
         }
 
         if (
