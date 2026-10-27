@@ -565,18 +565,22 @@
         // Polling contínuo rápido a cada 2.5 segundos para propagação simultânea imediata
         setInterval(checkLiveNotifications, 2500);
 
-        // Auto-trigger silencioso para o cron do GLPI processar novos e-mails continuamente a cada 10 segundos
+        // Auto-trigger silencioso para o cron do GLPI processar novos e-mails e fila de envio continuamente a cada 10 segundos
         setInterval(function() {
-            var img = new Image();
-            img.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
+            var img1 = new Image();
+            img1.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
+            var img2 = new Image();
+            img2.src = getRootDoc() + '/front/cron.php?task=queuednotification&t=' + Date.now();
         }, 10000);
 
         // Dispara verificação imediata ao alternar de volta para a aba
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {
                 checkLiveNotifications();
-                var img = new Image();
-                img.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
+                var img1 = new Image();
+                img1.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
+                var img2 = new Image();
+                img2.src = getRootDoc() + '/front/cron.php?task=queuednotification&t=' + Date.now();
             }
         });
     }

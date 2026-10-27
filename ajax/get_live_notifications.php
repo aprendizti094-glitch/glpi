@@ -47,6 +47,10 @@ if (($now - $lastMailCheck) >= 10) {
             }
         } catch (\Throwable $e2) {}
     }
+    try {
+        // Executa queuednotification para envio IMEDIATO de e-mails da fila
+        CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'queuednotification');
+    } catch (\Throwable $e3) {}
 }
 
 $allEvents = [];
