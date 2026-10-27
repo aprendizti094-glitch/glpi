@@ -16,52 +16,52 @@ $is-dark: false;
 :root[data-glpi-theme="apple_hig"],
 html[data-glpi-theme="apple_hig"] {
     /* Apple SF Pro Typography */
-    --tblr-font-sans-serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", Inter, Arial, sans-serif;
+    --tblr-font-sans-serif: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --tblr-body-font-family: var(--tblr-font-sans-serif);
 
     /* Apple Neutral Canvas & Surfaces */
-    --tblr-body-bg: #F2F4F8;
-    --tblr-body-color: #1D1D1F;
-    --tblr-muted: #86868B;
-    --tblr-muted-darken: #6E6E73;
-    --tblr-border-color: rgba(0, 0, 0, 0.06);
-    --tblr-border-color-translucent: rgba(0, 0, 0, 0.05);
+    --tblr-body-bg: #F3F4F6;
+    --tblr-body-color: #1F2937;
+    --tblr-muted: #6B7280;
+    --tblr-muted-darken: #4B5563;
+    --tblr-border-color: #E5E7EB;
+    --tblr-border-color-translucent: rgba(0, 0, 0, 0.06);
 
     /* Apple Squircles & Pill Radii */
-    --tblr-border-radius: 14px;
-    --tblr-border-radius-sm: 8px;
-    --tblr-border-radius-md: 14px;
-    --tblr-border-radius-lg: 20px;
-    --tblr-border-radius-xl: 28px;
+    --tblr-border-radius: 12px;
+    --tblr-border-radius-sm: 6px;
+    --tblr-border-radius-md: 12px;
+    --tblr-border-radius-lg: 16px;
+    --tblr-border-radius-xl: 20px;
     --tblr-border-radius-pill: 9999px;
 
     /* Apple CTA & Semantics */
-    --tblr-primary: #1D1D1F;
-    --tblr-primary-rgb: 29, 29, 31;
+    --tblr-primary: #F97316;
+    --tblr-primary-rgb: 249, 115, 22;
     --tblr-primary-fg: #FFFFFF;
-    --tblr-primary-darken: #000000;
+    --tblr-primary-darken: #EA580C;
 
-    --tblr-secondary: #86868B;
+    --tblr-secondary: #0120F8;
     --tblr-secondary-fg: #FFFFFF;
     
-    --tblr-link-color: #0071E3;
-    --tblr-link-color-rgb: 0, 113, 227;
-    --tblr-link-hover-color: #0077ED;
+    --tblr-link-color: #0120F8;
+    --tblr-link-color-rgb: 1, 32, 248;
+    --tblr-link-hover-color: #2F00FF;
 
-    --tblr-success: #34C759;
-    --tblr-success-rgb: 52, 199, 89;
+    --tblr-success: #10B981;
+    --tblr-success-rgb: 16, 185, 129;
     --tblr-success-fg: #FFFFFF;
 
-    --tblr-warning: #FF9500;
-    --tblr-warning-rgb: 255, 149, 0;
+    --tblr-warning: #F59E0B;
+    --tblr-warning-rgb: 245, 158, 11;
     --tblr-warning-fg: #FFFFFF;
 
-    --tblr-danger: #FF3B30;
-    --tblr-danger-rgb: 255, 59, 48;
+    --tblr-danger: #EF4444;
+    --tblr-danger-rgb: 239, 68, 68;
     --tblr-danger-fg: #FFFFFF;
 
-    --tblr-info: #5856D6;
-    --tblr-info-rgb: 88, 86, 214;
+    --tblr-info: #3B82F6;
+    --tblr-info-rgb: 59, 130, 246;
     --tblr-info-fg: #FFFFFF;
 
     /* Apple Card & Glass Materials */
@@ -69,19 +69,19 @@ html[data-glpi-theme="apple_hig"] {
     --tblr-bg-surface-secondary: #F7F8FA;
     --tblr-bg-surface-tertiary: #ECEEF2;
     --tblr-card-bg: #FFFFFF;
-    --tblr-card-border-radius: 24px;
-    --tblr-card-box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.04), 0 2px 8px -1px rgba(0, 0, 0, 0.02);
+    --tblr-card-border-radius: 16px;
+    --tblr-card-box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 
     /* GLPI System Variable Overrides */
     --glpi-mainmenu-bg: #FFFFFF;
-    --glpi-mainmenu-fg: #1D1D1F;
-    --glpi-mainmenu-fg-muted: #86868B;
-    --glpi-mainmenu-active-bg: #1D1D1F;
-    --glpi-mainmenu-active-fg: #FFFFFF;
+    --glpi-mainmenu-fg: #1F2937;
+    --glpi-mainmenu-fg-muted: #6B7280;
+    --glpi-mainmenu-active-bg: #F3F4F6;
+    --glpi-mainmenu-active-fg: #2F00FF;
     --glpi-topbar-height: 64px;
-    --glpi-badge-bg: #E8F8EE;
-    --glpi-badge-fg: #1D6F24;
-    --glpi-hover-bg: rgba(0, 0, 0, 0.04);
+    --glpi-badge-bg: #ECFDF5;
+    --glpi-badge-fg: #059669;
+    --glpi-hover-bg: #FFF7ED;
 }
 
 /* ==========================================================================
@@ -91,11 +91,8 @@ html[data-glpi-theme="apple_hig"] {
 html[data-glpi-theme="apple_hig"],
 html[data-glpi-theme="apple_hig"] body {
     font-family: var(--tblr-font-sans-serif) !important;
-    background: radial-gradient(circle at 10% 15%, rgba(215, 226, 252, 0.45) 0%, transparent 40%),
-                radial-gradient(circle at 90% 85%, rgba(235, 224, 255, 0.4) 0%, transparent 45%),
-                #F2F4F8 !important;
-    background-attachment: fixed !important;
-    color: #1D1D1F !important;
+    background: #F3F4F6 !important;
+    color: #1F2937 !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -264,7 +261,7 @@ aside.navbar-vertical.sidebar .trigger-fuzzy {
 
 aside.navbar-vertical.sidebar .trigger-fuzzy:hover {
     background: rgba(0, 113, 227, 0.12) !important;
-    color: #0071E3 !important;
+    color: #0120F8 !important;
     border-color: rgba(0, 113, 227, 0.2) !important;
     transform: scale(1.08) !important;
 }
@@ -452,11 +449,11 @@ body header.navbar.sticky-lg-top {
     box-sizing: border-box !important;
 
     /* Frosted Glass & Apple Dock Materials */
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: linear-gradient(135deg, #0B1EE0 0%, #0118C8 50%, #0D47A1 100%) !important;
     backdrop-filter: blur(28px) saturate(190%) !important;
     -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.85) !important;
-    box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 10px 25px -4px rgba(1, 32, 248, 0.35) !important;
     overflow: visible !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -518,8 +515,8 @@ html[data-glpi-theme="apple_hig"] .breadcrumb {
     flex-wrap: nowrap !important;
     white-space: nowrap !important;
     align-items: center !important;
-    background: rgba(0, 0, 0, 0.035) !important;
-    border: 1px solid rgba(0, 0, 0, 0.03) !important;
+    background: rgba(255, 255, 255, 0.16) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     border-radius: 9999px !important;
     padding: 3px 6px 3px 10px !important;
     gap: 3px !important;
@@ -534,7 +531,7 @@ header.navbar .breadcrumb-item,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item {
     font-size: 0.84rem !important;
     font-weight: 500 !important;
-    color: #6E6E73 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
     display: inline-flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -550,7 +547,7 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item {
 header.navbar .breadcrumb-item + .breadcrumb-item::before,
 html[data-glpi-theme="apple_hig"] .breadcrumb-item + .breadcrumb-item::before {
     content: "›" !important;
-    color: #A1A1A6 !important;
+    color: rgba(255, 255, 255, 0.6) !important;
     font-size: 0.95rem !important;
     padding: 0 4px !important;
     line-height: 1 !important;
@@ -614,7 +611,7 @@ html[data-glpi-theme="apple_hig"] .breadcrumb-item:last-child {
     }
 
     i {
-        color: #0071E3 !important;
+        color: #0120F8 !important;
     }
 }
 
@@ -822,7 +819,7 @@ html[data-glpi-theme="apple_hig"] form[role="search"] input {
 html[data-glpi-theme="apple_hig"] .global-search .form-control:focus,
 html[data-glpi-theme="apple_hig"] form[role="search"] input:focus {
     background: #FFFFFF !important;
-    border-color: #0071E3 !important;
+    border-color: #0120F8 !important;
     box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
 }
 
@@ -938,10 +935,11 @@ html[data-glpi-theme="apple_hig"] .nav-tabs .nav-link:hover {
 /* Active Segment Tab: Solid Black Pill as in Reference 2 */
 html[data-glpi-theme="apple_hig"] .nav-tabs .nav-link.active,
 html[data-glpi-theme="apple_hig"] .glpi-tabs .nav-link.active {
-    background: #1D1D1F !important;
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
+    background: #FFFFFF !important;
+    color: #F97316 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 10px !important;
 }
 
 html[data-glpi-theme="apple_hig"] .nav-tabs .nav-link.active .badge,
@@ -1026,17 +1024,17 @@ html[data-glpi-theme="apple_hig"] .btn {
 
 /* Primary Action CTA: Solid Black Pill as in Reference 1 "+ Add task" */
 html[data-glpi-theme="apple_hig"] .btn-primary {
-    background: #1D1D1F !important;
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
     color: #FFFFFF !important;
     border: 1px solid transparent !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3) !important;
 }
 
 html[data-glpi-theme="apple_hig"] .btn-primary:hover {
-    background: #000000 !important;
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
     color: #FFFFFF !important;
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22) !important;
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4) !important;
 }
 
 html[data-glpi-theme="apple_hig"] .btn-primary:active {
@@ -1110,7 +1108,7 @@ html[data-glpi-theme="apple_hig"] .form-select {
 html[data-glpi-theme="apple_hig"] .form-control:focus,
 html[data-glpi-theme="apple_hig"] .form-select:focus {
     background-color: #FFFFFF !important;
-    border-color: #0071E3 !important;
+    border-color: #0120F8 !important;
     box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
 }
 
@@ -1143,7 +1141,7 @@ html[data-glpi-theme="apple_hig"] .select2-results__option {
 }
 
 html[data-glpi-theme="apple_hig"] .select2-results__option--highlighted {
-    background: #0071E3 !important;
+    background: #F97316 !important;
     color: #FFFFFF !important;
 }
 
@@ -1167,9 +1165,9 @@ html[data-glpi-theme="apple_hig"] .badge {
 html[data-glpi-theme="apple_hig"] .badge.bg-success,
 html[data-glpi-theme="apple_hig"] .badge-status-solved,
 html[data-glpi-theme="apple_hig"] .badge-status-closed {
-    background: #E8F8EE !important;
-    color: #1D6F24 !important;
-    border: 1px solid rgba(52, 199, 89, 0.25) !important;
+    background: #ECFDF5 !important;
+    color: #059669 !important;
+    border: 1px solid rgba(16, 185, 129, 0.25) !important;
 }
 
 /* Pastel Blue (New / Assigned / Scheduled) */
@@ -1177,9 +1175,9 @@ html[data-glpi-theme="apple_hig"] .badge.bg-primary,
 html[data-glpi-theme="apple_hig"] .badge.bg-info,
 html[data-glpi-theme="apple_hig"] .badge-status-new,
 html[data-glpi-theme="apple_hig"] .badge-status-assign {
-    background: #EBF3FF !important;
-    color: #0055B3 !important;
-    border: 1px solid rgba(0, 113, 227, 0.25) !important;
+    background: #FFF7ED !important;
+    color: #EA580C !important;
+    border: 1px solid rgba(249, 115, 22, 0.25) !important;
 }
 
 /* Pastel Purple / Lavender (In Progress / Planning) */
@@ -1193,16 +1191,16 @@ html[data-glpi-theme="apple_hig"] .badge-status-plan {
 /* Pastel Orange (Waiting / Pending) */
 html[data-glpi-theme="apple_hig"] .badge.bg-warning,
 html[data-glpi-theme="apple_hig"] .badge-status-waiting {
-    background: #FFF4E5 !important;
-    color: #9E5B00 !important;
-    border: 1px solid rgba(255, 149, 0, 0.25) !important;
+    background: #FFFBEB !important;
+    color: #B45309 !important;
+    border: 1px solid rgba(245, 158, 11, 0.25) !important;
 }
 
 /* Pastel Red / Coral (Critical / Urgent / Rejected) */
 html[data-glpi-theme="apple_hig"] .badge.bg-danger {
-    background: #FEECEB !important;
-    color: #C5221F !important;
-    border: 1px solid rgba(255, 59, 48, 0.25) !important;
+    background: #FEF2F2 !important;
+    color: #DC2626 !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
 }
 
 /* Pastel Gray / Neutral */
@@ -1246,7 +1244,7 @@ html[data-glpi-theme="apple_hig"] .table tbody td {
 }
 
 html[data-glpi-theme="apple_hig"] .table tbody tr:hover td {
-    background-color: #F8F9FD !important;
+    background-color: #FFF7ED !important;
 }
 
 /* ==========================================================================
@@ -1284,9 +1282,7 @@ html[data-glpi-theme="apple_hig"] .timeline-item.task .timeline-content {
 
 html[data-glpi-theme="apple_hig"] body.page-anonymous,
 html[data-glpi-theme="apple_hig"] .page-card-notlogged {
-    background: radial-gradient(circle at 15% 20%, rgba(210, 225, 255, 0.55) 0%, transparent 45%),
-                radial-gradient(circle at 85% 80%, rgba(235, 220, 255, 0.5) 0%, transparent 50%),
-                #F2F4F8 !important;
+    background: linear-gradient(135deg, #0B1EE0 0%, #0118C8 50%, #0D47A1 100%) !important;
 }
 
 html[data-glpi-theme="apple_hig"] .card-md,
@@ -1537,10 +1533,11 @@ body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link:ho
 /* Active Tab: macOS Elevated Dark Card */
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active,
 body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link.active {
-    background: #1D1D1F !important;
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14) !important;
+    background: #FFF7ED !important;
+    color: #EA580C !important;
+    font-weight: 700 !important;
+    border-left: 3px solid #F97316 !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15) !important;
 }
 
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active::before,
@@ -2833,17 +2830,17 @@ body:has(#itil-object-container.is-ticket-page) #right-actions button[name="dele
 
 body.glpi-ticket-zap-view #right-actions button[name="update"],
 body:has(#itil-object-container.is-ticket-page) #right-actions button[name="update"] {
-    background: #1D1D1F !important;
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
     color: #FFFFFF !important;
     border: none !important;
-    border-radius: 8px !important;
-    padding: 6px 14px !important;
-    font-weight: 600 !important;
+    border-radius: 12px !important;
+    padding: 6px 16px !important;
+    font-weight: 700 !important;
     font-size: 0.88rem !important;
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3) !important;
     transition: all 0.15s ease !important;
 }
 
@@ -3343,7 +3340,7 @@ body:has(#itil-object-container.is-ticket-page) #itil-data .accordion-header .ac
 }
 body.glpi-ticket-zap-view #itil-data .accordion-header .accordion-button:hover .ti,
 body:has(#itil-object-container.is-ticket-page) #itil-data .accordion-header .accordion-button:hover .ti {
-    color: #0071E3 !important;
+    color: #0120F8 !important;
 }
 
 /* Ícone de seta padrão Bootstrap: substituir pelo estilo fino Apple */
@@ -3410,7 +3407,7 @@ body.glpi-ticket-zap-view #itil-data .form-control:focus,
 body.glpi-ticket-zap-view #itil-data .form-select:focus,
 body:has(#itil-object-container.is-ticket-page) #itil-data .form-control:focus,
 body:has(#itil-object-container.is-ticket-page) #itil-data .form-select:focus {
-    border-color: #0071E3 !important;
+    border-color: #0120F8 !important;
     background: #FFFFFF !important;
     box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
     outline: none !important;
@@ -3434,7 +3431,7 @@ body.glpi-ticket-zap-view #itil-data .select2-container--default.select2-contain
 body.glpi-ticket-zap-view #itil-data .select2-container--default.select2-container--open .select2-selection,
 body:has(#itil-object-container.is-ticket-page) #itil-data .select2-container--default.select2-container--focus .select2-selection,
 body:has(#itil-object-container.is-ticket-page) #itil-data .select2-container--default.select2-container--open .select2-selection {
-    border-color: #0071E3 !important;
+    border-color: #0120F8 !important;
     box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
 }
 
@@ -3536,8 +3533,8 @@ body:has(#itil-object-container.is-ticket-page) #itil-data .form-check-input[typ
 }
 body.glpi-ticket-zap-view #itil-data .form-check-input[type="checkbox"]:checked,
 body:has(#itil-object-container.is-ticket-page) #itil-data .form-check-input[type="checkbox"]:checked {
-    background-color: #0071E3 !important;
-    border-color: #0071E3 !important;
+    background-color: #0120F8 !important;
+    border-color: #0120F8 !important;
 }
 body.glpi-ticket-zap-view #itil-data .form-check-input[type="checkbox"].form-switch,
 body:has(#itil-object-container.is-ticket-page) #itil-data .form-check-input[type="checkbox"].form-switch {
@@ -3559,8 +3556,8 @@ body:has(#itil-object-container.is-ticket-page) #itil-data [data-bs-toggle="moda
 }
 body.glpi-ticket-zap-view #itil-data [data-bs-toggle="modal"].btn:hover,
 body:has(#itil-object-container.is-ticket-page) #itil-data [data-bs-toggle="modal"].btn:hover {
-    border-color: #0071E3 !important;
-    color: #0071E3 !important;
+    border-color: #0120F8 !important;
+    color: #0120F8 !important;
     background: rgba(0, 113, 227, 0.05) !important;
 }
 

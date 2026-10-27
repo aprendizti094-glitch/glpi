@@ -289,10 +289,19 @@ class EleraKanban
                 if ($tech->getFromDB($tech_user_id)) {
                     $fname = trim($tech->fields['firstname'] ?? '');
                     $rname = trim($tech->fields['realname'] ?? '');
+                    $login = trim($tech->fields['name'] ?? '');
                     if (!empty($fname) && !empty($rname)) {
                         $tech_name = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                    } elseif (!empty($fname)) {
+                        $tech_name = $fname;
+                    } elseif (!empty($rname)) {
+                        if (!empty($login) && !in_array(strtolower($login), ['glpi', 'post-only', 'normal'])) {
+                            $tech_name = "$login $rname";
+                        } else {
+                            $tech_name = $rname;
+                        }
                     } else {
-                        $tech_name = !empty($fname) ? $fname : (!empty($rname) ? $rname : $tech->getName());
+                        $tech_name = $tech->getName();
                     }
                     if (!empty($tech->fields['usertitles_id'])) {
                         $ut = new UserTitle();
@@ -350,10 +359,19 @@ class EleraKanban
                     if ($tech->getFromDB($tech_user_id)) {
                         $fname = trim($tech->fields['firstname'] ?? '');
                         $rname = trim($tech->fields['realname'] ?? '');
+                        $login = trim($tech->fields['name'] ?? '');
                         if (!empty($fname) && !empty($rname)) {
                             $tech_name = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                        } elseif (!empty($fname)) {
+                            $tech_name = $fname;
+                        } elseif (!empty($rname)) {
+                            if (!empty($login) && !in_array(strtolower($login), ['glpi', 'post-only', 'normal'])) {
+                                $tech_name = "$login $rname";
+                            } else {
+                                $tech_name = $rname;
+                            }
                         } else {
-                            $tech_name = !empty($fname) ? $fname : (!empty($rname) ? $rname : $tech->getName());
+                            $tech_name = $tech->getName();
                         }
                         if (!empty($tech->fields['usertitles_id'])) {
                             $ut = new UserTitle();

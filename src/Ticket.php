@@ -7790,20 +7790,58 @@ JAVASCRIPT;
             }
 
             $techName = '';
+            if ($technician_id <= 0) {
+                global $DB;
+                $tu_row = $DB->request([
+                    'SELECT' => ['users_id'],
+                    'FROM'   => 'glpi_tickets_users',
+                    'WHERE'  => [
+                        'tickets_id' => $ticket_id,
+                        'type'       => CommonITILActor::ASSIGN
+                    ],
+                    'LIMIT'  => 1
+                ])->current();
+                if ($tu_row && !empty($tu_row['users_id'])) {
+                    $technician_id = (int)$tu_row['users_id'];
+                }
+            }
+
             if ($technician_id > 0) {
                 $techUser = new User();
                 if ($techUser->getFromDB($technician_id)) {
-                    $techName = $techUser->getFriendlyName();
+                    $fname = trim($techUser->fields['firstname'] ?? '');
+                    $rname = trim($techUser->fields['realname'] ?? '');
+                    if (!empty($fname) && !empty($rname)) {
+                        $techName = (stripos($fname, $rname) !== false) ? $fname : "$fname $rname";
+                    } else {
+                        $techName = !empty($fname) ? $fname : (!empty($rname) ? $rname : $techUser->getFriendlyName());
+                    }
                 }
             }
-            if (empty($techName)) {
+            if (empty($techName) && $technician_id > 0) {
                 $techName = getUserName($technician_id);
             }
             if (empty($techName)) {
-                $techName = 'Técnico de TI';
+                global $DB;
+                $gt_row = $DB->request([
+                    'SELECT' => ['groups_id'],
+                    'FROM'   => 'glpi_groups_tickets',
+                    'WHERE'  => ['tickets_id' => $ticket_id, 'type' => CommonITILActor::ASSIGN],
+                    'LIMIT'  => 1
+                ])->current();
+                if ($gt_row && !empty($gt_row['groups_id'])) {
+                    $grp = new Group();
+                    if ($grp->getFromDB((int)$gt_row['groups_id'])) {
+                        $techName = $grp->getName();
+                    }
+                }
             }
-
-            $techInitial = mb_strtoupper(mb_substr($techName, 0, 1, 'UTF-8'), 'UTF-8') ?: 'T';
+            if (empty($techName)) {
+                $techName = 'Não atribuído';
+                $techInitial = '';
+            } else {
+                $techInitial = mb_strtoupper(mb_substr($techName, 0, 1, 'UTF-8'), 'UTF-8');
+            }
             $ticketTitle = trim($ticket->fields['name'] ?? ('Chamado #' . $ticket_id));
 
             if (empty($status_name)) {

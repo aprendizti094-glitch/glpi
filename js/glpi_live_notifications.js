@@ -416,21 +416,24 @@
             if (!card) return;
 
             // 1. Atualiza dados do técnico
-            if (t.technician_name) {
+            if (t.technician_name && t.technician_name !== 'Técnico de TI') {
                 var techSpan = card.querySelector('.tech-name');
                 if (techSpan && techSpan.textContent.trim() !== t.technician_name) {
                     techSpan.textContent = t.technician_name;
                 }
                 var techPill = card.querySelector('.card-tech-pill');
                 if (techPill) {
-                    techPill.classList.remove('tech-unassigned');
-                    techPill.title = 'Atribuído para: ' + t.technician_name;
-                    var icon = techPill.querySelector('i');
-                    if (icon) icon.className = 'ti ti-user-check';
-                }
-                var avatar = card.querySelector('.card-avatar');
-                if (avatar && t.technician_initial && avatar.textContent.trim() !== t.technician_initial) {
-                    avatar.textContent = t.technician_initial;
+                    if (t.technician_name === 'Não atribuído' || !t.technician_id) {
+                        techPill.classList.add('tech-unassigned');
+                        techPill.title = 'Chamado aguardando atribuição';
+                        var icon = techPill.querySelector('i');
+                        if (icon) icon.className = 'ti ti-user-exclamation';
+                    } else {
+                        techPill.classList.remove('tech-unassigned');
+                        techPill.title = 'Atribuído para: ' + t.technician_name;
+                        var icon = techPill.querySelector('i');
+                        if (icon) icon.className = 'ti ti-user-check';
+                    }
                 }
             }
 
