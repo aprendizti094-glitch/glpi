@@ -55,7 +55,7 @@
       <div class="ss-mobile-topbar">
          <div class="ss-mobile-greeting">
             <span class="ss-mobile-badge"><i class="ti ti-headset me-1"></i> Central de Atendimento</span>
-            <h1 class="ss-mobile-username">Olá, {{ ss_name|verbatim_value }} 👋</h1>
+            <h1 class="ss-mobile-username">Olá, {{ ss_name|verbatim_value }}</h1>
             <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
                <span class="ss-mobile-entity"><i class="ti ti-building me-1"></i>{{ session('glpiactive_entity_name')|verbatim_value }}</span>
                {% set u_loc_id = user.fields['locations_id']|default(0) %}

@@ -172,7 +172,13 @@ abstract class NotificationTargetCommonITILObject extends NotificationTarget
                 ],
             ],
         ],
-        ] + $this->getDistinctUserCriteria() + $this->getProfileJoinCriteria();
+        ] + $this->getDistinctUserCriteria();
+
+        // The requester who opened the ticket must always receive notifications for their own ticket,
+        // even if the ticket was created in or moved to an entity where the requester has no direct profile.
+        if ($type != CommonITILActor::REQUESTER) {
+            $criteria += $this->getProfileJoinCriteria();
+        }
         $criteria['FROM'] = $userlinktable;
         $criteria['FIELDS'] = array_merge(
             $criteria['FIELDS'],

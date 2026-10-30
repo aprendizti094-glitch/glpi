@@ -5,10 +5,13 @@
  #}
 
 {% set kanban_data = call('EleraKanban::getData', [search_data|default(data['search']|default(null))]) %}
+{% set can_drag = call('EleraKanban::canDrag') %}
+{% set is_self_service = call('EleraKanban::isSelfService') %}
+{% set tech_status = call('EleraKanban::getTechniciansStatus') %}
 
 <style>
 /* ==========================================================
-   ELERA KANBAN BOARD STYLING (APPLE HIG MODERN)
+   BRAGO KANBAN BOARD STYLING (BRAGO APP SYSTEM - DESIGN_SYSTEM.md)
    ========================================================== */
 .elera-kanban-wrapper {
     width: 100%;
@@ -25,9 +28,9 @@
     box-sizing: border-box;
 }
 .elera-kanban-col {
-    background: #F4F6F9;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 20px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
     padding: 14px 12px;
     display: flex;
     flex-direction: column;
@@ -36,8 +39,8 @@
     box-sizing: border-box;
 }
 .elera-kanban-col.is-drag-over {
-    background: #EBF3FF !important;
-    border-color: #0071E3 !important;
+    background: #FFF7ED !important;
+    border-color: #F97316 !important;
 }
 .elera-col-header {
     display: flex;
@@ -54,12 +57,12 @@
 .col-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #1D1D1F;
+    color: #0F172A;
     letter-spacing: -0.01em;
 }
 .col-count-pill {
-    background: rgba(0, 0, 0, 0.07);
-    color: #555558;
+    background: rgba(1, 32, 248, 0.1);
+    color: #0120F8;
     font-size: 0.75rem;
     font-weight: 700;
     padding: 2px 8px;
@@ -68,7 +71,7 @@
 .col-target-badge {
     font-size: 0.72rem;
     font-weight: 600;
-    color: #86868B;
+    color: #64748B;
 }
 
 /* Today Summary Card */
@@ -77,37 +80,37 @@
     border-radius: 14px;
     padding: 12px;
     margin-bottom: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.04);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 .summary-header {
     font-size: 0.78rem;
     font-weight: 600;
-    color: #6E6E73;
+    color: #64748B;
     margin-bottom: 8px;
 }
 .summary-stat-row {
     display: flex;
     justify-content: space-between;
     font-size: 0.78rem;
-    color: #1D1D1F;
+    color: #1F2937;
     margin-bottom: 4px;
 }
 .summary-progress-bar {
-    height: 5px;
+    height: 6px;
     background: #E5E7EB;
     border-radius: 9999px;
     overflow: hidden;
     margin: 6px 0;
 }
 .summary-progress-fill {
-    background: #34C759;
+    background: #10B981;
     height: 100%;
     border-radius: 9999px;
 }
 .summary-footer-text {
     font-size: 0.72rem;
-    color: #34C759;
+    color: #059669;
     font-weight: 600;
 }
 
@@ -121,22 +124,30 @@
 }
 .elera-ticket-card {
     background: #FFFFFF;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 14px;
-    padding: 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 14px;
     cursor: grab;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
     user-select: none;
 }
 .elera-ticket-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-    border-color: rgba(0, 113, 227, 0.3);
+    box-shadow: 0 8px 18px rgba(249, 115, 22, 0.16);
+    border-color: #F97316;
 }
 .elera-ticket-card.is-dragging {
     opacity: 0.4;
     transform: scale(0.96);
+}
+.elera-ticket-card.is-drag-disabled {
+    cursor: pointer !important;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.elera-ticket-card.is-drag-disabled:active {
+    cursor: pointer !important;
 }
 .card-main {
     display: flex;
@@ -161,17 +172,17 @@
 }
 .card-ticket-title {
     font-size: 0.88rem;
-    font-weight: 600;
-    color: #1D1D1F;
+    font-weight: 700;
+    color: #1F2937;
     text-decoration: none !important;
-    line-height: 1.25;
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 .card-ticket-title:hover {
-    color: #0071E3;
+    color: #F97316;
 }
 .card-meta-row {
     display: flex;
@@ -182,17 +193,21 @@
 }
 .card-category {
     font-size: 0.72rem;
-    color: #86868B;
-    background: #F2F4F7;
+    color: #4B5563;
+    background: #F3F4F6;
     padding: 2px 6px;
     border-radius: 6px;
+    font-weight: 600;
 }
 .card-tech-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 0.72rem;
-    color: #555558;
+    color: #4B5563;
+    background: #F3F4F6;
+    padding: 2px 6px;
+    border-radius: 6px;
 }
 .tech-level-tag {
     font-size: 0.68rem;
@@ -209,34 +224,36 @@
     align-items: center;
     gap: 3px;
     font-size: 0.70rem;
-    color: #0071E3;
-    background: #EBF5FF;
+    color: #0120F8;
+    background: rgba(1, 32, 248, 0.08);
     padding: 2px 6px;
     border-radius: 6px;
     max-width: 140px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 500;
+    font-weight: 600;
 }
 .card-location-pill i {
     font-size: 0.74rem;
 }
 .card-tech-pill.tech-unassigned {
     color: #B45309;
-    background: #FEF3C7;
+    background: #FFFBEB;
+    border: 1px solid rgba(245, 158, 11, 0.3);
     padding: 2px 6px;
     border-radius: 6px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .card-urgent-notice {
-    background: #FFF4E5;
-    color: #B45309;
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
     border-radius: 8px;
     padding: 3px 8px;
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: 700;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -247,14 +264,14 @@
     align-items: center;
     justify-content: space-between;
     font-size: 0.72rem;
-    color: #86868B;
+    color: #6B7280;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    border-top: 1px solid #F3F4F6;
 }
 .card-id-badge {
     font-weight: 700;
-    color: #1D1D1F;
+    color: #0F172A;
     margin-right: 4px;
 }
 .card-time-pill {
@@ -266,11 +283,11 @@
     margin-top: 12px;
     padding: 8px;
     border-radius: 12px;
-    border: 1px dashed rgba(0, 0, 0, 0.15);
+    border: 1px dashed rgba(249, 115, 22, 0.5);
     background: transparent;
-    color: #6E6E73;
+    color: #F97316;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none !important;
     display: flex;
     align-items: center;
@@ -279,20 +296,308 @@
     transition: all 0.2s ease;
 }
 .elera-btn-add-patient:hover {
+    background: #FFF7ED;
+    color: #EA580C;
+    border-color: #F97316;
+}
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - KANBAN COLUMNS COLOR SCHEME
+   - Triagem: Vermelho (#FEF2F2 / #DC2626)
+   - Em Execução: Amarelo (#FFFBEB / #F59E0B / #D97706)
+   - Aguardando: Neutro padrão (#F8FAFC)
+   - Concluídos: Verde (#E2F5EA / #15803D)
+   ========================================================================== */
+
+/* 1. Triagem (Vermelho Suave / Destaque de Atenção Imediata) */
+.elera-kanban-col.col-triage,
+.elera-kanban-col[data-status="2"] {
+    background: #FEF2F2 !important;
+    border: 1px solid rgba(239, 68, 68, 0.28) !important;
+    box-shadow: inset 0 2px 6px rgba(239, 68, 68, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-title,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-title {
+    color: #991B1B !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-count-pill {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #DC2626 !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-target-badge {
+    color: #EF4444 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #EF4444 0%, #F87171 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35) !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient *,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 2. Em Execução (Amarelo / Dourado Âmbar Corporativo) */
+.elera-kanban-col.col-treatment,
+.elera-kanban-col[data-status="3"] {
+    background: #FFFBEB !important;
+    border: 1px solid rgba(245, 158, 11, 0.32) !important;
+    box-shadow: inset 0 2px 6px rgba(245, 158, 11, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-title,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-title {
+    color: #92400E !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-count-pill {
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #B45309 !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-target-badge {
+    color: #D97706 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient *,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45) !important;
+}
+
+/* 3. Aguardando (Mantém neutro padrão) */
+.elera-kanban-col.col-waiting,
+.elera-kanban-col[data-status="4"] {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-title,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-title {
+    color: #0F172A !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-count-pill {
+    background: rgba(1, 32, 248, 0.1) !important;
+    color: #0120F8 !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient *,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 4. Concluídos (Verde Oficial) */
+.elera-kanban-col.col-solved,
+.elera-kanban-col[data-status="5"] {
+    background: #E2F5EA !important;
+    border: 1px solid rgba(52, 199, 89, 0.28) !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-title,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-title {
+    color: #166534 !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-count-pill {
+    background: rgba(52, 199, 89, 0.2) !important;
+    color: #15803D !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient {
+    color: #15803D !important;
+    border: 1px solid rgba(52, 199, 89, 0.35) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 9999px !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient:hover {
+    background: #FFFFFF !important;
+    border-color: #15803D !important;
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.15) !important;
+    color: #15803D !important;
+}
+
+
+/* ==========================================================
+   SELF-SERVICE STATUS BANNER (INDICAÇÃO DE TÉCNICOS OCUPADOS / DISPONÍVEIS)
+   ========================================================== */
+.elera-selfservice-header-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.elera-selfservice-header-banner.is-busy {
+    background: #FFFBEB !important;
+    border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+.elera-selfservice-header-banner.is-available {
+    background: #F0FDF4 !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+.status-pill.pill-busy {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.32);
+}
+.status-pill.pill-available {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.32);
+}
+.status-dot-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     background: #FFFFFF;
-    color: #1D1D1F;
-    border-color: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0.6);
+    animation: statusPulseAnim 1.6s infinite;
+}
+@keyframes statusPulseAnim {
+    0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+.status-info {
+    display: flex;
+    flex-direction: column;
+}
+.status-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0F172A;
+}
+.status-hint {
+    font-size: 0.78rem;
+    color: #475569;
+}
+.self-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(1, 32, 248, 0.08);
+    color: #0120F8;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid rgba(1, 32, 248, 0.15);
+}
+[data-bs-theme='dark'] .elera-selfservice-header-banner.is-busy {
+    background: rgba(245, 158, 11, 0.12) !important;
+    border-color: rgba(245, 158, 11, 0.4) !important;
+}
+[data-bs-theme='dark'] .elera-selfservice-header-banner.is-available {
+    background: rgba(16, 185, 129, 0.12) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+}
+[data-bs-theme='dark'] .status-title {
+    color: #F8FAFC !important;
+}
+[data-bs-theme='dark'] .status-hint {
+    color: #94A3B8 !important;
 }
 </style>
 
 <div class="elera-kanban-wrapper" id="eleraKanbanWrapper">
+    {% if is_self_service %}
+        <!-- Banner de Indicação de Ocupação da TI para o Self-Service -->
+        <div class="elera-selfservice-header-banner {{ tech_status['is_busy'] ? 'is-busy' : 'is-available' }}" id="eleraTechStatusBanner">
+            <div class="status-left">
+                <div class="status-pill {{ tech_status['is_busy'] ? 'pill-busy' : 'pill-available' }}">
+                    <span class="status-dot-pulse"></span>
+                    <i class="{{ tech_status['is_busy'] ? 'ti ti-headset' : 'ti ti-circle-check' }}"></i>
+                    <span class="status-text">{{ tech_status['status_label'] }}</span>
+                </div>
+                <div class="status-info">
+                    <span class="status-title">{{ tech_status['status_sub'] }}</span>
+                    <span class="status-hint">
+                        {% if tech_status['is_busy'] %}
+                            A equipe de TI está realizando atendimentos agora. Novos chamados entram na fila e são atendidos com prioridade.
+                        {% else %}
+                            Nossa equipe está online e disponível. Abra seu chamado para atendimento imediato!
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="status-right">
+                <span class="self-mode-badge" title="Você está visualizando apenas os seus chamados">
+                    <i class="ti ti-user-check"></i> Meus Chamados
+                </span>
+            </div>
+        </div>
+    {% endif %}
     <div class="elera-kanban-board" style="grid-template-columns: repeat({{ kanban_data|length }}, minmax(260px, 1fr)) !important; min-width: 950px !important;">
         {% for col in kanban_data %}
             <div class="elera-kanban-col col-{{ col['code'] }}" 
                  data-status="{{ col['id'] }}" 
+                 {% if can_drag %}
                  ondragover="onKanbanDragOver(event)" 
                  ondragleave="onKanbanDragLeave(event)" 
-                 ondrop="onKanbanDrop(event, {{ col['id'] }})">
+                 ondrop="onKanbanDrop(event, {{ col['id'] }})"
+                 {% endif %}>
                 
                 <div class="elera-col-header">
                     <div class="col-title-wrap">
@@ -323,13 +628,15 @@
 
                 <div class="elera-cards-container" data-status="{{ col['id'] }}">
                     {% for ticket in col['tickets'] %}
-                        <div class="elera-ticket-card {{ ticket['is_urgent'] ? 'card-urgent' : '' }} {{ ticket['is_my_ticket'] ? 'card-my-ticket' : '' }}" 
+                        <div class="elera-ticket-card {{ ticket['is_urgent'] ? 'card-urgent' : '' }} {{ ticket['is_my_ticket'] ? 'card-my-ticket' : '' }} {{ not can_drag ? 'is-drag-disabled' : '' }}" 
                              id="kanban-ticket-{{ ticket['id'] }}" 
                              data-id="{{ ticket['id'] }}" 
                              data-status="{{ col['id'] }}" 
-                             draggable="true" 
+                             draggable="{{ can_drag ? 'true' : 'false' }}" 
                              onclick="onKanbanCardClick(event, {{ ticket['id'] }})"
+                             {% if can_drag %}
                              ondragstart="onKanbanDragStart(event, {{ ticket['id'] }})"
+                             {% endif %}
                              title="Clique para abrir o Chamado #{{ ticket['id'] }}">
                             
                             <div class="card-main">
@@ -396,9 +703,10 @@
                     {% endfor %}
                 </div>
 
-                <a href="ticket.form.php?_status={{ col['id'] }}" class="elera-btn-add-patient" title="Adicionar novo chamado nesta etapa">
+                {% set add_ticket_url = is_self_service ? (asset_path('/front/helpdesk.public.php?create_ticket=1')) : ('ticket.form.php?_status=' ~ col['id']) %}
+                <a href="{{ add_ticket_url }}" class="elera-btn-add-patient" title="Adicionar novo chamado nesta etapa">
                     <i class="ti ti-plus"></i>
-                    <span>+ Adicionar Chamado</span>
+                    <span>Adicionar Chamado</span>
                 </a>
             </div>
         {% endfor %}
@@ -406,12 +714,27 @@
 </div>
 
 <script>
+const canDragKanban = {{ can_drag ? 'true' : 'false' }};
 let isDraggingKanban = false;
-const glpiRootDoc = (window.CFG_GLPI && typeof window.CFG_GLPI.root_doc !== 'undefined') 
-    ? window.CFG_GLPI.root_doc 
-    : (window.location.pathname.startsWith('/glpi') ? '/glpi' : '');
+const glpiRootDoc = (function() {
+    if (window.location.pathname.startsWith('/glpi/') || window.location.pathname === '/glpi') {
+        return '/glpi';
+    }
+    if (window.CFG_GLPI && typeof window.CFG_GLPI.root_doc !== 'undefined') {
+        const rd = window.CFG_GLPI.root_doc;
+        if (rd === '/glpi' && !window.location.pathname.startsWith('/glpi')) {
+            return '';
+        }
+        return rd ? rd.replace(/\/+$/, '') : '';
+    }
+    return '';
+})();
 
 function onKanbanDragStart(e, id) {
+    if (!canDragKanban) {
+        e.preventDefault();
+        return false;
+    }
     isDraggingKanban = true;
     e.dataTransfer.setData('text/plain', id);
     e.currentTarget.classList.add('is-dragging');
@@ -442,6 +765,7 @@ document.addEventListener('dragend', function() {
 });
 
 function onKanbanDragOver(e) {
+    if (!canDragKanban) return;
     e.preventDefault();
     e.currentTarget.closest('.elera-kanban-col').classList.add('is-drag-over');
 }
@@ -452,6 +776,7 @@ function onKanbanDragLeave(e) {
 }
 
 function onKanbanDrop(e, targetStatus) {
+    if (!canDragKanban) return;
     e.preventDefault();
     const col = e.currentTarget.closest('.elera-kanban-col');
     if (col) col.classList.remove('is-drag-over');
@@ -554,19 +879,24 @@ function reloadKanbanBoard() {
     if (isDraggingKanban || isReloadingKanban) return;
     isReloadingKanban = true;
 
-    // Se estiver na tela de busca nativa do GLPI, atualiza via método oficial sem reload de página
-    if (window.$) {
-        const searchContainer = $('div.ajax-container.search-display-data');
-        if (searchContainer.length > 0 && searchContainer.data('js_class') !== undefined && typeof searchContainer.data('js_class').getView === 'function') {
-            searchContainer.data('js_class').getView().refreshResults();
-            setTimeout(function() { isReloadingKanban = false; }, 2000);
-            return;
+    const existingIds = new Set();
+    document.querySelectorAll('#eleraKanbanWrapper .elera-ticket-card').forEach(function(el) {
+        if (el.dataset && el.dataset.id) {
+            existingIds.add(String(el.dataset.id));
         }
-    }
+    });
+
+    const querySuffix = window.location.search
+        ? (window.location.search + '&t=' + Date.now())
+        : ('?t=' + Date.now());
 
     // Busca o HTML atualizado do Kanban via endpoint AJAX dedicado
-    fetch(glpiRootDoc + '/ajax/get_kanban.php?t=' + Date.now(), {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    fetch(glpiRootDoc + '/ajax/get_kanban.php' + querySuffix, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
     })
     .then(function(res) { return res.text(); })
     .then(function(html) {
@@ -577,7 +907,27 @@ function reloadKanbanBoard() {
             const doc = parser.parseFromString(html, 'text/html');
             const newWrapper = doc.getElementById('eleraKanbanWrapper');
             if (newWrapper) {
+                const prevDisplay = currentWrapper.style.display;
+                const prevScrollLeft = currentWrapper.scrollLeft;
+                if (prevDisplay === 'none') {
+                    newWrapper.style.display = 'none';
+                }
                 currentWrapper.replaceWith(newWrapper);
+                newWrapper.scrollLeft = prevScrollLeft;
+
+                // Destaca suavemente os novos cards que acabaram de entrar no Kanban
+                newWrapper.querySelectorAll('.elera-ticket-card').forEach(function(card) {
+                    const cid = card.dataset ? String(card.dataset.id) : '';
+                    if (cid && !existingIds.has(cid)) {
+                        card.style.transition = 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+                        card.style.boxShadow = '0 0 0 3px rgba(249, 115, 22, 0.55), 0 10px 28px rgba(249, 115, 22, 0.22)';
+                        card.style.transform = 'translateY(-2px)';
+                        setTimeout(function() {
+                            card.style.boxShadow = '';
+                            card.style.transform = '';
+                        }, 3000);
+                    }
+                });
             }
         }
     })
@@ -585,7 +935,7 @@ function reloadKanbanBoard() {
         console.warn('[Elera Kanban Reload] Error:', err);
     })
     .finally(function() {
-        setTimeout(function() { isReloadingKanban = false; }, 1000);
+        setTimeout(function() { isReloadingKanban = false; }, 600);
     });
 }
 

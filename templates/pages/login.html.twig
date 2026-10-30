@@ -44,12 +44,12 @@
                <h2 class="mx-auto">{{ __('Login to your account') }}</h2>
             </div>
             <div class="mb-3">
-               <label class="form-label" for="login_name">{{ __('Login') }}</label>
-               <input type="text" class="form-control" id="login_name" name="{{ namfield }}" placeholder="" tabindex="1" />
+               <label class="form-label" for="login_name">E-mail corporativo ou Usuário</label>
+               <input type="text" class="form-control" id="login_name" name="{{ namfield }}" placeholder="seu.email@bragodistribuidora.com.br" tabindex="1" />
             </div>
             <div class="mb-4">
                <label class="form-label" for="login_password">
-                  {{ __('Password') }}
+                  Senha
 
                   {% if show_lost_password %}
                      <span class="form-label-description">
@@ -59,7 +59,7 @@
                      </span>
                   {% endif %}
                </label>
-               <input type="password" class="form-control" id="login_password" name="{{ pwdfield }}" placeholder="" autocomplete="off" tabindex="2" />
+               <input type="password" class="form-control" id="login_password" name="{{ pwdfield }}" placeholder="Sua senha" autocomplete="off" tabindex="2" />
             </div>
 
             {% if constant('GLPI_DEMO_MODE') %}

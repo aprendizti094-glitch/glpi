@@ -326,19 +326,12 @@ abstract class CommonITILActor extends CommonDBRelation
                 if (in_array($item->fields['status'], Change::getNewStatusArray())) {
                     $status = $item->fields['status'];
                 }
-                $item->update(['id'     => $this->fields[static::getItilObjectForeignKey()],
-                    'status' => $status,
+                $item->update(['id'            => $this->fields[static::getItilObjectForeignKey()],
+                    'status'        => $status,
+                    '_disablenotif' => true,
                 ]);
             } else {
                 $item->updateDateMod($this->fields[static::getItilObjectForeignKey()]);
-
-                if ($donotif) {
-                    $options = [];
-                    if (isset($this->fields['users_id'])) {
-                        $options = ['_old_user' => $this->fields];
-                    }
-                    NotificationEvent::raiseEvent("update", $item, $options);
-                }
             }
         }
         parent::post_deleteFromDB();
@@ -444,6 +437,7 @@ abstract class CommonITILActor extends CommonDBRelation
                 $item->update(['id'               => $item->getID(),
                     'status'           => CommonITILObject::ASSIGNED,
                     '_from_assignment' => true,
+                    '_disablenotif'    => true,
                 ]);
             }
 
@@ -463,7 +457,12 @@ abstract class CommonITILActor extends CommonDBRelation
                 }
                 // example for event: assign_group
                 $event = $string_type . "_" . strtolower($this::$itemtype_2);
-                NotificationEvent::raiseEvent($event, $item);
+                static $raisedActorEvents = [];
+                $actorEventKey = $item->getID() . ':' . $event;
+                if (empty($raisedActorEvents[$actorEventKey])) {
+                    $raisedActorEvents[$actorEventKey] = true;
+                    NotificationEvent::raiseEvent($event, $item);
+                }
             }
         }
 

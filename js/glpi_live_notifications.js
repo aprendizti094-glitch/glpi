@@ -5,6 +5,11 @@
 (function() {
     'use strict';
 
+    if (window.__glpiLiveNotificationsInitialized) {
+        return;
+    }
+    window.__glpiLiveNotificationsInitialized = true;
+
     var STORAGE_KEY = 'glpi_seen_live_events';
     var lastCheck = Math.floor(Date.now() / 1000) - 30; // Começa olhando os últimos 30 segundos
     var isPolling = false;
@@ -260,10 +265,33 @@
     // Exibe Toast Apple HIG
     function showLiveToast(evt) {
         if (!evt || !evt.ticket_id) return;
+        // Pop-ups são estritamente exclusivos para a equipe técnica de TI
+        if (window.__glpiIsTechnician === false) {
+            return;
+        }
+
+        // 1. Marca o ID do evento como visto imediatamente para que o polling nunca o exiba de novo
+        if (evt.id) {
+            if (document.getElementById('toast-' + evt.id)) {
+                return;
+            }
+            markEventSeen(evt.id);
+        }
+
+        // 2. Trava anti-duplicidade por chamado + status nos últimos 12 segundos
+        window.__glpiRecentToasts = window.__glpiRecentToasts || {};
+        var dedupKey = String(evt.ticket_id) + '_' + String(evt.status || '') + '_' + String(evt.status_name || '');
+        var nowMs = Date.now();
+        if (window.__glpiRecentToasts[dedupKey] && (nowMs - window.__glpiRecentToasts[dedupKey]) < 12000) {
+            return;
+        }
+        window.__glpiRecentToasts[dedupKey] = nowMs;
+
         var container = ensureToastContainer();
         var toast = document.createElement('div');
         toast.className = 'glpi-live-toast glpi-toast-enter';
         toast.id = 'toast-' + (evt.id || ('local_' + Date.now()));
+        toast.setAttribute('data-dedup', dedupKey);
 
         var avatarColors = ['#8B5CF6', '#3B82F6', '#10B981', '#EC4899', '#F59E0B', '#06B6D4'];
         var bg = avatarColors[Math.abs((evt.technician_name || '').split('').reduce(function(a,b){return ((a<<5)-a)+b.charCodeAt(0);},0)) % avatarColors.length];
@@ -348,6 +376,43 @@
                 toast.parentNode.removeChild(toast);
             }
         }, 300);
+    }
+
+    // Atualiza dinamicamente o badge/banner de ocupação dos técnicos para o Self-Service
+    function updateTechStatusBanner(techStatus) {
+        if (!techStatus) return;
+        var banner = document.getElementById('eleraTechStatusBanner');
+        if (!banner) return;
+
+        if (techStatus.is_busy) {
+            banner.className = 'elera-selfservice-header-banner is-busy';
+            var pill = banner.querySelector('.status-pill');
+            if (pill) {
+                pill.className = 'status-pill pill-busy';
+                var icon = pill.querySelector('i');
+                if (icon) icon.className = 'ti ti-headset';
+                var txt = pill.querySelector('.status-text');
+                if (txt) txt.textContent = techStatus.status_label || 'Técnicos Ocupados';
+            }
+            var title = banner.querySelector('.status-title');
+            if (title) title.textContent = techStatus.status_sub || 'Equipe de TI em atendimento no momento';
+            var hint = banner.querySelector('.status-hint');
+            if (hint) hint.textContent = 'A equipe de TI está realizando atendimentos agora. Novos chamados entram na fila e são atendidos com prioridade.';
+        } else {
+            banner.className = 'elera-selfservice-header-banner is-available';
+            var pill = banner.querySelector('.status-pill');
+            if (pill) {
+                pill.className = 'status-pill pill-available';
+                var icon = pill.querySelector('i');
+                if (icon) icon.className = 'ti ti-circle-check';
+                var txt = pill.querySelector('.status-text');
+                if (txt) txt.textContent = techStatus.status_label || 'Técnicos Disponíveis';
+            }
+            var title = banner.querySelector('.status-title');
+            if (title) title.textContent = techStatus.status_sub || 'Fila de atendimento livre';
+            var hint = banner.querySelector('.status-hint');
+            if (hint) hint.textContent = 'Nossa equipe está online e disponível. Abra seu chamado para atendimento imediato!';
+        }
     }
 
     // Renderiza banner anti-duplicação se o container estiver presente na página
@@ -493,18 +558,71 @@
                             lastCheck = data.server_time;
                         }
 
+                        if (typeof data.is_technician !== 'undefined') {
+                            window.__glpiIsTechnician = Boolean(data.is_technician);
+                        }
+                        if (!window.__glpiIsTechnician) {
+                            data.new_events = [];
+                        }
+
+                        // Atualiza status de ocupação dos técnicos para o Self-Service
+                        if (data.tech_status) {
+                            updateTechStatusBanner(data.tech_status);
+                        }
+
+                        // Atualiza os KPIs de topo e contador caso estejam na tela de chamados
+                        if (data.kpi_counts) {
+                            var kpiMap = {
+                                '.elera-kpi-card.card-blue .kpi-value': data.kpi_counts.total,
+                                '.elera-kpi-card.card-green .kpi-value': data.kpi_counts.new,
+                                '.elera-kpi-card.card-purple .kpi-value': data.kpi_counts.assigned,
+                                '.elera-kpi-card.card-amber .kpi-value': data.kpi_counts.waiting,
+                                '.elera-kpi-card.card-emerald .kpi-value': data.kpi_counts.solved,
+                                '.elera-showing-count strong': data.kpi_counts.total
+                            };
+                            Object.keys(kpiMap).forEach(function(sel) {
+                                var el = document.querySelector(sel);
+                                if (el && typeof kpiMap[sel] !== 'undefined') {
+                                    el.textContent = kpiMap[sel];
+                                }
+                            });
+                        }
+
+                        var shouldReloadKanban = false;
+
+                        // Verifica assinatura completa do quadro Kanban (qualquer adição, exclusão ou mudança)
+                        if (data.kanban_signature) {
+                            if (!window.glpiLastKanbanSignature) {
+                                window.glpiLastKanbanSignature = data.kanban_signature;
+                                if (data.latest_ticket_id && document.getElementById('eleraKanbanWrapper') && !document.getElementById('kanban-ticket-' + data.latest_ticket_id)) {
+                                    shouldReloadKanban = true;
+                                }
+                            } else if (data.kanban_signature !== window.glpiLastKanbanSignature) {
+                                window.glpiLastKanbanSignature = data.kanban_signature;
+                                shouldReloadKanban = true;
+                            }
+                        }
+
                         // Verifica se surgiu um novo chamado no sistema para recarregar o quadro/lista sem F5
                         if (data.latest_ticket_id) {
                             if (!window.glpiLastMaxTicketId) {
                                 window.glpiLastMaxTicketId = data.latest_ticket_id;
                             } else if (data.latest_ticket_id > window.glpiLastMaxTicketId) {
                                 window.glpiLastMaxTicketId = data.latest_ticket_id;
-                                try {
+                                shouldReloadKanban = true;
+                            }
+                        }
+
+                        if (shouldReloadKanban) {
+                            try {
+                                if (typeof window.reloadKanbanBoard === 'function') {
+                                    window.reloadKanbanBoard();
+                                } else {
                                     window.dispatchEvent(new CustomEvent('glpi:reload_kanban', { 
                                         detail: { latest_id: data.latest_ticket_id } 
                                     }));
-                                } catch (e) {}
-                            }
+                                }
+                            } catch (e) {}
                         }
 
                         // Processa novos eventos para Toast e propagação na página
@@ -558,29 +676,27 @@
     }
 
     // Inicia verificação quando o DOM carregar
+    function triggerBackgroundCron() {
+        var img1 = new Image();
+        img1.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
+    }
+
     function init() {
         injectStyles();
         // Primeira verificação após 800ms
         setTimeout(checkLiveNotifications, 800);
+        setTimeout(triggerBackgroundCron, 1000);
         // Polling contínuo rápido a cada 2.5 segundos para propagação simultânea imediata
         setInterval(checkLiveNotifications, 2500);
 
-        // Auto-trigger silencioso para o cron do GLPI processar novos e-mails e fila de envio continuamente a cada 10 segundos
-        setInterval(function() {
-            var img1 = new Image();
-            img1.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
-            var img2 = new Image();
-            img2.src = getRootDoc() + '/front/cron.php?task=queuednotification&t=' + Date.now();
-        }, 10000);
+        // Auto-trigger silencioso para o cron do GLPI processar novos e-mails e fila de envio continuamente a cada 5 segundos
+        setInterval(triggerBackgroundCron, 5000);
 
         // Dispara verificação imediata ao alternar de volta para a aba
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {
                 checkLiveNotifications();
-                var img1 = new Image();
-                img1.src = getRootDoc() + '/front/cron.php?task=mailgate&t=' + Date.now();
-                var img2 = new Image();
-                img2.src = getRootDoc() + '/front/cron.php?task=queuednotification&t=' + Date.now();
+                triggerBackgroundCron();
             }
         });
     }

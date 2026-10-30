@@ -18,11 +18,12 @@
 {% set as_map = (data['search']['as_map'] ?? false) == 1 %}
 
 {% if itemtype == 'Ticket' and data['display_type'] != constant('Search::GLOBAL_SEARCH') %}
-    {% set kpi_total = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0}]) %}
-    {% set kpi_new = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': 1}]) %}
-    {% set kpi_assigned = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': [2, 3]}]) %}
-    {% set kpi_waiting = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': 4}]) %}
-    {% set kpi_solved = call('countElementsInTable', ['glpi_tickets', {'is_deleted': 0, 'status': [5, 6]}]) %}
+    {% set kpis = call('EleraKanban::getKpiCounts') %}
+    {% set kpi_total = kpis['total'] %}
+    {% set kpi_new = kpis['new'] %}
+    {% set kpi_assigned = kpis['assigned'] %}
+    {% set kpi_waiting = kpis['waiting'] %}
+    {% set kpi_solved = kpis['solved'] %}
 
     <style>
     /* ==========================================================
@@ -54,7 +55,7 @@
     .elera-kpi-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-        border-color: rgba(0, 113, 227, 0.25);
+        border-color: rgba(249, 115, 22, 0.25);
     }
     .kpi-icon-wrap {
         width: 40px;
@@ -114,7 +115,7 @@
         padding: 2px 7px;
         border-radius: 9999px;
     }
-    .tag-blue { background: #EBF3FF; color: #0071E3; }
+    .tag-blue { background: rgba(1, 32, 248, 0.1); color: #0120F8; }
     .tag-green { background: #E8F8EE; color: #1D6F24; }
     .tag-purple { background: #F2EDFC; color: #6D28D9; }
     .tag-amber { background: #FFF4E5; color: #B45309; }
@@ -160,10 +161,10 @@
         transform: translateY(-1px);
     }
     .elera-pill.active {
-        background: #1D1D1F !important;
+        background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
         color: #FFFFFF !important;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+        font-weight: 700 !important;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
     }
     .elera-pill.active i {
         color: #FFFFFF !important;
@@ -230,10 +231,10 @@
     }
     .elera-search-input:focus {
         background: #FFFFFF !important;
-        border-color: #0071E3 !important;
+        border-color: #F97316 !important;
         width: 220px !important;
         outline: none !important;
-        box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
     }
     .elera-btn-filters {
         border: 1px solid rgba(0, 0, 0, 0.08);
@@ -258,23 +259,24 @@
         color: #86868B;
     }
     .elera-btn-new-ticket {
-        background: #0071E3 !important;
+        background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
         color: #FFFFFF !important;
         border-radius: 9999px !important;
-        padding: 6px 14px !important;
+        padding: 6px 16px !important;
         font-size: 0.82rem !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         text-decoration: none !important;
         display: inline-flex !important;
         align-items: center !important;
         gap: 5px !important;
-        box-shadow: 0 2px 6px rgba(0, 113, 227, 0.25) !important;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
         transition: all 0.2s ease !important;
     }
     .elera-btn-new-ticket:hover {
-        background: #0077ED !important;
+        background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35) !important;
+        box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+        color: #FFFFFF !important;
     }
 
     /* Regras Mobile Self-Service (Escopo exclusivo: <= 767.98px e body.glpi-selfservice) */
@@ -406,8 +408,19 @@
         body.glpi-selfservice .elera-btn-filters,
         body.glpi-selfservice .elera-showing-count,
         body.glpi-selfservice .elera-btn-new-ticket {
-            display: none !important;
-        }
+        background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+        color: #FFFFFF !important;
+        border-radius: 9999px !important;
+        padding: 6px 16px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+        transition: all 0.2s ease !important;
+    }
 
         /* Manter apenas o toggle Kanban / Lista */
         body.glpi-selfservice .elera-view-toggle {

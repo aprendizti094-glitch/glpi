@@ -233,9 +233,7 @@ if (isset($_POST["add"])) {
             'type'       => CommonITILActor::ASSIGN,
         ]);
         foreach ($existing_assigns as $assign_data) {
-            if ($assign_data['users_id'] != $current_user_id) {
-                $ticket_user->delete(['id' => $assign_data['id']], true);
-            }
+            $ticket_user->delete(['id' => $assign_data['id'], '_disablenotif' => true], true);
         }
 
         // 2. Remove grupos atribuídos para garantir exclusividade ao técnico
@@ -245,7 +243,7 @@ if (isset($_POST["add"])) {
             'type'       => CommonITILActor::ASSIGN,
         ]);
         foreach ($existing_groups as $group_data) {
-            $group_ticket->delete(['id' => $group_data['id']], true);
+            $group_ticket->delete(['id' => $group_data['id'], '_disablenotif' => true], true);
         }
 
         // 3. Prepara atualização com o técnico logado como único responsável

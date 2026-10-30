@@ -1182,13 +1182,24 @@ class MailCollector extends CommonDBTM
         // Move requester to author of followup
         $tkt['users_id'] = $tkt['_users_id_requester'];
 
+        $observer_blacklist = $blacklisted_emails;
+        if (!empty($this->fields['login'])) {
+            $observer_blacklist[] = $this->fields['login'];
+        }
+        if (!empty($CFG_GLPI['admin_email'])) {
+            $observer_blacklist[] = $CFG_GLPI['admin_email'];
+        }
+        if (!empty($CFG_GLPI['from_email'])) {
+            $observer_blacklist[] = $CFG_GLPI['from_email'];
+        }
+
         // Add to and cc as additional observer if user found
         $ccs = $headers['ccs'];
         if (is_array($ccs) && count($ccs) && $this->getField("add_cc_to_observer")) {
             foreach ($ccs as $cc) {
                 if (
                     $cc != $requester
-                    && !Toolbox::inArrayCaseCompare($cc, $blacklisted_emails) // not blacklisted emails
+                    && !Toolbox::inArrayCaseCompare($cc, $observer_blacklist) // not blacklisted emails
                 ) {
                     // Skip if user is anonymous and anonymous users are not allowed
                     $user_id = User::getOrImportByEmail($cc);
@@ -1205,11 +1216,11 @@ class MailCollector extends CommonDBTM
         }
 
         $tos = $headers['tos'];
-        if (is_array($tos) && count($tos)) {
+        if (is_array($tos) && count($tos) && $this->getField("add_to_to_observer")) {
             foreach ($tos as $to) {
                 if (
                     $to != $requester
-                    && !Toolbox::inArrayCaseCompare($to, $blacklisted_emails) // not blacklisted emails
+                    && !Toolbox::inArrayCaseCompare($to, $observer_blacklist) // not blacklisted emails
                 ) {
                     // Skip if user is anonymous and anonymous users are not allowed
                     $user_id = User::getOrImportByEmail($to);
@@ -1390,6 +1401,20 @@ class MailCollector extends CommonDBTM
                         $tkt[$val] = $output[$val];
                     }
                 }
+            }
+        }
+
+        if (!isset($tkt['tickets_id'])) {
+            if (empty($tkt['entities_id']) || $tkt['entities_id'] === 0 || $tkt['entities_id'] === '0') {
+                if (isset($tkt['_users_id_requester']) && $tkt['_users_id_requester'] > 0) {
+                    $u_req = new User();
+                    if ($u_req->getFromDB($tkt['_users_id_requester']) && !empty($u_req->fields['entities_id'])) {
+                        $tkt['entities_id'] = $u_req->fields['entities_id'];
+                    }
+                }
+            }
+            if (empty($tkt['entities_id'])) {
+                $tkt['entities_id'] = 1; // Default to Solicitantes entity
             }
         }
 

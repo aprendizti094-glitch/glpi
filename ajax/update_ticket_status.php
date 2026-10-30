@@ -34,10 +34,13 @@ if (!$ticket->getFromDB($id)) {
     exit;
 }
 
-// Check permission
-if (!$ticket->can($id, UPDATE) && !Session::haveRight('ticket', UPDATE) && !Session::haveRight('ticket', READ)) {
+// Check permission - Bloqueia perfil Self-Service / Solicitante / Helpdesk interface
+if (!EleraKanban::canDrag() || (!$ticket->can($id, UPDATE) && !Session::haveRight('ticket', UPDATE))) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Permissão insuficiente para alterar o chamado']);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Usuários com perfil de solicitante (Self-Service) não têm permissão para alterar o status do chamado.'
+    ]);
     exit;
 }
 
@@ -62,6 +65,10 @@ if (!$success) {
     if ($status === CommonITILObject::CLOSED && empty($ticket->fields['closedate'])) {
         $updateData['closedate'] = $now;
     }
+    if (in_array($status, [CommonITILObject::INCOMING, CommonITILObject::ASSIGNED, CommonITILObject::PLANNED, CommonITILObject::WAITING])) {
+        $updateData['solvedate'] = null;
+        $updateData['closedate'] = null;
+    }
     $db_updated = $DB->update('glpi_tickets', $updateData, ['id' => $id]);
     if ($db_updated) {
         $success = true;
@@ -71,6 +78,40 @@ if (!$success) {
             (string)$status
         ];
         Log::history($id, 'Ticket', $changes, 0, Log::HISTORY_LOG_SIMPLE_MESSAGE);
+    }
+} else {
+    // If native update succeeded and moving back to open status, clear solved/close dates
+    if (in_array($status, [CommonITILObject::INCOMING, CommonITILObject::ASSIGNED, CommonITILObject::PLANNED, CommonITILObject::WAITING])) {
+        global $DB;
+        $DB->update('glpi_tickets', ['solvedate' => null, 'closedate' => null], ['id' => $id]);
+    }
+}
+
+// Handle optional solution or followup comment
+$comment = trim($_POST['comment'] ?? '');
+if ($success) {
+    try {
+        if ($status === CommonITILObject::SOLVED) {
+            $solText = !empty($comment) ? $comment : 'Chamado marcado como concluído.';
+            $solution = new ITILSolution();
+            $solution->add([
+                'itemtype' => 'Ticket',
+                'items_id' => $id,
+                'content'  => $solText,
+                'users_id' => $loginUserId
+            ]);
+            NotificationEvent::raiseEvent('solved', $ticket);
+        } elseif (!empty($comment)) {
+            $fup = new ITILFollowup();
+            $fup->add([
+                'itemtype' => 'Ticket',
+                'items_id' => $id,
+                'content'  => $comment,
+                'users_id' => $loginUserId
+            ]);
+        }
+    } catch (\Throwable $te) {
+        // Log or silently ignore error so status update is preserved
     }
 }
 

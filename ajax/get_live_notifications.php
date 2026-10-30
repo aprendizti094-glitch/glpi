@@ -5,6 +5,8 @@
  */
 require_once __DIR__ . '/../inc/includes.php';
 header("Content-Type: application/json; charset=UTF-8");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
 
 // Session verification
 $loginUserId = Session::getLoginUserID();
@@ -18,40 +20,26 @@ if (!$loginUserId) {
     exit;
 }
 
+$isTechnician = false;
+$currentInterface = Session::getCurrentInterface();
+$profileName = mb_strtolower((string)($_SESSION['glpiactiveprofile']['name'] ?? ''), 'UTF-8');
+$profileId = (int)($_SESSION['glpiactiveprofile']['id'] ?? 0);
+
+if ($currentInterface === 'central' && $profileId !== 1 && strpos($profileName, 'self') === false && strpos($profileName, 'post-only') === false) {
+    if (Session::haveRight('ticket', UPDATE) || Session::haveRight('ticket', Ticket::OWN) || Session::haveRight('ticket', Ticket::READALL)) {
+        $isTechnician = true;
+    }
+}
+
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $sinceTimestamp = (int)($_GET['since'] ?? 0);
 $cacheDir = defined('GLPI_CACHE_DIR') ? GLPI_CACHE_DIR : (GLPI_ROOT . '/files/_cache');
 $cacheFile = $cacheDir . '/glpi_live_events.json';
 
 date_default_timezone_set('America/Sao_Paulo');
-
-// Auto-trigger da coleta de e-mails do Zoho a cada 10 segundos
-$lastMailCheckFile = $cacheDir . '/last_mailgate_check.txt';
-$now = time();
-$lastMailCheck = file_exists($lastMailCheckFile) ? (int)@file_get_contents($lastMailCheckFile) : 0;
-if (($now - $lastMailCheck) >= 10) {
-    @file_put_contents($lastMailCheckFile, (string)$now);
-    try {
-        // Executa mailgate via CronTask do GLPI para atualizar a "Última execução" no banco e rodar a coleta
-        CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'mailgate');
-    } catch (\Throwable $e) {
-        try {
-            global $DB;
-            $collectors = $DB->request('glpi_mailcollectors', ['is_active' => 1]);
-            if (count($collectors) > 0) {
-                $mc = new MailCollector();
-                foreach ($collectors as $c) {
-                    if ($mc->getFromDB($c['id'])) {
-                        $mc->collect($c['id']);
-                    }
-                }
-            }
-        } catch (\Throwable $e2) {}
-    }
-    try {
-        // Executa queuednotification para envio IMEDIATO de e-mails da fila
-        CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'queuednotification');
-    } catch (\Throwable $e3) {}
-}
 
 $allEvents = [];
 $activeTickets = [];
@@ -72,14 +60,18 @@ if (file_exists($cacheFile)) {
 $newEvents = [];
 $cutoff = time() - 3600; // Ignore events older than 1 hour
 
-foreach ($allEvents as $evt) {
-    if ($evt['timestamp'] >= ($sinceTimestamp - 1) && $evt['timestamp'] >= $cutoff) {
-        $newEvents[] = $evt;
+if ($isTechnician) {
+    foreach ($allEvents as $evt) {
+        if ($evt['timestamp'] >= ($sinceTimestamp - 1) && $evt['timestamp'] >= $cutoff) {
+            $newEvents[] = $evt;
+        }
     }
+} else {
+    // Pop-ups de notificação são estritamente exclusivos para técnicos
+    $newEvents = [];
+    $activeTickets = [];
 }
 
-// Only query DB for active incidents on initial load ($sinceTimestamp == 0) or explicit request
-// This allows 3-second live polling with ZERO database connection overhead on Hostinger!
 $activeIncidents = [];
 if ($sinceTimestamp === 0 || !empty($_GET['with_incidents'])) {
     global $DB;
@@ -101,7 +93,6 @@ if ($sinceTimestamp === 0 || !empty($_GET['with_incidents'])) {
         ]);
 
         foreach ($iterator as $row) {
-            // Resolve technician name
             $techName = 'Equipe de TI';
             $tu = $DB->request([
                 'SELECT' => ['users_id'],
@@ -133,25 +124,98 @@ if ($sinceTimestamp === 0 || !empty($_GET['with_incidents'])) {
 }
 
 $latestTicketId = 0;
+$kanbanSignature = '';
+$kpiCounts = [
+    'total'    => 0,
+    'new'      => 0,
+    'assigned' => 0,
+    'waiting'  => 0,
+    'solved'   => 0,
+];
+
 try {
-    $latestRow = $DB->request([
-        'SELECT' => ['id'],
-        'FROM'   => 'glpi_tickets',
-        'WHERE'  => ['is_deleted' => 0],
-        'ORDER'  => 'id DESC',
-        'LIMIT'  => 1
-    ])->current();
-    if ($latestRow) {
-        $latestTicketId = (int)$latestRow['id'];
+    global $DB;
+    $sigParts = [];
+    $whereTickets = ['is_deleted' => 0];
+    if (!$isTechnician && $loginUserId > 0) {
+        $whereTickets[] = "(
+            glpi_tickets.id IN (
+                SELECT tickets_id FROM glpi_tickets_users 
+                WHERE users_id = {$loginUserId}
+            )
+            OR glpi_tickets.users_id_recipient = {$loginUserId}
+        )";
     }
+    $ticketRows = $DB->request([
+        'SELECT' => ['id', 'status', 'date_mod', 'itilcategories_id', 'urgency'],
+        'FROM'   => 'glpi_tickets',
+        'WHERE'  => $whereTickets,
+        'ORDER'  => 'id DESC',
+        'LIMIT'  => 200
+    ]);
+    foreach ($ticketRows as $tRow) {
+        $tid = (int)$tRow['id'];
+        $tStatus = (int)$tRow['status'];
+        if ($tid > $latestTicketId) {
+            $latestTicketId = $tid;
+        }
+        $sigParts[] = $tid . ':' . $tStatus . ':' . ($tRow['date_mod'] ?? '') . ':' . (int)($tRow['itilcategories_id'] ?? 0) . ':' . (int)($tRow['urgency'] ?? 3);
+        $kpiCounts['total']++;
+        if ($tStatus === 1) {
+            $kpiCounts['new']++;
+        } elseif ($tStatus === 2 || $tStatus === 3) {
+            $kpiCounts['assigned']++;
+        } elseif ($tStatus === 4) {
+            $kpiCounts['waiting']++;
+        } elseif ($tStatus === 5 || $tStatus === 6) {
+            $kpiCounts['solved']++;
+        }
+    }
+    $kanbanSignature = md5(implode('|', $sigParts));
 } catch (\Throwable $e) {}
 
-echo json_encode([
+$techStatus = class_exists('EleraKanban') ? EleraKanban::getTechniciansStatus() : ['is_busy' => false, 'status_label' => 'Técnicos Disponíveis', 'status_sub' => 'Fila livre'];
+
+$responseJson = json_encode([
     'success'          => true,
     'server_time'      => time(),
+    'is_technician'    => $isTechnician,
     'latest_ticket_id' => $latestTicketId,
+    'kanban_signature' => $kanbanSignature,
+    'kpi_counts'       => $kpiCounts,
     'new_events'       => $newEvents,
     'active_tickets'   => $activeTickets,
-    'active_incidents' => $activeIncidents
+    'active_incidents' => $activeIncidents,
+    'tech_status'      => $techStatus
 ]);
 
+ignore_user_abort(true);
+set_time_limit(120);
+header("Content-Length: " . strlen($responseJson));
+header("Connection: close");
+echo $responseJson;
+if (function_exists('litespeed_finish_request')) {
+    litespeed_finish_request();
+} elseif (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+} else {
+    flush();
+}
+
+// Auto-trigger não-bloqueante da coleta de e-mails do Zoho a cada 4 segundos em background
+$lastMailCheckFile = $cacheDir . '/last_mailgate_check.txt';
+$now = time();
+$lastMailCheck = file_exists($lastMailCheckFile) ? (int)@file_get_contents($lastMailCheckFile) : 0;
+if (($now - $lastMailCheck) >= 4) {
+    @file_put_contents($lastMailCheckFile, (string)$now);
+    try {
+        global $DB;
+        $DB->update(
+            'glpi_crontasks',
+            ['state' => CronTask::STATE_WAITING],
+            ['name' => ['mailgate', 'queuednotification'], 'state' => CronTask::STATE_RUNNING]
+        );
+        CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'mailgate');
+        CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'queuednotification');
+    } catch (\Throwable $e) {}
+}

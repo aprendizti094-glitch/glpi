@@ -51,6 +51,12 @@ if (!is_writable(GLPI_LOCK_DIR)) {
 }
 
 if (!isCommandLine()) {
+    ignore_user_abort(true);
+    set_time_limit(120);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
     //The advantage of using background-image is that cron is called in a separate
     //request and thus does not slow down output of the main page as it would if called
     //from there.
@@ -62,11 +68,32 @@ if (!isCommandLine()) {
     header("Pragma: no-cache");
     header("Connection: close");
     echo $image;
-    flush();
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        flush();
+    }
 
+    global $DB;
     $requestedTask = $_GET['task'] ?? '';
     if (!empty($requestedTask)) {
+        // Auto-recover if task got stuck in STATE_RUNNING (2) from a previous interrupted request
+        if (in_array($requestedTask, ['mailgate', 'queuednotification'], true)) {
+            $DB->update(
+                'glpi_crontasks',
+                ['state' => CronTask::STATE_WAITING],
+                ['name' => $requestedTask, 'state' => CronTask::STATE_RUNNING]
+            );
+        }
         CronTask::launch(-CronTask::MODE_INTERNAL, 1, $requestedTask);
+        if ($requestedTask === 'mailgate') {
+            $DB->update(
+                'glpi_crontasks',
+                ['state' => CronTask::STATE_WAITING],
+                ['name' => 'queuednotification', 'state' => CronTask::STATE_RUNNING]
+            );
+            CronTask::launch(-CronTask::MODE_INTERNAL, 1, 'queuednotification');
+        }
     } else {
         CronTask::launch(CronTask::MODE_INTERNAL, 5);
     }

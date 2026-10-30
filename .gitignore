@@ -78,3 +78,13 @@ senhaftp.txt
 *credentials*
 upload_*.py
 *upload_ftp*
+
+# Scripts e relatórios temporários de automação e manutenção
+*.py
+!tools/apply_brago_design_system.py
+*.json
+dispatch_runner_ready.php
+batch_dispatcher.php
+import_users_local.php
+inspect_user_schema.php
+scratch_db.php

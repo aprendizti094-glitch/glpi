@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 /*!
  * ---------------------------------------------------------------------
  * GLPI - Apple HIG Theme (Human Interface Guidelines Complete Redesign)
@@ -349,10 +351,10 @@ body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link:hove
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link {
-    background: #1D1D1F !important;
+    background: linear-gradient(135deg, #0120F8 0%, #2F00FF 100%) !important;
     color: #FFFFFF !important;
     border-radius: 12px !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+    box-shadow: 0 4px 16px rgba(1, 32, 248, 0.4) !important;
     transform: scale(1.04) !important;
 }
 
@@ -1371,7 +1373,7 @@ html[data-glpi-theme="apple_hig"] .dropdown-item {
 }
 
 html[data-glpi-theme="apple_hig"] .dropdown-item:hover {
-    background: #0071E3 !important;
+    background: #0120F8 !important;
     color: #FFFFFF !important;
 }
 
@@ -1533,11 +1535,11 @@ body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link:ho
 /* Active Tab: macOS Elevated Dark Card */
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active,
 body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link.active {
-    background: #FFF7ED !important;
-    color: #EA580C !important;
+    background: linear-gradient(135deg, #0120F8 0%, #2F00FF 100%) !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
-    border-left: 3px solid #F97316 !important;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 14px rgba(1, 32, 248, 0.35) !important;
 }
 
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active::before,
@@ -2342,11 +2344,11 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .col-12.
 
 body.glpi-ticket-zap-view #new-ITILFollowup-block .col-12.mb-3:focus-within,
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .col-12.mb-3:focus-within {
-    border-color: #00A884 !important;
-    box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2) !important;
+    border-color: #F97316 !important;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
 }
 
-/* Ícone de Clipe 📎 */
+/* Ícone de Clipe para Anexos (FontAwesome) */
 body.glpi-ticket-zap-view #new-ITILFollowup-block .fileupload:not(.only-uploaded-files),
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupload:not(.only-uploaded-files) {
     width: 28px !important;
@@ -2376,7 +2378,7 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupl
 
 body.glpi-ticket-zap-view #new-ITILFollowup-block .fileupload:not(.only-uploaded-files)::before,
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupload:not(.only-uploaded-files)::before {
-    content: "📎" !important;
+    content: "\f0c6" !important; font-family: "Font Awesome 6 Free" !important; font-weight: 900 !important;
     font-size: 1.25rem !important;
     line-height: 1 !important;
     display: block !important;
@@ -2534,7 +2536,7 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupl
 .chat-drop-overlay-text {
     font-size: 16px !important;
     font-weight: 600 !important;
-    color: #00A884 !important;
+    color: #0120F8 !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
@@ -2667,13 +2669,13 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block button[n
     height: 44px !important;
     min-width: 44px !important;
     border-radius: 50% !important;
-    background: #00A884 !important;
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
     border: none !important;
     color: #FFFFFF !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 0 2px 8px rgba(0, 168, 132, 0.4) !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
     cursor: pointer !important;
     font-size: 0 !important;
     position: relative !important;
@@ -3047,7 +3049,7 @@ body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .b
 
 body.glpi-ticket-zap-view .itil-timeline .timeline-item .badge a:hover,
 body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .badge a:hover {
-    color: #00A884 !important;
+    color: #0120F8 !important;
     text-decoration: underline !important;
 }
 
@@ -3188,7 +3190,7 @@ body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .t
 body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .user_login {
     font-size: 0.82rem !important;
     font-weight: 600 !important;
-    color: #00A884 !important;
+    color: #0120F8 !important;
     margin-bottom: 2px !important;
     display: block !important;
     white-space: nowrap !important;
@@ -3807,3 +3809,1526 @@ html[data-glpi-theme="apple_hig"] .btn.btn-icon,
 html[data-glpi-theme="apple_hig"] .btn-icon {
     padding: 0 !important;
 }
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - BOTÕES LARANJA PADRÃO DA MARCA (DESIGN SYSTEM)
+   ========================================================================== */
+
+/* 1. Botão + Adicionar no Header Superior */
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-primary,
+header.navbar .btn-secondary:has(.ti-plus),
+header.navbar .btn-primary:has(.ti-plus),
+header.navbar a[title*="Add"],
+header.navbar a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
+.header-container ul.navbar-nav.flex-row a[title*="Add"],
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    font-weight: 700 !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary *,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary *,
+header.navbar .btn-secondary:has(.ti-plus) *,
+header.navbar .btn-primary:has(.ti-plus) *,
+header.navbar a[title*="Add"] *,
+header.navbar a[title*="Adicionar"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus) *,
+.header-container ul.navbar-nav.flex-row a[title*="Add"] *,
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] * {
+    color: #FFFFFF !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary:hover,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary:hover,
+header.navbar .btn-secondary:has(.ti-plus):hover,
+header.navbar .btn-primary:has(.ti-plus):hover,
+header.navbar a[title*="Add"]:hover,
+header.navbar a[title*="Adicionar"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus):hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 2. Ícone Ativo no Dock / Barra Lateral (Headset / Seção Atual) */
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link,
+aside.navbar-vertical .navbar-nav .nav-link.active,
+aside.navbar-vertical .navbar-nav .show > .nav-link,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link,
+aside.navbar-vertical.sidebar .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4) !important;
+    transform: scale(1.04) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon {
+    color: #FFFFFF !important;
+}
+
+/* 3. Chip / Filtro Rápido Ativo ("Todos" etc.) */
+.elera-ticket-filter-bar .elera-pill.active,
+.elera-pill.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+.elera-ticket-filter-bar .elera-pill.active i,
+.elera-pill.active i {
+    color: #FFFFFF !important;
+}
+
+/* 4. Botão "+ Novo Chamado" */
+.elera-ticket-filter-bar .elera-btn-new-ticket,
+.elera-btn-new-ticket,
+a.elera-btn-new-ticket,
+body.glpi-selfservice .elera-btn-new-ticket {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 20px !important;
+    font-size: 0.86rem !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    white-space: nowrap !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket *,
+.elera-btn-new-ticket * {
+    color: #FFFFFF !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket:hover,
+.elera-btn-new-ticket:hover,
+a.elera-btn-new-ticket:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+    color: #FFFFFF !important;
+}
+
+/* 5. Demais Botões Primários, Abas e Ações */
+.btn-primary,
+html[data-glpi-theme="apple_hig"] .btn-primary,
+.apple-nav-btn-primary,
+.apple-submit-cta-btn {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+
+.btn-primary:hover,
+html[data-glpi-theme="apple_hig"] .btn-primary:hover,
+.apple-nav-btn-primary:hover,
+.apple-submit-cta-btn:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+.search-card .search-header .search-controls a[title=Ações],
+.search-card .search-header .search-controls a[title="A&ccedil;&otilde;es"],
+.search-card .search-footer .pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-color: #F97316 !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - BRAND COLOR HARMONIZATION (DESIGN SYSTEM)
+   - Laranja Brago: #F97316 / #FB923C / #EA580C (Ações, Botões, Ativos, Seleções)
+   - Azul Royal: #0120F8 / #2F00FF / #0B1EE0 (Identidade Institucional)
+   - Eliminados: Preto (#1D1D1F) em botões/menus e Azul Estranho (#0071E3)
+   ========================================================================== */
+
+/* 1. Botão "Pesquisar" em Formulários de Busca */
+.search-container .search-form-container .search-form button[name=search],
+.search-container .search-form button[name=search],
+.search-form button[name=search],
+button[name="search"],
+button#search_btn,
+.search-form .btn-primary:has(.ti-search),
+.search-form .btn-primary {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 24px !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.search-container .search-form-container .search-form button[name=search] *,
+button[name="search"] * {
+    color: #FFFFFF !important;
+}
+
+.search-container .search-form-container .search-form button[name=search]:hover,
+button[name="search"]:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 2. Submenus do Dock e Dropdowns (Ex: "Chamados" ativo e hover) */
+aside.navbar-vertical .dropdown-item.active,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item.active,
+body.navbar-collapsed aside.navbar-vertical .dropdown-item.active,
+.dropdown-menu .dropdown-item.active,
+.dropdown-item.active,
+header.navbar .dropdown-menu .dropdown-item.active,
+.user-menu .dropdown-menu .dropdown-item.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 3px 10px rgba(249, 115, 22, 0.35) !important;
+}
+
+aside.navbar-vertical .dropdown-item.active *,
+.dropdown-menu .dropdown-item.active * {
+    color: #FFFFFF !important;
+}
+
+/* Hover suave em itens do menu dropdown (substitui azul estranho #0071E3 e preto #1D1D1F) */
+aside.navbar-vertical .dropdown-item:hover,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item:hover,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item:focus,
+.dropdown-menu .dropdown-item:hover,
+.dropdown-item:hover:not(.active) {
+    background: #FFF7ED !important;
+    color: #EA580C !important;
+    border-radius: 10px !important;
+    transform: translateX(2px) !important;
+}
+
+aside.navbar-vertical .dropdown-item:hover *,
+.dropdown-menu .dropdown-item:hover:not(.active) * {
+    color: #EA580C !important;
+}
+
+/* 3. Botão + Adicionar no Header Superior */
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-primary,
+header.navbar .btn-secondary:has(.ti-plus),
+header.navbar .btn-primary:has(.ti-plus),
+header.navbar a[title*="Add"],
+header.navbar a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
+.header-container ul.navbar-nav.flex-row a[title*="Add"],
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    font-weight: 700 !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary *,
+header.navbar .btn-secondary:has(.ti-plus) *,
+header.navbar a[title*="Add"] *,
+header.navbar a[title*="Adicionar"] * {
+    color: #FFFFFF !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary:hover,
+header.navbar .btn-secondary:has(.ti-plus):hover,
+header.navbar a[title*="Add"]:hover,
+header.navbar a[title*="Adicionar"]:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 4. Ícone Ativo no Dock / Barra Lateral (Headset / Seção Atual) */
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link,
+aside.navbar-vertical .navbar-nav .nav-link.active,
+aside.navbar-vertical .navbar-nav .show > .nav-link,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link,
+aside.navbar-vertical.sidebar .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4) !important;
+    transform: scale(1.04) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon {
+    color: #FFFFFF !important;
+}
+
+/* 5. Filtros e Abas Ativas ("Todos", "Meus chamados" etc.) */
+.elera-ticket-filter-bar .elera-pill.active,
+.elera-pill.active,
+.nav-tabs .nav-link.active,
+.glpi-tabs .nav-link.active,
+.nav-pills .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+.elera-ticket-filter-bar .elera-pill.active i,
+.elera-pill.active i,
+.nav-tabs .nav-link.active i {
+    color: #FFFFFF !important;
+}
+
+/* 6. Botão "+ Novo Chamado" e Botões de Coluna do Kanban */
+.elera-ticket-filter-bar .elera-btn-new-ticket,
+.elera-btn-new-ticket,
+a.elera-btn-new-ticket,
+body.glpi-selfservice .elera-btn-new-ticket,
+.elera-btn-add-patient {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 20px !important;
+    font-size: 0.86rem !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    white-space: nowrap !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket *,
+.elera-btn-new-ticket *,
+.elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket:hover,
+.elera-btn-new-ticket:hover,
+a.elera-btn-new-ticket:hover,
+.elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+    color: #FFFFFF !important;
+}
+
+/* 7. Eliminação do Azul Estranho (#0071E3) -> Substituição por Azul Royal (#0120F8) / Laranja */
+/* Breadcrumb: local ativo com Azul Royal oficial */
+header.navbar ol.breadcrumb .breadcrumb-item a.here i.ti,
+header.navbar ol.breadcrumb .breadcrumb-item:last-child a i.ti,
+.secondary-bar ol.breadcrumb .breadcrumb-item a.here i.ti,
+.secondary-bar ol.breadcrumb .breadcrumb-item:last-child a i.ti,
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child {
+    color: #0120F8 !important;
+}
+
+/* Pills de Técnico em Cards do Kanban */
+.elera-ticket-card .card-main .card-body-content .card-tech-pill {
+    background: rgba(1, 32, 248, 0.08) !important;
+    color: #0120F8 !important;
+    border: 1px solid rgba(1, 32, 248, 0.16) !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+}
+
+/* Cards de KPI Azul e Tags */
+.elera-kpi-card.card-blue .kpi-icon-wrap,
+.apple-cat-icon-wrap.icon-blue {
+    background: rgba(1, 32, 248, 0.08) !important;
+    color: #0120F8 !important;
+}
+.elera-kpi-card.card-blue .kpi-tag,
+.tag-blue {
+    background: rgba(1, 32, 248, 0.1) !important;
+    color: #0120F8 !important;
+}
+
+/* Foco de Inputs: Borda Laranja e anel suave */
+.global-search .form-control:focus,
+form[role=search] input:focus,
+input[type=search]:focus,
+.form-control:focus,
+.form-select:focus,
+.elera-ticket-filter-bar .elera-quick-search-form .elera-search-input-wrapper .elera-search-input:focus,
+.search-container .search-form-container .search-form .form-select:focus,
+.search-container .search-form-container .search-form select:focus,
+.search-container .search-form-container .search-form input.form-control:focus {
+    border-color: #F97316 !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
+    outline: none !important;
+}
+
+/* Checkboxes */
+.search-results .form-check-input:checked,
+.form-check-input:checked {
+    background-color: #F97316 !important;
+    border-color: #F97316 !important;
+}
+
+/* Select2 Highlighted */
+.select2-results__option--highlighted {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+}
+
+/* Kanban Drag Over */
+.elera-kanban-col.is-drag-over {
+    background: rgba(249, 115, 22, 0.08) !important;
+    border: 2px dashed #F97316 !important;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12), inset 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Hover de links de chamados */
+.search-results.table tbody a[href*="ticket.form.php"]:hover,
+.search-results.table tbody a[id^=Ticket]:hover,
+.elera-ticket-card .card-main .card-body-content .card-top-row .card-ticket-title:hover {
+    color: #F97316 !important;
+}
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - KANBAN COLUMNS COLOR SCHEME
+   - Triagem: Vermelho (#FEF2F2 / #DC2626)
+   - Em Execução: Amarelo (#FFFBEB / #F59E0B / #D97706)
+   - Aguardando: Neutro padrão (#F8FAFC)
+   - Concluídos: Verde (#E2F5EA / #15803D)
+   ========================================================================== */
+
+/* 1. Triagem (Vermelho Suave / Destaque de Atenção Imediata) */
+.elera-kanban-col.col-triage,
+.elera-kanban-col[data-status="2"] {
+    background: #FEF2F2 !important;
+    border: 1px solid rgba(239, 68, 68, 0.28) !important;
+    box-shadow: inset 0 2px 6px rgba(239, 68, 68, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-title,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-title {
+    color: #991B1B !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-count-pill {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #DC2626 !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-target-badge {
+    color: #EF4444 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #EF4444 0%, #F87171 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35) !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient *,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 2. Em Execução (Amarelo / Dourado Âmbar Corporativo) */
+.elera-kanban-col.col-treatment,
+.elera-kanban-col[data-status="3"] {
+    background: #FFFBEB !important;
+    border: 1px solid rgba(245, 158, 11, 0.32) !important;
+    box-shadow: inset 0 2px 6px rgba(245, 158, 11, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-title,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-title {
+    color: #92400E !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-count-pill {
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #B45309 !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-target-badge {
+    color: #D97706 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient *,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45) !important;
+}
+
+/* 3. Aguardando (Mantém neutro padrão) */
+.elera-kanban-col.col-waiting,
+.elera-kanban-col[data-status="4"] {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-title,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-title {
+    color: #0F172A !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-count-pill {
+    background: rgba(1, 32, 248, 0.1) !important;
+    color: #0120F8 !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient *,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 4. Concluídos (Verde Oficial) */
+.elera-kanban-col.col-solved,
+.elera-kanban-col[data-status="5"] {
+    background: #E2F5EA !important;
+    border: 1px solid rgba(52, 199, 89, 0.28) !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-title,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-title {
+    color: #166534 !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-count-pill {
+    background: rgba(52, 199, 89, 0.2) !important;
+    color: #15803D !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient {
+    color: #15803D !important;
+    border: 1px solid rgba(52, 199, 89, 0.35) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 9999px !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient:hover {
+    background: #FFFFFF !important;
+    border-color: #15803D !important;
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.15) !important;
+    color: #15803D !important;
+}
+
+
+/* ==========================================================================
+   21. PAGINA DE CRIACAO DE CHAMADO (NOVO CHAMADO) - CORRECAO DEFINITIVA
+   Escopo: .new-itil-object, #itil-object-container.is-new-ticket-page,
+           body:has(.new-itil-object), body:has(#itil-object-container.is-new-ticket-page)
+   ========================================================================== */
+
+/* 1. RESET DE SCROLL E ALTURA: Permite rolagem normal na criacao de chamados */
+html:has(.new-itil-object),
+body:has(.new-itil-object),
+body.glpi-new-ticket-view,
+body:has(#itil-object-container.is-new-ticket-page),
+body:has(#itil-form.new-itil-object) {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100vh !important;
+}
+
+body:has(.new-itil-object) .card-tabs,
+body:has(.new-itil-object) .card-tabs.vertical,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs.vertical,
+body:has(#itil-form.new-itil-object) .card-tabs,
+#itil-object-container.is-new-ticket-page,
+#itil-object-container:has(.new-itil-object),
+#itil-object-container:has(#itil-form.new-itil-object) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body:has(.new-itil-object) .card-tabs > .tab-content,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs > .tab-content,
+body:has(#itil-form.new-itil-object) .card-tabs > .tab-content,
+body:has(.new-itil-object) .tab-content > .tab-pane,
+body:has(#itil-object-container.is-new-ticket-page) .tab-content > .tab-pane,
+body:has(#itil-form.new-itil-object) .tab-content > .tab-pane {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    flex: 1 1 auto !important;
+}
+
+/* 2. FORMULARIO DE NOVO CHAMADO */
+form#itil-form.new-itil-object,
+#itil-object-container:has(.new-itil-object) form#itil-form,
+#itil-object-container.is-new-ticket-page form#itil-form {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 16px 40px 16px !important;
+    margin: 0 !important;
+}
+
+/* 3. GRID DE DUAS COLUNAS LADO A LADO */
+#itil-object-container.is-new-ticket-page .row.itil-object,
+#itil-object-container:has(.new-itil-object) .row.itil-object,
+#itil-object-container:has(#itil-form.new-itil-object) .row.itil-object,
+form.new-itil-object .row.itil-object {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    gap: 24px !important;
+}
+
+/* 4. COLUNA ESQUERDA: TITULO E DESCRICAO */
+#itil-object-container.is-new-ticket-page .itil-left-side,
+#itil-object-container:has(.new-itil-object) .itil-left-side,
+#itil-object-container:has(#itil-form.new-itil-object) .itil-left-side,
+form.new-itil-object .itil-left-side {
+    flex: 1 1 58% !important;
+    min-width: 320px !important;
+    max-width: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+#itil-object-container.is-new-ticket-page .itil-timeline,
+#itil-object-container:has(.new-itil-object) .itil-timeline,
+#itil-object-container:has(#itil-form.new-itil-object) .itil-timeline,
+form.new-itil-object .itil-timeline {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+#itil-object-container.is-new-ticket-page .itil-timeline .timeline-content.card,
+#itil-object-container:has(.new-itil-object) .itil-timeline .timeline-content.card,
+form.new-itil-object .itil-timeline .timeline-content.card {
+    background: #FFFFFF !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    padding: 24px !important;
+    margin-bottom: 24px !important;
+}
+
+/* 5. EDITOR TINYMCE */
+#itil-object-container.is-new-ticket-page .tox.tox-tinymce,
+#itil-object-container:has(.new-itil-object) .tox.tox-tinymce,
+form.new-itil-object .tox.tox-tinymce,
+body:has(.new-itil-object) .tox.tox-tinymce {
+    min-height: 280px !important;
+    height: 320px !important;
+    border-radius: 14px !important;
+    border: 1.5px solid #E2E8F0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+    overflow: hidden !important;
+}
+
+#itil-object-container.is-new-ticket-page .tox-edit-area iframe,
+#itil-object-container:has(.new-itil-object) .tox-edit-area iframe,
+form.new-itil-object .tox-edit-area iframe,
+body:has(.new-itil-object) .tox-edit-area iframe {
+    min-height: 230px !important;
+    height: 270px !important;
+}
+
+/* 6. COLUNA DIREITA: PROPRIEDADES DO CHAMADO (SEMPRE VISIVEL) */
+#itil-object-container.is-new-ticket-page .itil-right-side,
+#itil-object-container:has(.new-itil-object) .itil-right-side,
+#itil-object-container:has(#itil-form.new-itil-object) .itil-right-side,
+form.new-itil-object .itil-right-side,
+#itil-object-container.is-new-ticket-page.right-collapsed .itil-right-side,
+#itil-object-container:has(.new-itil-object).right-collapsed .itil-right-side {
+    flex: 0 0 380px !important;
+    width: 380px !important;
+    min-width: 320px !important;
+    max-width: 420px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    padding: 20px !important;
+    margin: 0 !important;
+}
+
+/* 7. RODAPE DE CRIACAO DE CHAMADO (#itil-footer) */
+#itil-object-container.is-new-ticket-page #itil-footer,
+#itil-object-container:has(.new-itil-object) #itil-footer,
+#itil-object-container:has(#itil-form.new-itil-object) #itil-footer,
+form.new-itil-object #itil-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 64px !important;
+    max-height: none !important;
+    position: sticky !important;
+    bottom: 12px !important;
+    z-index: 100 !important;
+    margin-top: 24px !important;
+    background: #FFFFFF !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+    padding: 12px 24px !important;
+    box-sizing: border-box !important;
+}
+
+#itil-object-container.is-new-ticket-page #itil-footer .collapse-panel,
+#itil-object-container:has(.new-itil-object) #itil-footer .collapse-panel,
+form.new-itil-object #itil-footer .collapse-panel {
+    display: none !important;
+}
+
+#itil-object-container.is-new-ticket-page #itil-footer button[name="add"],
+#itil-object-container:has(.new-itil-object) #itil-footer button[name="add"],
+form.new-itil-object #itil-footer button[name="add"] {
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%) !important;
+    border: 1px solid #EA580C !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    padding: 10px 28px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.38) !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+#itil-object-container.is-new-ticket-page #itil-footer button[name="add"]:hover,
+#itil-object-container:has(.new-itil-object) #itil-footer button[name="add"]:hover,
+form.new-itil-object #itil-footer button[name="add"]:hover {
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.48) !important;
+    filter: brightness(1.06) !important;
+}
+
+
+/* ==========================================================================
+   22. RESPONSIVIDADE E MELHORIA DE ATORES - GLPI APPLE HIG
+   - Painel direito SEMPRE ao lado em telas desktop/notebooks (sem quebrar para baixo)
+   - Oculta o tabspanel com aba única redundante na criação de chamado (ganha +220px)
+   - Elimina o círculo cinza misterioso no campo de busca do Select2
+   - Botões intuitivos "Adicionar Requerente / Observador / Atribuído"
+   ========================================================================== */
+
+/* 1. Oculta aba lateral redundante (#tabspanel) na criação de chamado */
+body:has(.new-itil-object) #tabspanel,
+body:has(#itil-object-container.is-new-ticket-page) #tabspanel,
+body.glpi-new-ticket-view #tabspanel,
+.card-tabs:has(.new-itil-object) > #tabspanel,
+.card-tabs:has(#itil-object-container.is-new-ticket-page) > #tabspanel {
+    display: none !important;
+}
+
+body:has(.new-itil-object) .card-tabs,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+}
+
+body:has(.new-itil-object) .card-tabs > .tab-content,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs > .tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* 2. Responsividade lado a lado garantida para telas >= 768px (Laptops, Desktops) */
+@media (min-width: 768px) {
+    #itil-object-container.is-new-ticket-page .row.itil-object,
+    #itil-object-container:has(.new-itil-object) .row.itil-object,
+    form.new-itil-object .row.itil-object {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; /* NUNCA QUEBRA PARA BAIXO */
+        align-items: flex-start !important;
+        gap: 20px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #itil-object-container.is-new-ticket-page .itil-left-side,
+    #itil-object-container:has(.new-itil-object) .itil-left-side,
+    form.new-itil-object .itil-left-side {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+    }
+
+    #itil-object-container.is-new-ticket-page .itil-right-side,
+    #itil-object-container:has(.new-itil-object) .itil-right-side,
+    form.new-itil-object .itil-right-side {
+        flex: 0 0 350px !important;
+        width: 350px !important;
+        min-width: 310px !important;
+        max-width: 380px !important;
+        flex-shrink: 0 !important; /* PERMANECE FIRME AO LADO */
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
+/* Telas menores (smartphones < 768px): empilha confortavelmente */
+@media (max-width: 767.98px) {
+    #itil-object-container.is-new-ticket-page .row.itil-object,
+    #itil-object-container:has(.new-itil-object) .row.itil-object,
+    form.new-itil-object .row.itil-object {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    #itil-object-container.is-new-ticket-page .itil-left-side,
+    #itil-object-container:has(.new-itil-object) .itil-left-side,
+    form.new-itil-object .itil-left-side,
+    #itil-object-container.is-new-ticket-page .itil-right-side,
+    #itil-object-container:has(.new-itil-object) .itil-right-side,
+    form.new-itil-object .itil-right-side {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+}
+
+/* 3. ELIMINAÇÃO DO CÍRCULO CINZA NO SELECT2 E DESIGN INTUITIVO DOS ATORES */
+#actors .select2-container .select2-selection--multiple,
+.actor-field .select2-selection--multiple {
+    border-radius: 12px !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    background: #FFFFFF !important;
+    min-height: 42px !important;
+    padding: 6px 10px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+#actors .select2-container .select2-selection__rendered,
+.actor-field .select2-selection__rendered {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+/* O item de busca inline: remove qualquer estilo de bolinha/círculo cinza */
+#actors .select2-container .select2-search--inline,
+#actors .select2-container .select2-search--inline .select2-search__field,
+.actor-field .select2-search--inline,
+.actor-field .select2-search--inline .select2-search__field {
+    border: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 6px !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    min-width: 140px !important;
+    flex-grow: 1 !important;
+    list-style: none !important;
+}
+
+/* Chips de atores selecionados (Visual Apple HIG) */
+#actors .select2-container .select2-selection__choice,
+.actor-field .select2-selection__choice {
+    display: inline-flex !important;
+    align-items: center !important;
+    background: rgba(1, 32, 248, 0.08) !important;
+    border: 1px solid rgba(1, 32, 248, 0.16) !important;
+    border-radius: 9999px !important;
+    padding: 4px 10px !important;
+    margin: 0 !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: #0F172A !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove,
+.actor-field .select2-selection__choice__remove {
+    margin-right: 6px !important;
+    color: #64748B !important;
+    font-weight: bold !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove:hover,
+.actor-field .select2-selection__choice__remove:hover {
+    color: #EF4444 !important;
+}
+
+/* Botões de Ação de Atores: "+ Adicionar" e "Atribuir a mim" */
+.actor-actions-bar .actor-add-btn:hover {
+    background: #0120F8 !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 10px rgba(1, 32, 248, 0.25) !important;
+}
+
+.actor-actions-bar .actor-assign-me-btn:hover {
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
+    border-color: #94A3B8 !important;
+}
+
+
+/* ==========================================================================
+   23. ALTO CONTRASTE NA HEADER, RESPONSIVIDADE E ATORES INTUITIVOS
+   - Breadcrumbs em branco puro com icones nitidos
+   - Barra de busca Spotlight translucida branca com texto e placeholder nitidos
+   - Painel direito SEMPRE ao lado em telas >= 768px (Laptops, Desktops)
+   - Oculta o tabspanel de 1 unica aba na criacao do chamado (ganha +220px)
+   - Eliminacao completa de circulo cinza no Select2 de atores
+   - Botoes intuitivos "+ Adicionar Requerente / Observador / Atribuido"
+   ========================================================================== */
+
+/* Header Breadcrumb Contrast */
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb-item a,
+header.navbar nav[aria-label="Breadcrumbs"] .breadcrumb-item a,
+header.navbar ol.breadcrumb .breadcrumb-item a,
+html[data-glpi-theme="apple_hig"] .breadcrumb-item a {
+    color: #FFFFFF !important;
+    font-weight: 500 !important;
+}
+
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb-item a i,
+header.navbar nav[aria-label="Breadcrumbs"] .breadcrumb-item a i,
+header.navbar ol.breadcrumb .breadcrumb-item a i,
+html[data-glpi-theme="apple_hig"] .breadcrumb-item a i {
+    color: #FFFFFF !important;
+    font-size: 1rem !important;
+}
+
+header.navbar .breadcrumb-item + .breadcrumb-item::before,
+html[data-glpi-theme="apple_hig"] .breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255, 255, 255, 0.75) !important;
+    font-weight: bold !important;
+}
+
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child,
+html[data-glpi-theme="apple_hig"] .breadcrumb-item.active,
+html[data-glpi-theme="apple_hig"] .breadcrumb-item:last-child {
+    background: #FFFFFF !important;
+    color: #0120F8 !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15) !important;
+}
+
+header.navbar .breadcrumb-item:last-child a,
+header.navbar .breadcrumb-item.active a {
+    color: #0120F8 !important;
+    font-weight: 700 !important;
+}
+
+header.navbar .breadcrumb-item:last-child a i,
+header.navbar .breadcrumb-item.active a i {
+    color: #0120F8 !important;
+}
+
+/* Header Spotlight Search Contrast */
+header.navbar .global-search,
+header.navbar .global-search .form-control,
+header.navbar form[role="search"] input,
+header.navbar .input-icon input,
+header.navbar input[type="search"] {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: 9999px !important;
+    color: #FFFFFF !important;
+    height: 36px !important;
+    padding: 6px 18px 6px 36px !important;
+}
+
+header.navbar .global-search input::placeholder,
+header.navbar form[role="search"] input::placeholder,
+header.navbar .input-icon input::placeholder,
+header.navbar input[type="search"]::placeholder {
+    color: rgba(255, 255, 255, 0.78) !important;
+}
+
+header.navbar .input-icon .input-icon-addon,
+header.navbar .input-icon .input-icon-addon i,
+header.navbar .input-icon .input-icon-addon .ti,
+header.navbar form[role="search"] .ti-search,
+header.navbar form[role="search"] i {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+header.navbar .global-search .form-control:focus,
+header.navbar form[role="search"] input:focus,
+header.navbar .input-icon input:focus,
+header.navbar input[type="search"]:focus {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #FFFFFF !important;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35) !important;
+}
+
+header.navbar .global-search .form-control:focus::placeholder,
+header.navbar form[role="search"] input:focus::placeholder,
+header.navbar .input-icon input:focus::placeholder,
+header.navbar input[type="search"]:focus::placeholder {
+    color: #94A3B8 !important;
+}
+
+header.navbar .input-icon:focus-within .input-icon-addon,
+header.navbar .input-icon:focus-within .input-icon-addon i {
+    color: #0120F8 !important;
+}
+
+/* Responsividade lado a lado na criacao do chamado (Laptops, Desktops >= 768px) */
+body.glpi-new-ticket-view #tabspanel,
+.glpi-new-ticket-view #tabspanel,
+body:has(#itil-object-container.is-new-ticket-page) #tabspanel,
+body:has(.new-itil-object) #tabspanel,
+.card-tabs:has(.new-itil-object) > #tabspanel {
+    display: none !important;
+}
+
+body.glpi-new-ticket-view .card-tabs,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs,
+body:has(.new-itil-object) .card-tabs {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+}
+
+body.glpi-new-ticket-view .card-tabs > .tab-content,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs > .tab-content,
+body:has(.new-itil-object) .card-tabs > .tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+@media (min-width: 768px) {
+    body.glpi-new-ticket-view .row.itil-object,
+    #itil-object-container.is-new-ticket-page .row.itil-object,
+    #itil-object-container:has(.new-itil-object) .row.itil-object,
+    form.new-itil-object .row.itil-object {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; /* IMPEDE QUEBRA PARA BAIXO */
+        align-items: flex-start !important;
+        gap: 20px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    body.glpi-new-ticket-view .row.itil-object .itil-left-side,
+    #itil-object-container.is-new-ticket-page .itil-left-side,
+    #itil-object-container:has(.new-itil-object) .itil-left-side,
+    form.new-itil-object .itil-left-side {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+    }
+
+    body.glpi-new-ticket-view .row.itil-object .itil-right-side,
+    #itil-object-container.is-new-ticket-page .itil-right-side,
+    #itil-object-container:has(.new-itil-object) .itil-right-side,
+    form.new-itil-object .itil-right-side {
+        flex: 0 0 350px !important;
+        width: 350px !important;
+        min-width: 310px !important;
+        max-width: 380px !important;
+        flex-shrink: 0 !important; /* MANTEM PAINEL DIREITO AO LADO */
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
+/* Eliminacao definitiva de circulos cinzas e estilizacao refinada de Atores */
+.select2-container .select2-search--inline,
+.select2-container .select2-search--inline .select2-search__field,
+.select2-container--default .select2-search--inline .select2-search__field,
+#actors .select2-container .select2-search--inline,
+#actors .select2-container .select2-search--inline .select2-search__field,
+.actor-field .select2-search--inline,
+.actor-field .select2-search--inline .select2-search__field,
+input.select2-search__field {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 6px !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    min-width: 140px !important;
+    flex-grow: 1 !important;
+    width: auto !important;
+}
+
+.select2-container .select2-search--inline::before,
+.select2-container .select2-search--inline::after,
+.actor-field .select2-search--inline::before,
+.actor-field .select2-search--inline::after {
+    display: none !important;
+    content: none !important;
+}
+
+#actors .select2-container .select2-selection--multiple,
+.actor-field .select2-selection--multiple {
+    border-radius: 12px !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    background: #FFFFFF !important;
+    min-height: 42px !important;
+    padding: 6px 10px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+#actors .select2-container .select2-selection__choice,
+.actor-field .select2-selection__choice {
+    display: inline-flex !important;
+    align-items: center !important;
+    background: rgba(1, 32, 248, 0.08) !important;
+    border: 1px solid rgba(1, 32, 248, 0.16) !important;
+    border-radius: 9999px !important;
+    padding: 4px 10px !important;
+    margin: 0 !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: #0F172A !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove,
+.actor-field .select2-selection__choice__remove {
+    margin-right: 6px !important;
+    color: #64748B !important;
+    font-weight: bold !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove:hover,
+.actor-field .select2-selection__choice__remove:hover {
+    color: #EF4444 !important;
+}
+
+.actor-actions-bar .actor-add-btn:hover {
+    background: #0120F8 !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 10px rgba(1, 32, 248, 0.25) !important;
+}
+
+.actor-actions-bar .actor-assign-me-btn:hover {
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
+    border-color: #94A3B8 !important;
+}
+
+
+/* ==========================================================================
+   25. CORREÇÃO DEFINITIVA DE RESPONSIVIDADE E ATORES - BRAGO TICKET SYSTEM
+   ========================================================================== */
+
+/* 1. Ocultar menu lateral redundante na criacao de chamado para ganhar espaco */
+body.glpi-new-ticket-view #tabspanel,
+body:has(#itil-object-container.is-new-ticket-page) #tabspanel,
+.card-tabs:has(.is-new-ticket-page) > #tabspanel,
+.card-tabs:has(.new-itil-object) > #tabspanel {
+    display: none !important;
+}
+
+body.glpi-new-ticket-view .card-tabs,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+}
+
+body.glpi-new-ticket-view .card-tabs > .tab-content,
+body:has(#itil-object-container.is-new-ticket-page) .card-tabs > .tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* 2. Responsividade lado a lado garantida para telas >= 768px (Laptops, Telas Menores, Desktops) */
+@media (min-width: 768px) {
+    #itil-object-container.is-new-ticket-page .row.itil-object,
+    #itil-object-container.is-new-ticket-page .row.new-ticket-row,
+    #itil-object-container:has(.new-itil-object) .row.itil-object,
+    form.new-itil-object .row.itil-object {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; /* NUNCA QUEBRA PARA BAIXO */
+        align-items: flex-start !important;
+        gap: 20px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #itil-object-container.is-new-ticket-page .itil-left-side,
+    #itil-object-container:has(.new-itil-object) .itil-left-side,
+    form.new-itil-object .itil-left-side {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+        padding-right: 0 !important;
+        padding-bottom: 50px !important;
+    }
+
+    #itil-object-container.is-new-ticket-page .itil-right-side,
+    #itil-object-container:has(.new-itil-object) .itil-right-side,
+    form.new-itil-object .itil-right-side {
+        flex: 0 0 350px !important;
+        width: 350px !important;
+        min-width: 310px !important;
+        max-width: 380px !important;
+        flex-shrink: 0 !important; /* PERMANECE FIRME AO LADO */
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-top: 0 !important;
+    }
+}
+
+/* 3. Rodapé flutuante com botão Adicionar sem cobrir o formulário */
+#itil-object-container.is-new-ticket-page #itil-footer,
+#itil-object-container:has(.new-itil-object) #itil-footer,
+form.new-itil-object #itil-footer {
+    position: sticky !important;
+    bottom: 16px !important;
+    z-index: 99 !important;
+    margin-top: 24px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+    padding: 10px 20px !important;
+}
+
+/* 4. ELIMINAÇÃO TOTAL DO CÍRCULO CINZA NO SELECT2 DE ATORES */
+#actors .select2-container .select2-search--inline,
+#actors .select2-container .select2-search--inline .select2-search__field,
+.actor-field .select2-search--inline,
+.actor-field .select2-search--inline .select2-search__field,
+.select2-container--default .select2-search--inline .select2-search__field,
+input.select2-search__field {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    min-height: 28px !important;
+    line-height: 28px !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+}
+
+/* Quando não focado e já há atores selecionados, esconde o search field para não criar círculo residual */
+.actor-field .select2-selection--multiple:not(:focus-within) .select2-selection__choice ~ .select2-search--inline .select2-search__field {
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Quando o campo está vazio, o input ocupa espaço suficiente para exibir o texto e cursor */
+.actor-field .select2-selection--multiple .select2-search--inline {
+    flex-grow: 1 !important;
+}
+
+.actor-field .select2-selection--multiple .select2-search--inline .select2-search__field {
+    width: 100% !important;
+    min-width: 180px !important;
+}
+
+.actor-field .select2-selection--multiple .select2-search--inline .select2-search__field::placeholder {
+    color: #94A3B8 !important;
+    font-size: 12.5px !important;
+    font-style: normal !important;
+}
+
+/* Container do Select2 para atores */
+#actors .select2-container .select2-selection--multiple,
+.actor-field .select2-selection--multiple {
+    border-radius: 12px !important;
+    border: 1.5px solid #E2E8F0 !important;
+    background: #FFFFFF !important;
+    min-height: 42px !important;
+    padding: 5px 8px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.2s ease !important;
+}
+
+#actors .select2-container--focus .select2-selection--multiple,
+.actor-field.select2-container--focus .select2-selection--multiple,
+#actors .select2-container--open .select2-selection--multiple,
+.actor-field.select2-container--open .select2-selection--multiple {
+    border-color: #0120F8 !important;
+    box-shadow: 0 0 0 3px rgba(1, 32, 248, 0.12) !important;
+}
+
+/* Chips de atores com visual moderno */
+#actors .select2-container .select2-selection__choice,
+.actor-field .select2-selection__choice {
+    display: inline-flex !important;
+    align-items: center !important;
+    background: #EFF6FF !important;
+    border: 1px solid #BFDBFE !important;
+    border-radius: 8px !important;
+    padding: 3px 10px !important;
+    margin: 2px !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: #1E40AF !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove,
+.actor-field .select2-selection__choice__remove {
+    margin-right: 6px !important;
+    color: #3B82F6 !important;
+    font-weight: bold !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+}
+
+#actors .select2-container .select2-selection__choice__remove:hover,
+.actor-field .select2-selection__choice__remove:hover {
+    color: #EF4444 !important;
+}
+
+/* Botões da Barra de Ação de Atores */
+.actor-actions-bar {
+    margin-top: 6px !important;
+}
+
+.actor-actions-bar .actor-add-btn {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    padding: 5px 12px !important;
+    border: 1.5px solid #0120F8 !important;
+    color: #0120F8 !important;
+    background: rgba(1, 32, 248, 0.06) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+.actor-actions-bar .actor-add-btn:hover {
+    background: #0120F8 !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(1, 32, 248, 0.25) !important;
+}
+
+.actor-actions-bar .actor-assign-me-btn {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    padding: 5px 11px !important;
+    border: 1.5px solid #CBD5E1 !important;
+    color: #334155 !important;
+    background: #F8FAFC !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+.actor-actions-bar .actor-assign-me-btn:hover {
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
+    border-color: #94A3B8 !important;
+}
+

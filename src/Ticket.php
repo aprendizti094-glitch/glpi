@@ -1794,7 +1794,23 @@ class Ticket extends CommonITILObject
 
             // Read again ticket to be sure that all data are up to date
             $this->getFromDB($this->fields['id']);
-            NotificationEvent::raiseEvent($mailtype, $this);
+
+            // Regra dos 2 E-mails (Portal de Acompanhamento ao Vivo):
+            // 1º E-mail: Abertura ("new") com link mágico de acompanhamento.
+            // 2º E-mail: Conclusão ("solved" / "closed").
+            // Nenhum e-mail intermediário ("update") deve ser enviado.
+            $shouldRaiseNotif = ($mailtype !== "update");
+
+            static $raisedTicketNotifs = [];
+            $notifDedupKey = ((int)$this->fields['id']) . ':' . $mailtype;
+            if (!empty($raisedTicketNotifs[$notifDedupKey])) {
+                $shouldRaiseNotif = false;
+            }
+
+            if ($shouldRaiseNotif) {
+                $raisedTicketNotifs[$notifDedupKey] = true;
+                NotificationEvent::raiseEvent($mailtype, $this);
+            }
         }
 
         // inquest created immediatly if delay = O
@@ -1951,8 +1967,10 @@ class Ticket extends CommonITILObject
             if (!empty($input['forced_itilcategories_id'])) {
                 $input['itilcategories_id'] = (int)$input['forced_itilcategories_id'];
             } else {
-                $textToScan = ($input['name'] ?? '') . ' ' . ($input['content'] ?? '');
-                $detectedCat = self::detectCategoryFromText($textToScan, (int)($input['entities_id'] ?? 0));
+                $detectedCat = self::detectCategoryFromText((string)($input['name'] ?? ''), (int)($input['entities_id'] ?? 0));
+                if ($detectedCat <= 0) {
+                    $detectedCat = self::detectCategoryFromText((string)($input['content'] ?? ''), (int)($input['entities_id'] ?? 0));
+                }
                 if ($detectedCat > 0) {
                     $input['itilcategories_id'] = $detectedCat;
                 }
@@ -2029,18 +2047,22 @@ class Ticket extends CommonITILObject
                 }
             }
 
-            // Check for explicit Urgency tags in Subject/Name (e.g. [URGENTE], [ALTA], [MÉDIA], [BAIXA], [CRÍTICA])
-            if (empty($input['forced_urgency']) && !empty($input['name'])) {
-                $subClean = mb_strtolower($input['name'], 'UTF-8');
-                if (preg_match('/\[(critica|crítica|critico|crítico|emergencia|emergência|muito[\s\-_]alta)\]/iu', $subClean)) {
+            // Check for explicit Urgency tags or natural language keywords in Subject/Name and Content
+            if (empty($input['forced_urgency'])) {
+                $fullTextClean = mb_strtolower(($input['name'] ?? '') . ' ' . ($input['content'] ?? ''), 'UTF-8');
+                if (preg_match('/\[(critica|crítica|critico|crítico|emergencia|emergência|muito[\s\-_]alta)\]/iu', $fullTextClean)
+                    || preg_match('/\b(emergencia|emergência|critico|crítico|critica|crítica|faturamento parado|empresa parada|urgencia maxima|urgência máxima|muito urgente)\b/iu', $fullTextClean)) {
                     $input['forced_urgency'] = 5; // Muito Alta
-                } elseif (preg_match('/\[(alta|urgente)\]/iu', $subClean)) {
+                } elseif (preg_match('/\[(alta|urgente)\]/iu', $fullTextClean)
+                    || preg_match('/\b(urgente|urgencia|urgência|prioridade alta|alta prioridade|sistema parado|parado|parada|bloqueado|fora do ar)\b/iu', $fullTextClean)) {
                     $input['forced_urgency'] = 4; // Alta
-                } elseif (preg_match('/\[(media|média|normal)\]/iu', $subClean)) {
+                } elseif (preg_match('/\[(media|média|normal)\]/iu', $fullTextClean)
+                    || preg_match('/\b(urgencia media|urgência média|prioridade media|prioridade média)\b/iu', $fullTextClean)) {
                     $input['forced_urgency'] = 3; // Média
-                } elseif (preg_match('/\[(baixa)\]/iu', $subClean)) {
+                } elseif (preg_match('/\[(baixa)\]/iu', $fullTextClean)
+                    || preg_match('/\b(urgencia baixa|urgência baixa|prioridade baixa|baixa prioridade|sem pressa)\b/iu', $fullTextClean)) {
                     $input['forced_urgency'] = 2; // Baixa
-                } elseif (preg_match('/\[(muito[\s\-_]baixa)\]/iu', $subClean)) {
+                } elseif (preg_match('/\[(muito[\s\-_]baixa)\]/iu', $fullTextClean)) {
                     $input['forced_urgency'] = 1; // Muito Baixa
                 }
             }
@@ -7388,17 +7410,60 @@ JAVASCRIPT;
      * @param int $entity_id
      * @return int
      */
+    public static function ensureDefaultBragoCategories(): void
+    {
+        global $DB;
+        try {
+            if (countElementsInTable('glpi_itilcategories') > 0) {
+                return;
+            }
+            $defaults = [
+                1 => 'Sistemas / ERP (Winthor)',
+                2 => 'Redes / Internet',
+                3 => 'Computadores / Hardware',
+                4 => 'Impressoras',
+                5 => 'E-mail / Acessos',
+                6 => 'Dúvidas / Suporte',
+            ];
+            $now = date('Y-m-d H:i:s');
+            foreach ($defaults as $id => $name) {
+                $DB->insert('glpi_itilcategories', [
+                    'id'                        => $id,
+                    'entities_id'               => 0,
+                    'is_recursive'              => 1,
+                    'itilcategories_id'         => 0,
+                    'name'                      => $name,
+                    'completename'              => $name,
+                    'level'                     => 1,
+                    'knowbaseitemcategories_id' => 0,
+                    'users_id'                  => 0,
+                    'groups_id'                 => 1,
+                    'code'                      => '',
+                    'ancestors_cache'           => '[]',
+                    'is_helpdeskvisible'        => 1,
+                    'is_incident'               => 1,
+                    'is_request'                => 1,
+                    'is_problem'                => 1,
+                    'is_change'                 => 1,
+                    'date_mod'                  => $now,
+                    'date_creation'             => $now,
+                ]);
+            }
+        } catch (\Throwable $e) {}
+    }
+
     public static function detectCategoryFromText(string $text, int $entity_id = 0): int
     {
         global $DB;
         if (empty(trim($text))) {
             return 0;
         }
+        self::ensureDefaultBragoCategories();
         $clean = mb_strtolower($text, 'UTF-8');
 
         // 1. First priority: Check explicit category tags in brackets, e.g. [ERP], [PC], [REDE], [IMPRESSORA], [ACESSO], [SUPORTE]
         $tagPatterns = [
-            'sistema'    => '/\[(erp|sistema|winthor|protheus|totvs)\]/iu',
+            'sistema'    => '/\[(erp|sistema|winthor|protheus|totvs|rotina)\]/iu',
             'computador' => '/\[(pc|computador|computadores|notebook|hardware|desktop)\]/iu',
             'rede'       => '/\[(rede|redes|internet|wifi|wi-fi|vpn|link)\]/iu',
             'impressora' => '/\[(impressora|impressoras|toner|scanner)\]/iu',
@@ -7425,12 +7490,36 @@ JAVASCRIPT;
 
         // 2. Second priority: Natural language keywords in subject or body
         $patterns = [
-            'sistema'    => ['winthor', 'erp', 'sistema', 'nota fiscal', 'nf-e', 'danfe', 'relatório', 'protheus', 'totvs'],
-            'rede'       => ['internet', 'wifi', 'wi-fi', 'rede', 'vpn', 'queda', 'cabo de rede', 'sem conexão', 'conexão'],
-            'impressora' => ['impressora', 'toner', 'imprimir', 'impressão', 'scanner', 'etiqueta', 'etiquetadora', 'papel'],
-            'acesso'     => ['senha', 'email', 'e-mail', 'acesso', 'desbloqueio', 'login', 'usuário', 'permissão'],
-            'computador' => ['computador', 'pc', 'notebook', 'desktop', 'travando', 'travamento', 'lento', 'lentidão', 'tela azul', 'mouse', 'teclado', 'monitor', 'hardware'],
-            'suporte'    => ['suporte', 'duvida', 'dúvida', 'apoio', 'ajuda', 'orientação']
+            'sistema'    => [
+                'winthor', 'erp', 'sistema', 'rotina', 'rotinha', 'nota fiscal', 'nf-e', 'nfe',
+                'danfe', 'relatório', 'relatorio', 'protheus', 'totvs', 'wms', 'faturamento',
+                'sefaz', 'xml', 'boleto', 'pedido', 'cadastro de cliente', 'cadastro de produto'
+            ],
+            'impressora' => [
+                'impressora', 'impressoras', 'toner', 'cartucho', 'tinta', 'imprimir',
+                'impressão', 'impressao', 'scanner', 'escanear', 'digitalizar', 'etiqueta',
+                'etiquetadora', 'zebra', 'papel', 'atolamento'
+            ],
+            'rede'       => [
+                'internet', 'wifi', 'wi-fi', 'rede', 'vpn', 'queda', 'cabo de rede',
+                'sem conexão', 'sem conexao', 'conexão', 'conexao', 'switch', 'roteador',
+                'modem', 'sinal', 'fora do ar', 'oscilando'
+            ],
+            'computador' => [
+                'computador', 'pc', 'notebook', 'desktop', 'travando', 'travamento', 'travou',
+                'lento', 'lentidão', 'lentidao', 'tela azul', 'mouse', 'teclado', 'monitor',
+                'hardware', 'fonte', 'bateria', 'cabo hdmi', 'headset', 'fone', 'formatar',
+                'windows', 'excel', 'word', 'office', 'anydesk', 'instalacao', 'instalação', 'instalar'
+            ],
+            'acesso'     => [
+                'senha', 'email', 'e-mail', 'zoho', 'outlook', 'webmail', 'acesso', 'bloqueado',
+                'bloqueio', 'desbloqueio', 'desbloquear', 'login', 'usuário', 'usuario',
+                'permissão', 'permissao', 'novo colaborador', 'admissão', 'admissao',
+                'demissão', 'demissao', 'desligamento'
+            ],
+            'suporte'    => [
+                'suporte', 'duvida', 'dúvida', 'apoio', 'ajuda', 'orientação', 'orientacao', 'treinamento'
+            ]
         ];
 
         foreach ($patterns as $concept => $keywords) {
@@ -7903,6 +7992,17 @@ JAVASCRIPT;
                 $cacheData['tickets'] = [];
             }
 
+            // Evita duplicar o mesmo evento de Toast para o mesmo chamado e status em menos de 10 segundos
+            foreach ($cacheData['events'] as $existingEvt) {
+                if (
+                    (int)($existingEvt['ticket_id'] ?? 0) === $ticket_id
+                    && (int)($existingEvt['status'] ?? 0) === $status
+                    && (time() - (int)($existingEvt['timestamp'] ?? 0)) < 10
+                ) {
+                    return ['success' => true, 'event' => $existingEvt];
+                }
+            }
+
             // Adiciona evento na lista para Toasts pop-up
             array_unshift($cacheData['events'], $event);
             if (count($cacheData['events']) > 40) {
@@ -7935,5 +8035,622 @@ JAVASCRIPT;
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
+
+    /**
+     * Gera o token HMAC determinístico para acompanhamento ao vivo do chamado sem login.
+     */
+    public static function getTrackingToken(int $id, string $dateCreation = ''): string
+    {
+        if ($id <= 0) {
+            return '';
+        }
+        if ($dateCreation === '') {
+            $t = new self();
+            if ($t->getFromDB($id)) {
+                $dateCreation = (string)($t->fields['date_creation'] ?? $t->fields['date'] ?? '');
+            }
+        }
+        return substr(hash_hmac('sha256', $id . '|' . $dateCreation, 'brago_glpi_live_track_2026'), 0, 24);
+    }
+
+    /**
+     * Retorna a URL pública completa da Página de Acompanhamento ao Vivo do chamado.
+     */
+    public static function getTrackingUrl(int $id, string $dateCreation = ''): string
+    {
+        global $CFG_GLPI;
+        $baseUrl = !empty($CFG_GLPI['url_base'])
+            ? rtrim((string)$CFG_GLPI['url_base'], '/')
+            : 'https://chamado.bragodistribuidora.com.br';
+
+        $token = self::getTrackingToken($id, $dateCreation);
+        return $baseUrl . '/front/acompanhar.php?id=' . $id . '&token=' . $token;
+    }
+
+    /**
+     * Valida se o token fornecido corresponde ao chamado.
+     */
+    public static function verifyTrackingToken(int $id, string $token): bool
+    {
+        if ($id <= 0 || $token === '') {
+            return false;
+        }
+        $t = new self();
+        if (!$t->getFromDB($id)) {
+            return false;
+        }
+        $dCreation = (string)($t->fields['date_creation'] ?? '');
+        $dOpen     = (string)($t->fields['date'] ?? '');
+
+        if ($dCreation !== '' && hash_equals(self::getTrackingToken($id, $dCreation), $token)) {
+            return true;
+        }
+        if ($dOpen !== '' && hash_equals(self::getTrackingToken($id, $dOpen), $token)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Formata o nome amigável de um usuário sem duplicar nome/sobrenome.
+     */
+    public static function formatTrackingUserName(int $userId, string $fallbackEmail = ''): string
+    {
+        if ($userId > 0) {
+            $u = new User();
+            if ($u->getFromDB($userId)) {
+                $fname = trim((string)($u->fields['firstname'] ?? ''));
+                $rname = trim((string)($u->fields['realname'] ?? ''));
+                if ($fname !== '' && $rname !== '') {
+                    return (stripos($fname, $rname) !== false) ? $fname : ($fname . ' ' . $rname);
+                }
+                if ($fname !== '') {
+                    return $fname;
+                }
+                if ($rname !== '') {
+                    return $rname;
+                }
+                $uname = trim((string)($u->fields['name'] ?? ''));
+                if ($uname !== '') {
+                    if (strpos($uname, '@') !== false) {
+                        $local = explode('@', $uname)[0];
+                        return ucwords(str_replace(['.', '_', '-'], ' ', $local));
+                    }
+                    return $uname;
+                }
+            }
+        }
+        if ($fallbackEmail !== '') {
+            $local = explode('@', $fallbackEmail)[0];
+            return ucwords(str_replace(['.', '_', '-'], ' ', $local));
+        }
+        return 'Solicitante';
+    }
+
+    /**
+     * Limpa HTML e cabeçalhos de e-mail para exibição limpa no chat estilo iMessage.
+     */
+    public static function cleanTrackingText(string $raw): string
+    {
+        if ($raw === '') {
+            return '';
+        }
+        $text = $raw;
+        // GLPI armazena entidades codificadas (ex: &amp;#60; ou &#60;). Decodifica até estabilizar:
+        for ($i = 0; $i < 3; $i++) {
+            $decoded = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($decoded === $text) {
+                break;
+            }
+            $text = $decoded;
+        }
+        $text = preg_replace('/<\s*style[^>]*>.*?<\s*\/\s*style\s*>/is', '', $text);
+        $text = preg_replace('/<\s*script[^>]*>.*?<\s*\/\s*script\s*>/is', '', $text);
+        $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<\/\s*(p|div|li|tr|h[1-6])\s*>/i', "\n", $text);
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace("\xC2\xA0", ' ', $text); // remove &nbsp;
+
+        // Remove separadores de resposta de e-mail do GLPI se presentes
+        if (preg_match('/=-=-=-=.*?=-=-=-=/s', $text)) {
+            $parts = preg_split('/=-=-=-=.*?=-=-=-=/s', $text);
+            $text = trim($parts[0]);
+        }
+
+        // Remove citações de e-mail antigas ("Em seg., 28 de out... escreveu:")
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+        $cleanLines = [];
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if (preg_match('/^(On .* wrote:|Em .* escreveu:|De:\s|Enviado em:\s|-----\s*Mensagem original)/i', $trimmed)) {
+                break;
+            }
+            if (strpos($trimmed, '>') === 0) {
+                continue;
+            }
+            $cleanLines[] = rtrim($line);
+        }
+
+        $res = trim(implode("\n", $cleanLines));
+        $res = preg_replace("/\n{3,}/", "\n\n", $res);
+        return $res;
+    }
+
+    /**
+     * Recupera imagens e documentos anexados a um item do chamado para o portal de acompanhamento.
+     */
+    public static function getTrackingItemImages(string $itemtype, int $itemsId, int $ticketId, string $token, string $rawContent = ''): array
+    {
+        global $DB, $CFG_GLPI;
+
+        $rootDoc = rtrim((string)($CFG_GLPI['root_doc'] ?? ''), '/');
+        $images  = [];
+
+        // 1. Documentos vinculados no banco via glpi_documents_items
+        $docsIt = $DB->request([
+            'SELECT' => ['d.id', 'd.filename', 'd.mime', 'd.filepath'],
+            'FROM'   => 'glpi_documents AS d',
+            'INNER JOIN' => [
+                'glpi_documents_items AS di' => [
+                    'ON' => ['d' => 'id', 'di' => 'documents_id']
+                ]
+            ],
+            'WHERE'  => [
+                'di.itemtype' => $itemtype,
+                'di.items_id' => $itemsId,
+                'd.is_deleted' => 0
+            ]
+        ]);
+
+        foreach ($docsIt as $doc) {
+            $mime = strtolower((string)$doc['mime']);
+            $fn   = strtolower((string)$doc['filename']);
+            $ext  = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+            if (strpos($mime, 'image/') === 0 || in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'], true)) {
+                $images[] = [
+                    'id'   => (int)$doc['id'],
+                    'name' => (string)$doc['filename'],
+                    'mime' => $mime ?: 'image/png',
+                    'url'  => $rootDoc . '/ajax/acompanhar_api.php?action=document&id=' . $ticketId . '&token=' . $token . '&docid=' . (int)$doc['id']
+                ];
+            }
+        }
+
+        // 2. Documentos referenciados por docid no HTML bruto (ex: <img src="...docid=XX...">)
+        if ($rawContent !== '' && preg_match_all('/docid=(\d+)/i', $rawContent, $mDoc)) {
+            $existingIds = array_column($images, 'id');
+            foreach ($mDoc[1] as $dId) {
+                $dId = (int)$dId;
+                if ($dId > 0 && !in_array($dId, $existingIds, true)) {
+                    $dRow = $DB->request([
+                        'SELECT' => ['id', 'filename', 'mime'],
+                        'FROM'   => 'glpi_documents',
+                        'WHERE'  => ['id' => $dId, 'is_deleted' => 0],
+                        'LIMIT'  => 1
+                    ])->current();
+                    if ($dRow) {
+                        $mime = strtolower((string)$dRow['mime']);
+                        $fn   = strtolower((string)$dRow['filename']);
+                        $ext  = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+                        if (strpos($mime, 'image/') === 0 || in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'], true)) {
+                            $images[] = [
+                                'id'   => $dId,
+                                'name' => (string)$dRow['filename'],
+                                'mime' => $mime ?: 'image/png',
+                                'url'  => $rootDoc . '/ajax/acompanhar_api.php?action=document&id=' . $ticketId . '&token=' . $token . '&docid=' . $dId
+                            ];
+                            $existingIds[] = $dId;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Imagens inline em base64 dentro do conteúdo HTML
+        if ($rawContent !== '' && preg_match_all('~<img[^>]+src=["\'](data:image/[^"\']+)["\']~i', $rawContent, $m)) {
+            foreach ($m[1] as $idx => $b64) {
+                $images[] = [
+                    'id'   => 'inline-' . $idx,
+                    'name' => 'Print anexado',
+                    'mime' => 'image/png',
+                    'url'  => $b64
+                ];
+            }
+        }
+
+        return $images;
+    }
+
+
+    /**
+     * Constrói o payload completo para a Página de Acompanhamento (Apple HIG Live Tracking).
+     */
+    public static function buildTrackingPayload(int $id): ?array
+    {
+        global $DB;
+
+        if ($id <= 0) {
+            return null;
+        }
+        $ticket = new self();
+        if (!$ticket->getFromDB($id) || (int)($ticket->fields['is_deleted'] ?? 0) === 1) {
+            return null;
+        }
+
+        $statusCode = (int)($ticket->fields['status'] ?? self::INCOMING);
+        $urgencyLvl = (int)($ticket->fields['urgency'] ?? 3);
+        $urgencyMap = [
+            1 => 'Muito Baixa',
+            2 => 'Baixa',
+            3 => 'Média',
+            4 => 'Alta',
+            5 => 'Urgente'
+        ];
+        $urgencyLabel = $urgencyMap[$urgencyLvl] ?? 'Média';
+
+        // Categoria
+        $catName = 'Geral / Triagem';
+        $catId = (int)($ticket->fields['itilcategories_id'] ?? 0);
+        if ($catId > 0) {
+            $cat = new ITILCategory();
+            if ($cat->getFromDB($catId)) {
+                $catName = trim((string)($cat->fields['name'] ?? $cat->fields['completename'] ?? 'Geral / Triagem'));
+            }
+        }
+
+        // Atores (Solicitante e Técnico)
+        $requesterIds  = [];
+        $requesterName = 'Solicitante';
+        $techIds       = [];
+        $techName      = '';
+
+        $actorsIt = $DB->request([
+            'FROM'  => 'glpi_tickets_users',
+            'WHERE' => ['tickets_id' => $id],
+            'ORDER' => ['id ASC']
+        ]);
+        foreach ($actorsIt as $act) {
+            $type = (int)$act['type'];
+            $uid  = (int)$act['users_id'];
+            $altEmail = trim((string)($act['alternative_email'] ?? ''));
+            if ($type === CommonITILActor::REQUESTER) {
+                if ($uid > 0) {
+                    $requesterIds[] = $uid;
+                }
+                if ($requesterName === 'Solicitante') {
+                    $requesterName = self::formatTrackingUserName($uid, $altEmail);
+                }
+            } elseif ($type === CommonITILActor::ASSIGN) {
+                if ($uid > 0) {
+                    $techIds[] = $uid;
+                }
+                if ($techName === '') {
+                    $techName = self::formatTrackingUserName($uid, $altEmail);
+                }
+            }
+        }
+
+        if ($techName === '') {
+            $gtRow = $DB->request([
+                'SELECT' => ['groups_id'],
+                'FROM'   => 'glpi_groups_tickets',
+                'WHERE'  => ['tickets_id' => $id, 'type' => CommonITILActor::ASSIGN],
+                'LIMIT'  => 1
+            ])->current();
+            if ($gtRow && (int)$gtRow['groups_id'] > 0) {
+                $grp = new Group();
+                if ($grp->getFromDB((int)$gtRow['groups_id'])) {
+                    $techName = trim((string)$grp->getName());
+                }
+            }
+        }
+
+        $technicianObj = null;
+        if ($techName !== '') {
+            $technicianObj = [
+                'name' => $techName,
+                'role' => 'Especialista de Suporte TI · Brago'
+            ];
+        }
+
+        // Linha do Tempo Cronológica Exata (Timeline)
+        $openedAt = (string)($ticket->fields['date'] ?? $ticket->fields['date_creation'] ?? date('Y-m-d H:i:s'));
+        $timeline = [
+            [
+                'type'     => 'opened',
+                'datetime' => $openedAt,
+                'title'    => 'Aberto o chamado',
+                'subtitle' => ($catName !== 'Geral / Triagem')
+                    ? 'Recebido e classificado em ' . $catName
+                    : 'Recebido e classificado na Triagem'
+            ]
+        ];
+
+        $hasAssignedEvent = false;
+        $logsIt = $DB->request([
+            'FROM'  => 'glpi_logs',
+            'WHERE' => [
+                'itemtype' => 'Ticket',
+                'items_id' => $id,
+            ],
+            'ORDER' => ['date_mod ASC', 'id ASC']
+        ]);
+
+        foreach ($logsIt as $log) {
+            $opt      = (int)($log['id_search_option'] ?? 0);
+            $logDate  = (string)($log['date_mod'] ?? $openedAt);
+            $oldVal   = trim((string)($log['old_value'] ?? ''));
+            $newVal   = trim((string)($log['new_value'] ?? ''));
+            $linkAct  = (int)($log['linked_action'] ?? 0);
+
+            // Atribuição de técnico (id_search_option = 5)
+            if ($opt === 5 && $newVal !== '' && $linkAct !== Log::HISTORY_DEL_RELATION) {
+                $cleanTech = trim(preg_replace('/\s*\(\d+\)\s*$/', '', $newVal));
+                if ($cleanTech !== '') {
+                    $hasAssignedEvent = true;
+                    $timeline[] = [
+                        'type'     => 'assigned',
+                        'datetime' => $logDate,
+                        'title'    => 'Técnico atribuído',
+                        'subtitle' => 'Assumido por ' . $cleanTech
+                    ];
+                }
+            }
+
+            // Mudança de Status (id_search_option = 12)
+            if ($opt === 12 && $newVal !== '') {
+                $newSt = (int)$newVal;
+                $oldSt = (int)$oldVal;
+                if ($newSt === $oldSt) {
+                    continue;
+                }
+                if ($newSt === self::PLANNED) {
+                    $timeline[] = [
+                        'type'     => 'progress',
+                        'datetime' => $logDate,
+                        'title'    => 'Chamado em execução',
+                        'subtitle' => $techName !== ''
+                            ? 'Em atendimento por ' . $techName
+                            : 'Equipe de TI iniciou o atendimento'
+                    ];
+                } elseif ($newSt === self::WAITING) {
+                    $timeline[] = [
+                        'type'     => 'waiting',
+                        'datetime' => $logDate,
+                        'title'    => 'Em aguardo',
+                        'subtitle' => 'Aguardando retorno ou verificação complementar'
+                    ];
+                } elseif ($newSt === self::SOLVED) {
+                    $timeline[] = [
+                        'type'     => 'solved',
+                        'datetime' => $logDate,
+                        'title'    => 'Chamado concluído',
+                        'subtitle' => 'Atendimento finalizado com sucesso pela TI'
+                    ];
+                } elseif ($newSt === self::CLOSED) {
+                    $timeline[] = [
+                        'type'     => 'closed',
+                        'datetime' => $logDate,
+                        'title'    => 'Chamado concluído',
+                        'subtitle' => 'Chamado encerrado e arquivado'
+                    ];
+                } elseif (($oldSt === self::SOLVED || $oldSt === self::CLOSED) && in_array($newSt, [self::INCOMING, self::ASSIGNED, self::PLANNED], true)) {
+                    $timeline[] = [
+                        'type'     => 'reopened',
+                        'datetime' => $logDate,
+                        'title'    => 'Chamado reaberto',
+                        'subtitle' => 'Retornou para atendimento da equipe de TI'
+                    ];
+                }
+            }
+        }
+
+        // Caso o técnico tenha sido atribuído na criação sem gerar log separado
+        if (!$hasAssignedEvent && $techName !== '') {
+            $assignDate = !empty($ticket->fields['takeintoaccountdate'])
+                ? (string)$ticket->fields['takeintoaccountdate']
+                : $openedAt;
+            array_splice($timeline, 1, 0, [[
+                'type'     => 'assigned',
+                'datetime' => $assignDate,
+                'title'    => 'Técnico atribuído',
+                'subtitle' => 'Assumido por ' . $techName
+            ]]);
+        }
+
+        // Garante que o status atual esteja refletido no final da timeline
+        $lastType = $timeline[count($timeline) - 1]['type'] ?? 'opened';
+        $modDate  = (string)($ticket->fields['date_mod'] ?? $openedAt);
+        if ($statusCode === self::PLANNED && $lastType !== 'progress') {
+            $timeline[] = [
+                'type'     => 'progress',
+                'datetime' => $modDate,
+                'title'    => 'Chamado em execução',
+                'subtitle' => $techName !== '' ? 'Em atendimento por ' . $techName : 'Equipe de TI iniciou o atendimento'
+            ];
+        } elseif ($statusCode === self::WAITING && $lastType !== 'waiting') {
+            $timeline[] = [
+                'type'     => 'waiting',
+                'datetime' => $modDate,
+                'title'    => 'Em aguardo',
+                'subtitle' => 'Aguardando retorno ou verificação complementar'
+            ];
+        } elseif (($statusCode === self::SOLVED || $statusCode === self::CLOSED) && !in_array($lastType, ['solved', 'closed'], true)) {
+            $solveDate = (string)($ticket->fields['solvedate'] ?: ($ticket->fields['closedate'] ?: $modDate));
+            $timeline[] = [
+                'type'     => 'solved',
+                'datetime' => $solveDate,
+                'title'    => 'Chamado concluído',
+                'subtitle' => 'Atendimento finalizado com sucesso pela TI'
+            ];
+        }
+
+        // Desduplica eventos consecutivos do mesmo tipo na timeline
+        $cleanTimeline = [];
+        foreach ($timeline as $tlItem) {
+            $prevIdx = count($cleanTimeline) - 1;
+            if ($prevIdx >= 0 && $cleanTimeline[$prevIdx]['type'] === $tlItem['type']) {
+                // Se for 'closed' logo após 'solved', mantém apenas 'solved'
+                $cleanTimeline[$prevIdx] = $tlItem;
+                continue;
+            }
+            if ($prevIdx >= 0 && $cleanTimeline[$prevIdx]['type'] === 'solved' && $tlItem['type'] === 'closed') {
+                continue;
+            }
+            $cleanTimeline[] = $tlItem;
+        }
+
+        $token = self::getTrackingToken($id);
+
+        // Mensagens do Chat (Abertura + Acompanhamentos Públicos + Soluções)
+        $messages = [];
+        $rawDesc  = (string)($ticket->fields['content'] ?? '');
+        $descText = self::cleanTrackingText($rawDesc);
+        if ($descText === '') {
+            $descText = trim((string)($ticket->fields['name'] ?? ('Chamado #' . $id)));
+        }
+        $descImages = self::getTrackingItemImages('Ticket', $id, $id, $token, $rawDesc);
+        if ($descText !== '' || count($descImages) > 0) {
+            $messages[] = [
+                'id'       => 'd-' . $id,
+                'author'   => 'requester',
+                'kind'     => 'description',
+                'name'     => $requesterName,
+                'datetime' => $openedAt,
+                'content'  => $descText,
+                'images'   => $descImages
+            ];
+        }
+
+        $threadEvents = [];
+
+        // Acompanhamentos públicos (glpi_itilfollowups)
+        $fupsIt = $DB->request([
+            'FROM'  => 'glpi_itilfollowups',
+            'WHERE' => [
+                'itemtype'   => 'Ticket',
+                'items_id'   => $id,
+                'is_private' => 0
+            ],
+            'ORDER' => ['date ASC', 'id ASC']
+        ]);
+
+        foreach ($fupsIt as $fup) {
+            $rawFup     = (string)($fup['content'] ?? '');
+            $fupContent = self::cleanTrackingText($rawFup);
+            $fupImages  = self::getTrackingItemImages('ITILFollowup', (int)$fup['id'], $id, $token, $rawFup);
+            if ($fupContent === '' && count($fupImages) === 0) {
+                continue;
+            }
+            $fupUid   = (int)($fup['users_id'] ?? 0);
+            $sourceOf = (int)($fup['sourceof_items_id'] ?? 0);
+            $tlPos    = (int)($fup['timeline_position'] ?? 0);
+
+            // Identifica se a mensagem é do Solicitante ou do Técnico
+            if ($sourceOf === 777777) {
+                $authorRole = 'requester';
+                $authorName = $requesterName;
+            } elseif ($fupUid > 0 && in_array($fupUid, $requesterIds, true)) {
+                $authorRole = 'requester';
+                $authorName = self::formatTrackingUserName($fupUid);
+            } else {
+                $authorRole = 'technician';
+                $authorName = $fupUid > 0 ? self::formatTrackingUserName($fupUid) : ($techName ?: 'Suporte TI');
+            }
+
+            $threadEvents[] = [
+                'id'       => 'f-' . (int)$fup['id'],
+                'author'   => $authorRole,
+                'kind'     => 'followup',
+                'name'     => $authorName,
+                'datetime' => (string)($fup['date'] ?? $openedAt),
+                'content'  => $fupContent,
+                'images'   => $fupImages,
+                '_sort'    => strtotime((string)($fup['date'] ?? $openedAt)) ?: 0,
+                '_seq'     => (int)$fup['id']
+            ];
+        }
+
+        // Soluções (glpi_itilsolutions)
+        $solsIt = $DB->request([
+            'FROM'  => 'glpi_itilsolutions',
+            'WHERE' => [
+                'itemtype' => 'Ticket',
+                'items_id' => $id,
+            ],
+            'ORDER' => ['date_creation ASC', 'id ASC']
+        ]);
+
+        foreach ($solsIt as $sol) {
+            if ((int)($sol['status'] ?? 0) === CommonITILValidation::REFUSED) {
+                continue;
+            }
+            $rawSol     = (string)($sol['content'] ?? '');
+            $solContent = self::cleanTrackingText($rawSol);
+            $solImages  = self::getTrackingItemImages('ITILSolution', (int)$sol['id'], $id, $token, $rawSol);
+            if ($solContent === '' && count($solImages) === 0) {
+                continue;
+            }
+            $solUid  = (int)($sol['users_id'] ?? 0);
+            $solDate = (string)($sol['date_creation'] ?? $ticket->fields['solvedate'] ?? $openedAt);
+            $solName = $solUid > 0 ? self::formatTrackingUserName($solUid) : ($techName ?: 'Suporte TI');
+
+            $threadEvents[] = [
+                'id'       => 's-' . (int)$sol['id'],
+                'author'   => 'technician',
+                'kind'     => 'solution',
+                'name'     => $solName,
+                'datetime' => $solDate,
+                'content'  => $solContent,
+                'images'   => $solImages,
+                '_sort'    => strtotime($solDate) ?: 0,
+                '_seq'     => 100000 + (int)$sol['id']
+            ];
+        }
+
+        usort($threadEvents, static function (array $a, array $b): int {
+            if ($a['_sort'] === $b['_sort']) {
+                return $a['_seq'] <=> $b['_seq'];
+            }
+            return $a['_sort'] <=> $b['_sort'];
+        });
+
+        foreach ($threadEvents as $ev) {
+            unset($ev['_sort'], $ev['_seq']);
+            $messages[] = $ev;
+        }
+
+        $solvedAt = !empty($ticket->fields['solvedate'])
+            ? (string)$ticket->fields['solvedate']
+            : (!empty($ticket->fields['closedate']) ? (string)$ticket->fields['closedate'] : null);
+
+        return [
+            'success'    => true,
+            'ticket'     => [
+                'id'           => (int)$ticket->fields['id'],
+                'title'        => trim((string)($ticket->fields['name'] ?? ('Chamado #' . $id))),
+                'category'     => $catName,
+                'urgency'      => [
+                    'level' => $urgencyLvl,
+                    'label' => $urgencyLabel
+                ],
+                'status'       => [
+                    'code' => $statusCode
+                ],
+                'opened_at'    => $openedAt,
+                'solved_at'    => $solvedAt,
+                'tracking_url' => self::getTrackingUrl($id, (string)($ticket->fields['date_creation'] ?? $openedAt))
+            ],
+            'technician' => $technicianObj,
+            'requester'  => [
+                'id'   => $requesterIds[0] ?? 0,
+                'name' => $requesterName
+            ],
+            'timeline'   => $cleanTimeline,
+            'messages'   => $messages
+        ];
+    }
 }
+
 

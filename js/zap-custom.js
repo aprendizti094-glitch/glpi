@@ -13,8 +13,13 @@
     const BODY_CLASS = 'zap-panel-collapsed';
 
     function isTicketPage() {
-        return window.location.pathname.indexOf('ticket.form.php') !== -1 ||
-               window.location.search.indexOf('itemtype=Ticket') !== -1 ||
+        if (document.querySelector('.new-itil-object') || 
+            document.querySelector('#itil-object-container.is-new-ticket-page') ||
+            (window.location.pathname.indexOf('ticket.form.php') !== -1 && !/[?&]id=[1-9]\d*/.test(window.location.search))) {
+            return false;
+        }
+        return (window.location.pathname.indexOf('ticket.form.php') !== -1 && /[?&]id=[1-9]\d*/.test(window.location.search)) ||
+               (window.location.search.indexOf('itemtype=Ticket') !== -1 && /[?&]id=[1-9]\d*/.test(window.location.search)) ||
                (document.body && document.body.classList.contains('glpi-ticket-zap-view')) ||
                document.querySelector('#itil-object-container.is-ticket-page') !== null;
     }
@@ -156,6 +161,21 @@
     }
 
     function init() {
+        if (!isTicketPage()) {
+            if (document.body) {
+                document.body.classList.remove('glpi-ticket-zap-view');
+                document.body.classList.remove('zap-panel-collapsed');
+            }
+            if (document.documentElement) {
+                document.documentElement.classList.remove('glpi-ticket-zap-view');
+            }
+            const container = document.getElementById('itil-object-container');
+            if (container) {
+                container.classList.remove('right-collapsed');
+                container.classList.remove('is-ticket-page');
+            }
+            return;
+        }
         setupDesktopPanel();
         setupMobileChatView();
     }

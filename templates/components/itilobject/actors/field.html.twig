@@ -74,6 +74,28 @@
       {{ include('components/itilobject/actors/assign_to_me.html.twig') }}
    {% endif %}
 
+   <div class="mt-2 d-flex flex-wrap align-items-center gap-1 actor-actions-bar">
+      <button type="button" class="btn btn-sm btn-outline-primary actor-add-btn" data-target-actor="actor_{{ rand }}" style="border-radius: 8px; font-weight: 600; font-size: 11.5px; padding: 4px 11px; border: 1.5px solid #0120F8; color: #0120F8; background: rgba(1, 32, 248, 0.05); display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+         <i class="ti ti-plus"></i>
+         <span>
+            {% if actortype == 'requester' %}
+               Adicionar Requerente
+            {% elseif actortype == 'observer' %}
+               Adicionar Observador
+            {% else %}
+               Adicionar Atribuído
+            {% endif %}
+         </span>
+      </button>
+
+      {% if actortype == 'assign' and canassigntome %}
+         <button type="button" class="btn btn-sm btn-outline-secondary actor-assign-me-btn" data-target-actor="actor_{{ rand }}" data-my-id="{{ session('glpiID') }}" data-my-name="{{ session('glpifriendlyname')|default(session('glpiname')) }}" style="border-radius: 8px; font-weight: 600; font-size: 11.5px; padding: 4px 10px; border: 1px solid #CBD5E1; color: #334155; background: #F8FAFC; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <i class="ti ti-user-check"></i>
+            <span>Atribuir a mim</span>
+         </button>
+      {% endif %}
+   </div>
+
    {#
       Prevent WAF (Web Application Firewall) from triggering on item.fields['content']
 
@@ -252,12 +274,14 @@
          return option_element;
       };
 
-      var select2_width = "{{ canassigntome ? 'calc(100% - 30px)' : '100%' }}";
+      var select2_width = "100%";
 
       const actor_select = $("#actor_{{ rand }}");
       actor_select.select2({
          tags: true,
          width: select2_width,
+         placeholder: "{{ actortype == 'requester' ? 'Buscar ou adicionar requerente...' : (actortype == 'observer' ? 'Buscar ou adicionar observador...' : 'Buscar ou atribuir tecnico / grupo...') }}",
+         allowClear: false,
          tokenSeparators: [',', ' '],
          containerCssClass: 'actor-field',
          templateSelection: function(option) { return genericTemplate_{{ rand }}(option, true); },
@@ -400,6 +424,30 @@
       $("#actor_{{ rand }}").on('select2:unselect', function () {
          updateActors{{ rand }}();
          {{ onchange }}
+      });
+
+      // Handler para o botao Adicionar Ator -> abre o dropdown do Select2
+      $(document).on('click', '.actor-add-btn[data-target-actor="actor_{{ rand }}"]', function(e) {
+         e.preventDefault();
+         actor_select.select2('open');
+      });
+
+      // Handler para Atribuir a mim
+      $(document).on('click', '.actor-assign-me-btn[data-target-actor="actor_{{ rand }}"]', function(e) {
+         e.preventDefault();
+         var myId = $(this).data('my-id');
+         var myName = $(this).data('my-name');
+         var optionValue = "User_" + myId;
+
+         if (actor_select.find('option[value="' + optionValue + '"]').length === 0) {
+            var newOption = new Option(myName, optionValue, true, true);
+            $(newOption).attr('data-itemtype', 'User');
+            $(newOption).attr('data-items-id', myId);
+            $(newOption).attr('data-title', myName);
+            $(newOption).attr('data-text', myName);
+            actor_select.append(newOption).trigger('change');
+            updateActors{{ rand }}();
+         }
       });
 
       // intercept event for edit notification button

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 /*!
  * ---------------------------------------------------------------------
  * GLPI - Apple HIG Theme (Human Interface Guidelines Complete Redesign)
@@ -349,10 +351,10 @@ body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link:hove
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
 body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link {
-    background: #1D1D1F !important;
+    background: linear-gradient(135deg, #0120F8 0%, #2F00FF 100%) !important;
     color: #FFFFFF !important;
     border-radius: 12px !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+    box-shadow: 0 4px 16px rgba(1, 32, 248, 0.4) !important;
     transform: scale(1.04) !important;
 }
 
@@ -1371,7 +1373,7 @@ html[data-glpi-theme="apple_hig"] .dropdown-item {
 }
 
 html[data-glpi-theme="apple_hig"] .dropdown-item:hover {
-    background: #0071E3 !important;
+    background: #0120F8 !important;
     color: #FFFFFF !important;
 }
 
@@ -1533,11 +1535,11 @@ body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link:ho
 /* Active Tab: macOS Elevated Dark Card */
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active,
 body:has(#itil-object-container.is-ticket-page) #tabspanel.nav-tabs .nav-link.active {
-    background: #FFF7ED !important;
-    color: #EA580C !important;
+    background: linear-gradient(135deg, #0120F8 0%, #2F00FF 100%) !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
-    border-left: 3px solid #F97316 !important;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 14px rgba(1, 32, 248, 0.35) !important;
 }
 
 body.glpi-ticket-zap-view #tabspanel.nav-tabs .nav-link.active::before,
@@ -2342,11 +2344,11 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .col-12.
 
 body.glpi-ticket-zap-view #new-ITILFollowup-block .col-12.mb-3:focus-within,
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .col-12.mb-3:focus-within {
-    border-color: #00A884 !important;
-    box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2) !important;
+    border-color: #F97316 !important;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
 }
 
-/* Ícone de Clipe 📎 */
+/* Ícone de Clipe para Anexos (FontAwesome) */
 body.glpi-ticket-zap-view #new-ITILFollowup-block .fileupload:not(.only-uploaded-files),
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupload:not(.only-uploaded-files) {
     width: 28px !important;
@@ -2376,7 +2378,7 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupl
 
 body.glpi-ticket-zap-view #new-ITILFollowup-block .fileupload:not(.only-uploaded-files)::before,
 body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupload:not(.only-uploaded-files)::before {
-    content: "📎" !important;
+    content: "\f0c6" !important; font-family: "Font Awesome 6 Free" !important; font-weight: 900 !important;
     font-size: 1.25rem !important;
     line-height: 1 !important;
     display: block !important;
@@ -2534,7 +2536,7 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block .fileupl
 .chat-drop-overlay-text {
     font-size: 16px !important;
     font-weight: 600 !important;
-    color: #00A884 !important;
+    color: #0120F8 !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
@@ -2667,13 +2669,13 @@ body:has(#itil-object-container.is-ticket-page) #new-ITILFollowup-block button[n
     height: 44px !important;
     min-width: 44px !important;
     border-radius: 50% !important;
-    background: #00A884 !important;
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
     border: none !important;
     color: #FFFFFF !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 0 2px 8px rgba(0, 168, 132, 0.4) !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
     cursor: pointer !important;
     font-size: 0 !important;
     position: relative !important;
@@ -3047,7 +3049,7 @@ body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .b
 
 body.glpi-ticket-zap-view .itil-timeline .timeline-item .badge a:hover,
 body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .badge a:hover {
-    color: #00A884 !important;
+    color: #0120F8 !important;
     text-decoration: underline !important;
 }
 
@@ -3188,7 +3190,7 @@ body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .t
 body:has(#itil-object-container.is-ticket-page) .itil-timeline .timeline-item .user_login {
     font-size: 0.82rem !important;
     font-weight: 600 !important;
-    color: #00A884 !important;
+    color: #0120F8 !important;
     margin-bottom: 2px !important;
     display: block !important;
     white-space: nowrap !important;
@@ -3807,3 +3809,1070 @@ html[data-glpi-theme="apple_hig"] .btn.btn-icon,
 html[data-glpi-theme="apple_hig"] .btn-icon {
     padding: 0 !important;
 }
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - BOTÕES LARANJA PADRÃO DA MARCA (DESIGN SYSTEM)
+   ========================================================================== */
+
+/* 1. Botão + Adicionar no Header Superior */
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-primary,
+header.navbar .btn-secondary:has(.ti-plus),
+header.navbar .btn-primary:has(.ti-plus),
+header.navbar a[title*="Add"],
+header.navbar a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
+.header-container ul.navbar-nav.flex-row a[title*="Add"],
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    font-weight: 700 !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary *,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary *,
+header.navbar .btn-secondary:has(.ti-plus) *,
+header.navbar .btn-primary:has(.ti-plus) *,
+header.navbar a[title*="Add"] *,
+header.navbar a[title*="Adicionar"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"] *,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus) *,
+.header-container ul.navbar-nav.flex-row a[title*="Add"] *,
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] * {
+    color: #FFFFFF !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary:hover,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary:hover,
+header.navbar .btn-secondary:has(.ti-plus):hover,
+header.navbar .btn-primary:has(.ti-plus):hover,
+header.navbar a[title*="Add"]:hover,
+header.navbar a[title*="Adicionar"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"]:hover,
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus):hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 2. Ícone Ativo no Dock / Barra Lateral (Headset / Seção Atual) */
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link,
+aside.navbar-vertical .navbar-nav .nav-link.active,
+aside.navbar-vertical .navbar-nav .show > .nav-link,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link,
+aside.navbar-vertical.sidebar .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4) !important;
+    transform: scale(1.04) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon {
+    color: #FFFFFF !important;
+}
+
+/* 3. Chip / Filtro Rápido Ativo ("Todos" etc.) */
+.elera-ticket-filter-bar .elera-pill.active,
+.elera-pill.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+.elera-ticket-filter-bar .elera-pill.active i,
+.elera-pill.active i {
+    color: #FFFFFF !important;
+}
+
+/* 4. Botão "+ Novo Chamado" */
+.elera-ticket-filter-bar .elera-btn-new-ticket,
+.elera-btn-new-ticket,
+a.elera-btn-new-ticket,
+body.glpi-selfservice .elera-btn-new-ticket {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 20px !important;
+    font-size: 0.86rem !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    white-space: nowrap !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket *,
+.elera-btn-new-ticket * {
+    color: #FFFFFF !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket:hover,
+.elera-btn-new-ticket:hover,
+a.elera-btn-new-ticket:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+    color: #FFFFFF !important;
+}
+
+/* 5. Demais Botões Primários, Abas e Ações */
+.btn-primary,
+html[data-glpi-theme="apple_hig"] .btn-primary,
+.apple-nav-btn-primary,
+.apple-submit-cta-btn {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+
+.btn-primary:hover,
+html[data-glpi-theme="apple_hig"] .btn-primary:hover,
+.apple-nav-btn-primary:hover,
+.apple-submit-cta-btn:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+.search-card .search-header .search-controls a[title=Ações],
+.search-card .search-header .search-controls a[title="A&ccedil;&otilde;es"],
+.search-card .search-footer .pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-color: #F97316 !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - BRAND COLOR HARMONIZATION (DESIGN SYSTEM)
+   - Laranja Brago: #F97316 / #FB923C / #EA580C (Ações, Botões, Ativos, Seleções)
+   - Azul Royal: #0120F8 / #2F00FF / #0B1EE0 (Identidade Institucional)
+   - Eliminados: Preto (#1D1D1F) em botões/menus e Azul Estranho (#0071E3)
+   ========================================================================== */
+
+/* 1. Botão "Pesquisar" em Formulários de Busca */
+.search-container .search-form-container .search-form button[name=search],
+.search-container .search-form button[name=search],
+.search-form button[name=search],
+button[name="search"],
+button#search_btn,
+.search-form .btn-primary:has(.ti-search),
+.search-form .btn-primary {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 24px !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.search-container .search-form-container .search-form button[name=search] *,
+button[name="search"] * {
+    color: #FFFFFF !important;
+}
+
+.search-container .search-form-container .search-form button[name=search]:hover,
+button[name="search"]:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 2. Submenus do Dock e Dropdowns (Ex: "Chamados" ativo e hover) */
+aside.navbar-vertical .dropdown-item.active,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item.active,
+body.navbar-collapsed aside.navbar-vertical .dropdown-item.active,
+.dropdown-menu .dropdown-item.active,
+.dropdown-item.active,
+header.navbar .dropdown-menu .dropdown-item.active,
+.user-menu .dropdown-menu .dropdown-item.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 3px 10px rgba(249, 115, 22, 0.35) !important;
+}
+
+aside.navbar-vertical .dropdown-item.active *,
+.dropdown-menu .dropdown-item.active * {
+    color: #FFFFFF !important;
+}
+
+/* Hover suave em itens do menu dropdown (substitui azul estranho #0071E3 e preto #1D1D1F) */
+aside.navbar-vertical .dropdown-item:hover,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item:hover,
+body.navbar-collapsed #navbar-menu .nav-item .dropdown-menu .dropdown-item:focus,
+.dropdown-menu .dropdown-item:hover,
+.dropdown-item:hover:not(.active) {
+    background: #FFF7ED !important;
+    color: #EA580C !important;
+    border-radius: 10px !important;
+    transform: translateX(2px) !important;
+}
+
+aside.navbar-vertical .dropdown-item:hover *,
+.dropdown-menu .dropdown-item:hover:not(.active) * {
+    color: #EA580C !important;
+}
+
+/* 3. Botão + Adicionar no Header Superior */
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-start .btn.btn-primary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-secondary,
+header.navbar .nav.navbar-nav.border-left .btn.btn-primary,
+header.navbar .btn-secondary:has(.ti-plus),
+header.navbar .btn-primary:has(.ti-plus),
+header.navbar a[title*="Add"],
+header.navbar a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Add"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row a[title*="Adicionar"],
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-secondary:has(.ti-plus),
+header.navbar[data-testid="main-header"] ul.navbar-nav.flex-row .btn-primary:has(.ti-plus),
+.header-container ul.navbar-nav.flex-row a[title*="Add"],
+.header-container ul.navbar-nav.flex-row a[title*="Adicionar"] {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    font-weight: 700 !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary *,
+header.navbar .btn-secondary:has(.ti-plus) *,
+header.navbar a[title*="Add"] *,
+header.navbar a[title*="Adicionar"] * {
+    color: #FFFFFF !important;
+}
+
+header.navbar .nav.navbar-nav.border-start .btn.btn-secondary:hover,
+header.navbar .btn-secondary:has(.ti-plus):hover,
+header.navbar a[title*="Add"]:hover,
+header.navbar a[title*="Adicionar"]:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 4. Ícone Ativo no Dock / Barra Lateral (Headset / Seção Atual) */
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.show,
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item.active > .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.show .nav-link,
+aside.navbar-vertical .navbar-nav .nav-link.active,
+aside.navbar-vertical .navbar-nav .show > .nav-link,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .show > .nav-link,
+aside.navbar-vertical.sidebar .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4) !important;
+    transform: scale(1.04) !important;
+}
+
+body.navbar-collapsed aside.navbar-vertical #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.sidebar #navbar-menu .navbar-nav .nav-item .nav-link.active i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-item.active .nav-link i,
+body.navbar-collapsed aside.navbar-vertical.sidebar ul.navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active i,
+aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon,
+html[data-glpi-theme="apple_hig"] aside.navbar-vertical .navbar-nav .nav-link.active .nav-link-icon {
+    color: #FFFFFF !important;
+}
+
+/* 5. Filtros e Abas Ativas ("Todos", "Meus chamados" etc.) */
+.elera-ticket-filter-bar .elera-pill.active,
+.elera-pill.active,
+.nav-tabs .nav-link.active,
+.glpi-tabs .nav-link.active,
+.nav-pills .nav-link.active {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+.elera-ticket-filter-bar .elera-pill.active i,
+.elera-pill.active i,
+.nav-tabs .nav-link.active i {
+    color: #FFFFFF !important;
+}
+
+/* 6. Botão "+ Novo Chamado" e Botões de Coluna do Kanban */
+.elera-ticket-filter-bar .elera-btn-new-ticket,
+.elera-btn-new-ticket,
+a.elera-btn-new-ticket,
+body.glpi-selfservice .elera-btn-new-ticket,
+.elera-btn-add-patient {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 20px !important;
+    font-size: 0.86rem !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    white-space: nowrap !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket *,
+.elera-btn-new-ticket *,
+.elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+
+.elera-ticket-filter-bar .elera-btn-new-ticket:hover,
+.elera-btn-new-ticket:hover,
+a.elera-btn-new-ticket:hover,
+.elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+    color: #FFFFFF !important;
+}
+
+/* 7. Eliminação do Azul Estranho (#0071E3) -> Substituição por Azul Royal (#0120F8) / Laranja */
+/* Breadcrumb: local ativo com Azul Royal oficial */
+header.navbar ol.breadcrumb .breadcrumb-item a.here i.ti,
+header.navbar ol.breadcrumb .breadcrumb-item:last-child a i.ti,
+.secondary-bar ol.breadcrumb .breadcrumb-item a.here i.ti,
+.secondary-bar ol.breadcrumb .breadcrumb-item:last-child a i.ti,
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child {
+    color: #0120F8 !important;
+}
+
+/* Pills de Técnico em Cards do Kanban */
+.elera-ticket-card .card-main .card-body-content .card-tech-pill {
+    background: rgba(1, 32, 248, 0.08) !important;
+    color: #0120F8 !important;
+    border: 1px solid rgba(1, 32, 248, 0.16) !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+}
+
+/* Cards de KPI Azul e Tags */
+.elera-kpi-card.card-blue .kpi-icon-wrap,
+.apple-cat-icon-wrap.icon-blue {
+    background: rgba(1, 32, 248, 0.08) !important;
+    color: #0120F8 !important;
+}
+.elera-kpi-card.card-blue .kpi-tag,
+.tag-blue {
+    background: rgba(1, 32, 248, 0.1) !important;
+    color: #0120F8 !important;
+}
+
+/* Foco de Inputs: Borda Laranja e anel suave */
+.global-search .form-control:focus,
+form[role=search] input:focus,
+input[type=search]:focus,
+.form-control:focus,
+.form-select:focus,
+.elera-ticket-filter-bar .elera-quick-search-form .elera-search-input-wrapper .elera-search-input:focus,
+.search-container .search-form-container .search-form .form-select:focus,
+.search-container .search-form-container .search-form select:focus,
+.search-container .search-form-container .search-form input.form-control:focus {
+    border-color: #F97316 !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
+    outline: none !important;
+}
+
+/* Checkboxes */
+.search-results .form-check-input:checked,
+.form-check-input:checked {
+    background-color: #F97316 !important;
+    border-color: #F97316 !important;
+}
+
+/* Select2 Highlighted */
+.select2-results__option--highlighted {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+}
+
+/* Kanban Drag Over */
+.elera-kanban-col.is-drag-over {
+    background: rgba(249, 115, 22, 0.08) !important;
+    border: 2px dashed #F97316 !important;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12), inset 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Hover de links de chamados */
+.search-results.table tbody a[href*="ticket.form.php"]:hover,
+.search-results.table tbody a[id^=Ticket]:hover,
+.elera-ticket-card .card-main .card-body-content .card-top-row .card-ticket-title:hover {
+    color: #F97316 !important;
+}
+
+
+/* ==========================================================================
+   BRAGO APP SYSTEM - KANBAN COLUMNS COLOR SCHEME
+   - Triagem: Vermelho (#FEF2F2 / #DC2626)
+   - Em Execução: Amarelo (#FFFBEB / #F59E0B / #D97706)
+   - Aguardando: Neutro padrão (#F8FAFC)
+   - Concluídos: Verde (#E2F5EA / #15803D)
+   ========================================================================== */
+
+/* 1. Triagem (Vermelho Suave / Destaque de Atenção Imediata) */
+.elera-kanban-col.col-triage,
+.elera-kanban-col[data-status="2"] {
+    background: #FEF2F2 !important;
+    border: 1px solid rgba(239, 68, 68, 0.28) !important;
+    box-shadow: inset 0 2px 6px rgba(239, 68, 68, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-title,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-title {
+    color: #991B1B !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-count-pill {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #DC2626 !important;
+}
+.elera-kanban-col.col-triage .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="2"] .elera-col-header .col-target-badge {
+    color: #EF4444 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #EF4444 0%, #F87171 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35) !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient *,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-triage .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="2"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 2. Em Execução (Amarelo / Dourado Âmbar Corporativo) */
+.elera-kanban-col.col-treatment,
+.elera-kanban-col[data-status="3"] {
+    background: #FFFBEB !important;
+    border: 1px solid rgba(245, 158, 11, 0.32) !important;
+    box-shadow: inset 0 2px 6px rgba(245, 158, 11, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-title,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-title {
+    color: #92400E !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-count-pill {
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #B45309 !important;
+}
+.elera-kanban-col.col-treatment .elera-col-header .col-target-badge,
+.elera-kanban-col[data-status="3"] .elera-col-header .col-target-badge {
+    color: #D97706 !important;
+    font-weight: 600 !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient *,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-treatment .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="3"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45) !important;
+}
+
+/* 3. Aguardando (Mantém neutro padrão) */
+.elera-kanban-col.col-waiting,
+.elera-kanban-col[data-status="4"] {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-title,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-title {
+    color: #0F172A !important;
+}
+.elera-kanban-col.col-waiting .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="4"] .elera-col-header .col-count-pill {
+    background: rgba(1, 32, 248, 0.1) !important;
+    color: #0120F8 !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient *,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient * {
+    color: #FFFFFF !important;
+}
+.elera-kanban-col.col-waiting .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="4"] .elera-btn-add-patient:hover {
+    background: linear-gradient(135deg, #EA580C 0%, #F97316 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-1px) scale(1.02) !important;
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45) !important;
+}
+
+/* 4. Concluídos (Verde Oficial) */
+.elera-kanban-col.col-solved,
+.elera-kanban-col[data-status="5"] {
+    background: #E2F5EA !important;
+    border: 1px solid rgba(52, 199, 89, 0.28) !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-title,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-title {
+    color: #166534 !important;
+}
+.elera-kanban-col.col-solved .elera-col-header .col-count-pill,
+.elera-kanban-col[data-status="5"] .elera-col-header .col-count-pill {
+    background: rgba(52, 199, 89, 0.2) !important;
+    color: #15803D !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient {
+    color: #15803D !important;
+    border: 1px solid rgba(52, 199, 89, 0.35) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 9999px !important;
+}
+.elera-kanban-col.col-solved .elera-btn-add-patient:hover,
+.elera-kanban-col[data-status="5"] .elera-btn-add-patient:hover {
+    background: #FFFFFF !important;
+    border-color: #15803D !important;
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.15) !important;
+    color: #15803D !important;
+}
+
+
+
+/* ==========================================================================
+   ALTO CONTRASTE HEADER NAVBAR - BREADCRUMB & PESQUISA GLOBAL (APPLE HIG)
+   ========================================================================== */
+
+/* 1. Breadcrumb Container: Cápsula translúcida fosca com alto contraste */
+header.navbar ol.breadcrumb,
+header.navbar .breadcrumb,
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb,
+header.navbar nav[aria-label="Breadcrumbs"] .breadcrumb {
+    background: rgba(255, 255, 255, 0.22) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: 9999px !important;
+    padding: 4px 12px !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+}
+
+/* 2. Breadcrumbs Itens Inativos (Home, Assistência, etc.) - Branco Puro e Nítido */
+header.navbar .breadcrumb-item,
+header.navbar .breadcrumb-item a,
+header.navbar ol.breadcrumb .breadcrumb-item,
+header.navbar ol.breadcrumb .breadcrumb-item a,
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb-item,
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb-item a {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 0.86rem !important;
+    opacity: 0.95 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Ícones dos itens inativos (Home, Assistência) */
+header.navbar .breadcrumb-item i,
+header.navbar .breadcrumb-item .ti,
+header.navbar .breadcrumb-item a i,
+header.navbar .breadcrumb-item a .ti,
+header.navbar ol.breadcrumb .breadcrumb-item i,
+header.navbar ol.breadcrumb .breadcrumb-item a i {
+    color: #FFFFFF !important;
+    opacity: 0.95 !important;
+    font-size: 1rem !important;
+    margin-right: 5px !important;
+}
+
+/* Efeito hover nos itens inativos */
+header.navbar .breadcrumb-item a:hover,
+header.navbar ol.breadcrumb .breadcrumb-item a:hover {
+    color: #FFFFFF !important;
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+}
+
+/* Separadores Chevron (>) */
+header.navbar .breadcrumb-item + .breadcrumb-item::before,
+header.navbar ol.breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255, 255, 255, 0.8) !important;
+    padding: 0 8px !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+}
+
+/* 3. Breadcrumb Item Ativo / Atual (ex: Chamados) - Pílula Branca Destacada */
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child,
+header.navbar ol.breadcrumb .breadcrumb-item.active,
+header.navbar ol.breadcrumb .breadcrumb-item:last-child,
+header.navbar .breadcrumb-item:has(a.here) {
+    background: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    border-radius: 9999px !important;
+    padding: 3px 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+}
+
+header.navbar .breadcrumb-item.active a,
+header.navbar .breadcrumb-item:last-child a,
+header.navbar .breadcrumb-item a.here {
+    color: #0F172A !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+header.navbar .breadcrumb-item.active i,
+header.navbar .breadcrumb-item:last-child i,
+header.navbar .breadcrumb-item a.here i {
+    color: #0120F8 !important;
+    opacity: 1 !important;
+}
+
+/* 4. Campo de Pesquisa Global (Pesquisar...) - Alto Contraste */
+header.navbar form[role="search"],
+header.navbar .global-search {
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+header.navbar form[role="search"] .input-group,
+header.navbar form[role="search"] .input-group-flat,
+header.navbar .global-search .input-group {
+    background: rgba(255, 255, 255, 0.22) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 9999px !important;
+    padding: 2px 8px 2px 14px !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    height: 36px !important;
+    min-width: 210px !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+header.navbar form[role="search"] .input-group:hover,
+header.navbar .global-search .input-group:hover {
+    background: rgba(255, 255, 255, 0.32) !important;
+    border-color: rgba(255, 255, 255, 0.65) !important;
+}
+
+header.navbar form[role="search"] input.form-control,
+header.navbar form[role="search"] input[type="text"],
+header.navbar .global-search .form-control {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: #FFFFFF !important;
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    padding: 0 !important;
+    height: 100% !important;
+}
+
+header.navbar form[role="search"] input.form-control::placeholder,
+header.navbar form[role="search"] input[type="text"]::placeholder,
+header.navbar .global-search .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-weight: 500 !important;
+}
+
+header.navbar form[role="search"] .input-group-text,
+header.navbar .global-search .input-group-text {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 4px 0 6px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+header.navbar form[role="search"] button,
+header.navbar form[role="search"] .btn,
+header.navbar form[role="search"] .ti-search,
+header.navbar .global-search .ti-search {
+    color: #FFFFFF !important;
+    opacity: 0.95 !important;
+    font-size: 1.05rem !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Quando o usuário foca na barra de pesquisa para digitar */
+header.navbar form[role="search"] .input-group:focus-within,
+header.navbar .global-search .input-group:focus-within {
+    background: #FFFFFF !important;
+    border-color: #F97316 !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), 0 0 0 3px rgba(249, 115, 22, 0.3) !important;
+}
+
+header.navbar form[role="search"] .input-group:focus-within input.form-control,
+header.navbar .global-search .input-group:focus-within input.form-control {
+    color: #0F172A !important;
+}
+
+header.navbar form[role="search"] .input-group:focus-within input.form-control::placeholder,
+header.navbar .global-search .input-group:focus-within input.form-control::placeholder {
+    color: #94A3B8 !important;
+}
+
+header.navbar form[role="search"] .input-group:focus-within button,
+header.navbar form[role="search"] .input-group:focus-within .ti-search,
+header.navbar .global-search .input-group:focus-within .ti-search {
+    color: #F97316 !important;
+    opacity: 1 !important;
+}
+
+
+
+/* ==========================================================================
+   ALINHAMENTO E CORES PRECISAS DO BREADCRUMB (HOME, ASSISTÊNCIA, CHAMADOS)
+   ========================================================================== */
+
+/* 1. Reset completo do container: sem caixa/pílula externa duplicada */
+header.navbar ol.breadcrumb,
+header.navbar .breadcrumb,
+header.navbar nav[aria-label="breadcrumbs"] .breadcrumb,
+header.navbar nav[aria-label="Breadcrumbs"] .breadcrumb {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    height: 38px !important;
+    gap: 4px !important;
+    overflow: visible !important;
+}
+
+/* 2. Remover qualquer corte / truncamento dos itens */
+header.navbar .breadcrumb-item,
+header.navbar .breadcrumb-item.text-truncate,
+header.navbar ol.breadcrumb .breadcrumb-item,
+header.navbar ol.breadcrumb .breadcrumb-item.text-truncate {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+}
+
+header.navbar .breadcrumb-item a,
+header.navbar .breadcrumb-item.text-truncate a,
+header.navbar ol.breadcrumb .breadcrumb-item a {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+/* 3. Textos de Home e Assistência: Branco Nítido e Limpo */
+header.navbar ol.breadcrumb .breadcrumb-item:not(.active):not(:last-child) a,
+header.navbar .breadcrumb-item:not(.active):not(:last-child) a {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 4px 8px !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+header.navbar ol.breadcrumb .breadcrumb-item:not(.active):not(:last-child) a:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #FFFFFF !important;
+}
+
+/* 4. ÍCONES CASA (ti-home-2) E HEADSET (ti-headset): LARANJA PADRÃO BRAGO (#F97316) */
+header.navbar .ti-home,
+header.navbar .ti-home-2,
+header.navbar .ti-headset,
+header.navbar i[class*="ti-home"],
+header.navbar i[class*="ti-headset"],
+header.navbar .breadcrumb-item i.ti-home,
+header.navbar .breadcrumb-item i.ti-home-2,
+header.navbar .breadcrumb-item i.ti-headset,
+header.navbar ol.breadcrumb .breadcrumb-item:not(.active):not(:last-child) i,
+header.navbar ol.breadcrumb .breadcrumb-item:not(.active):not(:last-child) .ti,
+header.navbar ol.breadcrumb .breadcrumb-item:not(.active):not(:last-child) span[class*="ti-"] {
+    color: #F97316 !important;
+    opacity: 1 !important;
+    font-size: 1.15rem !important;
+    margin-right: 4px !important;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) !important;
+}
+
+/* 5. Separadores Chevron (>) */
+header.navbar .breadcrumb-item + .breadcrumb-item::before,
+header.navbar ol.breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255, 255, 255, 0.75) !important;
+    padding: 0 8px !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+/* 6. Pílula Ativa (Chamados) - Espaçosa, 100% visível, sem cortes */
+header.navbar .breadcrumb-item.active,
+header.navbar .breadcrumb-item:last-child,
+header.navbar ol.breadcrumb .breadcrumb-item.active,
+header.navbar ol.breadcrumb .breadcrumb-item:last-child,
+header.navbar .breadcrumb-item:has(a.here) {
+    background: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 9999px !important;
+    padding: 4px 16px !important;
+    height: 34px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    max-width: none !important;
+    min-width: fit-content !important;
+    overflow: visible !important;
+    margin-left: 2px !important;
+}
+
+/* Texto dentro da pílula Chamados */
+header.navbar .breadcrumb-item.active a,
+header.navbar .breadcrumb-item:last-child a,
+header.navbar .breadcrumb-item a.here {
+    color: #0F172A !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+    letter-spacing: -0.01em !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+}
+
+/* Ícone dentro da pílula Chamados */
+header.navbar .breadcrumb-item.active i,
+header.navbar .breadcrumb-item:last-child i,
+header.navbar .breadcrumb-item a.here i {
+    color: #0120F8 !important;
+    font-size: 1.05rem !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+}
+
+
+
+/* ==========================================================================
+   ALTO CONTRASTE ABSOLUTO - PESQUISA GLOBAL (FUNDO BRANCO SÓLIDO APPLE HIG)
+   ========================================================================== */
+header.navbar form[role="search"],
+header.navbar .global-search,
+header.navbar .header-global-search-form {
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+header.navbar form[role="search"] .input-group,
+header.navbar form[role="search"] .input-group-flat,
+header.navbar .global-search .input-group,
+header.navbar .header-search-group {
+    background: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 9999px !important;
+    padding: 0 10px 0 16px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
+    height: 36px !important;
+    min-width: 230px !important;
+    display: flex !important;
+    align-items: center !important;
+    transition: all 0.2s ease !important;
+}
+
+header.navbar form[role="search"] .input-group:hover,
+header.navbar .header-search-group:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+    border-color: #FFFFFF !important;
+}
+
+header.navbar form[role="search"] .input-group:focus-within,
+header.navbar .header-search-group:focus-within {
+    border-color: #F97316 !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+header.navbar form[role="search"] input.form-control,
+header.navbar form[role="search"] input[type="text"],
+header.navbar .global-search .form-control,
+header.navbar .header-search-input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: #0F172A !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    padding: 0 !important;
+    height: 100% !important;
+}
+
+header.navbar form[role="search"] input.form-control::placeholder,
+header.navbar form[role="search"] input[type="text"]::placeholder,
+header.navbar .global-search .form-control::placeholder,
+header.navbar .header-search-input::placeholder,
+header.navbar .header-search-input::-webkit-input-placeholder,
+header.navbar .header-search-input:-ms-input-placeholder,
+header.navbar .header-search-input::-moz-placeholder {
+    color: #475569 !important;
+    opacity: 1 !important;
+    font-weight: 500 !important;
+}
+
+header.navbar form[role="search"] .input-group-text,
+header.navbar .global-search .input-group-text {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+header.navbar form[role="search"] button,
+header.navbar form[role="search"] .btn,
+header.navbar form[role="search"] .ti-search,
+header.navbar .global-search .ti-search,
+header.navbar .header-search-btn,
+header.navbar .header-search-btn .ti-search {
+    color: #0120F8 !important;
+    opacity: 1 !important;
+    font-size: 1.15rem !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transition: transform 0.15s ease, color 0.15s ease !important;
+}
+
+header.navbar form[role="search"] .input-group:focus-within button,
+header.navbar form[role="search"] .input-group:focus-within .ti-search,
+header.navbar .header-search-group:focus-within .header-search-btn .ti-search {
+    color: #F97316 !important;
+    transform: scale(1.08) !important;
+}
+

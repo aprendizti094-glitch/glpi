@@ -161,6 +161,10 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         $data = parent::getDataForObject($item, $options, $simple);
 
         $data['##ticket.content##'] = $data['##ticket.description##'];
+        $data['##ticket.trackingurl##'] = Ticket::getTrackingUrl(
+            (int)$item->getField('id'),
+            (string)($item->getField('date_creation') ?: $item->getField('date'))
+        );
         // Specific data
         $data['##ticket.urlvalidation##']
                         = $this->formatURL(
@@ -875,7 +879,9 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
         ]);
 
         //Tags without lang
-        $tags = ['ticket.urlvalidation'    => sprintf(
+        $tags = [
+            'ticket.trackingurl'      => 'URL de Acompanhamento ao Vivo (Apple HIG)',
+            'ticket.urlvalidation'    => sprintf(
             __('%1$s: %2$s'),
             __('Validation request'),
             __('URL')

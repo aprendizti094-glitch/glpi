@@ -33,6 +33,21 @@ class EleraKanban
             'glpi_tickets.is_deleted' => 0
         ];
 
+        // Se for perfil Self-Service / Solicitante / Helpdesk, OBRIGATORIAMENTE filtra apenas chamados próprios!
+        if (self::isSelfService()) {
+            if ($myUserId > 0) {
+                $where[] = "(
+                    glpi_tickets.id IN (
+                        SELECT tickets_id FROM glpi_tickets_users 
+                        WHERE users_id = {$myUserId}
+                    )
+                    OR glpi_tickets.users_id_recipient = {$myUserId}
+                )";
+            } else {
+                $where[] = "1 = 0";
+            }
+        }
+
         // 2. Parse search criteria to filter Kanban tickets
         foreach ($criteria as $crit) {
             if (!isset($crit['field'])) {
@@ -72,10 +87,8 @@ class EleraKanban
 
             // Field 12: Ticket Status
             elseif ($field === 12) {
-                if ($value === 'all') {
-                    // All tickets: no status restriction
-                } elseif ($value === 'notold') {
-                    $where[] = "glpi_tickets.status NOT IN (" . CommonITILObject::SOLVED . ", " . CommonITILObject::CLOSED . ")";
+                if ($value === 'all' || $value === 'notold') {
+                    // On the 3-column Kanban board, always show Triagem, Em Execução, and Concluído together
                 } elseif ($value === 'old') {
                     $where[] = "glpi_tickets.status IN (" . CommonITILObject::SOLVED . ", " . CommonITILObject::CLOSED . ")";
                 } elseif ($value === 'process') {
@@ -522,5 +535,206 @@ class EleraKanban
         }
 
         return $columns;
+    }
+
+    /**
+     * Verifica se o usuário atual tem permissão para arrastar cards no Kanban.
+     * Perfis de solicitante (Self-Service / Post-Only / interface helpdesk) NÃO podem arrastar.
+     */
+        /**
+     * Verifica se o usuario atual e do perfil Self-Service / Solicitante / Helpdesk
+     */
+    public static function isSelfService(): bool
+    {
+        // 1. Interface Helpdesk (Self-Service padrao do GLPI)
+        $interface = Session::getCurrentInterface();
+        if ($interface === 'helpdesk') {
+            return true;
+        }
+        if (isset($_SESSION['glpiactiveprofile']['interface']) && $_SESSION['glpiactiveprofile']['interface'] === 'helpdesk') {
+            return true;
+        }
+
+        // 2. Profile ID 1 (Self-Service)
+        if (isset($_SESSION['glpiactiveprofile']['id']) && (int)$_SESSION['glpiactiveprofile']['id'] === 1) {
+            return true;
+        }
+
+        // 3. Nome do perfil explicitamente solicitante / self-service
+        $profName = mb_strtolower((string)($_SESSION['glpiactiveprofile']['name'] ?? ''), 'UTF-8');
+        if (strpos($profName, 'self') !== false || strpos($profName, 'solicit') !== false || strpos($profName, 'post-only') !== false || strpos($profName, 'simplif') !== false) {
+            return true;
+        }
+
+        // 4. Se estiver na interface central, e tecnico / admin (nao e self-service)
+        if ($interface === 'central' || (isset($_SESSION['glpiactiveprofile']['interface']) && $_SESSION['glpiactiveprofile']['interface'] === 'central')) {
+            return false;
+        }
+
+        // 5. Fallback por direito READALL
+        if (Session::haveRight('ticket', Ticket::READALL)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Retorna a contagem dos KPIs respeitando o perfil (Self-Service ve apenas seus chamados)
+     */
+    public static function getKpiCounts(): array
+    {
+        global $DB;
+
+        $myUserId = (int)Session::getLoginUserID();
+        if ($myUserId <= 0 && isset($_SESSION['glpiID'])) {
+            $myUserId = (int)$_SESSION['glpiID'];
+        }
+
+        $isSelfService = self::isSelfService();
+
+        $counts = [
+            'total'    => 0,
+            'new'      => 0,
+            'assigned' => 0,
+            'waiting'  => 0,
+            'solved'   => 0,
+        ];
+
+        try {
+            $whereClause = "glpi_tickets.is_deleted = 0";
+            if ($isSelfService && $myUserId > 0) {
+                $whereClause .= " AND (
+                    glpi_tickets.id IN (
+                        SELECT tickets_id FROM glpi_tickets_users 
+                        WHERE users_id = {$myUserId}
+                    )
+                    OR glpi_tickets.users_id_recipient = {$myUserId}
+                )";
+            }
+
+            $sql = "SELECT status, COUNT(*) as c FROM glpi_tickets WHERE {$whereClause} GROUP BY status";
+            $res = $DB->query($sql);
+            if ($res) {
+                while ($row = $DB->fetchAssoc($res)) {
+                    $st = (int)$row['status'];
+                    $c = (int)$row['c'];
+                    $counts['total'] += $c;
+
+                    if ($st === CommonITILObject::INCOMING) { // 1 - Novo
+                        $counts['new'] += $c;
+                    } elseif ($st === CommonITILObject::ASSIGNED || $st === CommonITILObject::PLANNED) { // 2, 3
+                        $counts['assigned'] += $c;
+                    } elseif ($st === CommonITILObject::WAITING) { // 4 - Pendente
+                        $counts['waiting'] += $c;
+                    } elseif ($st === CommonITILObject::SOLVED || $st === CommonITILObject::CLOSED) { // 5, 6 - Concluido
+                        $counts['solved'] += $c;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        return $counts;
+    }
+
+    /**
+     * Retorna o status de ocupacao dos tecnicos de TI para exibicao no Self-Service
+     */
+    public static function getTechniciansStatus(): array
+    {
+        global $DB;
+
+        $activeTicketsCount = 0;
+        $inExecutionCount = 0;
+        $busyTechNames = [];
+
+        try {
+            $iterator = $DB->request([
+                'SELECT' => [
+                    'glpi_tickets.id',
+                    'glpi_tickets.status',
+                    'glpi_users.firstname',
+                    'glpi_users.realname',
+                    'glpi_users.name as login'
+                ],
+                'FROM' => 'glpi_tickets',
+                'INNER JOIN' => [
+                    'glpi_tickets_users' => [
+                        'FKEY' => [
+                            'glpi_tickets' => 'id',
+                            'glpi_tickets_users' => 'tickets_id',
+                            [
+                                'AND' => ['glpi_tickets_users.type' => CommonITILActor::ASSIGN]
+                            ]
+                        ]
+                    ],
+                    'glpi_users' => [
+                        'FKEY' => [
+                            'glpi_tickets_users' => 'users_id',
+                            'glpi_users' => 'id'
+                        ]
+                    ]
+                ],
+                'WHERE' => [
+                    'glpi_tickets.is_deleted' => 0,
+                    'glpi_tickets.status'     => [CommonITILObject::ASSIGNED, CommonITILObject::PLANNED]
+                ],
+                'ORDER' => 'glpi_tickets.status DESC, glpi_tickets.date_mod DESC'
+            ]);
+
+            foreach ($iterator as $row) {
+                $activeTicketsCount++;
+                if ((int)$row['status'] === CommonITILObject::PLANNED) {
+                    $inExecutionCount++;
+                }
+                $fname = trim($row['firstname'] ?? '');
+                $rname = trim($row['realname'] ?? '');
+                $techName = !empty($fname) ? $fname : (!empty($rname) ? $rname : $row['login']);
+                if (!empty($techName) && !in_array($techName, $busyTechNames) && !in_array(strtolower($techName), ['glpi', 'post-only', 'normal'])) {
+                    $busyTechNames[] = $techName;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        if ($activeTicketsCount === 0) {
+            try {
+                $activeTicketsCount = countElementsInTable('glpi_tickets', [
+                    'is_deleted' => 0,
+                    'status'     => [CommonITILObject::ASSIGNED, CommonITILObject::PLANNED]
+                ]);
+            } catch (\Throwable $e) {}
+        }
+
+        $isBusy = ($activeTicketsCount > 0);
+
+        return [
+            'is_busy'         => $isBusy,
+            'active_count'    => $activeTicketsCount,
+            'in_execution'    => $inExecutionCount,
+            'busy_tech_names' => $busyTechNames,
+            'status_label'    => $isBusy ? 'Técnicos Ocupados' : 'Técnicos Disponíveis',
+            'status_sub'      => $isBusy 
+                ? ($activeTicketsCount == 1 
+                    ? '1 chamado em atendimento pela TI no momento' 
+                    : $activeTicketsCount . ' chamados em atendimento pela TI no momento')
+                : 'Fila de atendimento livre'
+        ];
+    }
+
+    /**
+     * Verifica se o usuario atual tem permissao para arrastar cards no Kanban.
+     * Perfis de solicitante (Self-Service / Post-Only / interface helpdesk) NAO podem arrastar.
+     */
+    public static function canDrag(): bool
+    {
+        if (self::isSelfService()) {
+            return false;
+        }
+
+        if (!Session::haveRight('ticket', UPDATE)) {
+            return false;
+        }
+
+        return true;
     }
 }

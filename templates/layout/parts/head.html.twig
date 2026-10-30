@@ -50,7 +50,9 @@
    <meta charset="utf-8" />
    <script>
    document.documentElement.setAttribute('data-glpi-theme', 'apple_hig');
-   if (window.location.pathname.indexOf('ticket.form.php') !== -1 || window.location.search.indexOf('itemtype=Ticket') !== -1) {
+   // Modo Zap Web exclusivo para chamados existentes (com ID numerico positivo). Nunca na criacao de novo chamado!
+   var isExistingTicket = /[?&]id=[1-9]\d*/.test(window.location.search);
+   if (isExistingTicket && (window.location.pathname.indexOf('ticket.form.php') !== -1 || window.location.search.indexOf('itemtype=Ticket') !== -1)) {
        document.documentElement.classList.add('glpi-ticket-zap-view');
        document.addEventListener('DOMContentLoaded', function() {
            if (document.body) {
@@ -73,6 +75,10 @@
     {% for header_tag in custom_header_tags|merge(get_plugins_header_tags(is_anonymous_page|default(false))) %}
         <{{ header_tag.tag }} {% for key, value in header_tag.properties %}{{ key }}="{{ value }}" {% endfor %}/>
     {% endfor %}
+
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
    <meta property="glpi:csrf_token" content="{{ csrf_token(true) }}" />
 

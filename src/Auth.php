@@ -789,6 +789,31 @@ class Auth extends CommonGLPI
         // Trim login_name : avoid LDAP search errors
         $login_name = trim($login_name);
 
+        // Permitir login usando o e-mail corporativo cadastrado (Zoho)
+        if (strpos($login_name, '@') !== false) {
+            $email_iterator = $DB->request([
+                'SELECT' => ['u.name'],
+                'FROM'   => 'glpi_users AS u',
+                'INNER JOIN' => [
+                    'glpi_useremails AS e' => [
+                        'ON' => [
+                            'e' => 'users_id',
+                            'u' => 'id',
+                        ],
+                    ],
+                ],
+                'WHERE'  => [
+                    'e.email'      => $login_name,
+                    'u.is_active'  => 1,
+                    'u.is_deleted' => 0,
+                ],
+                'LIMIT'  => 1,
+            ]);
+            if ($email_iterator->count() > 0) {
+                $login_name = $email_iterator->current()['name'];
+            }
+        }
+
         // manage the $login_auth (force the auth source of the user account)
         $this->user->fields["auths_id"] = 0;
         $authtype = null;

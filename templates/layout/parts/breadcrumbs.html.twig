@@ -31,7 +31,7 @@
  #}
 
 <ol class="breadcrumb breadcrumb-alternate flex-nowrap pe-1 pe-sm-3" aria-label="breadcrumbs">
-   <li class="breadcrumb-item text-truncate">
+   <li class="breadcrumb-item">
       <a href="{{ index_path() }}" title="{{ __('Home') }}">
          <i class="ti ti-home-2"></i>
          {{ __('Home') }}
@@ -39,7 +39,7 @@
    </li>
 
    {% if menu[sector] is defined %}
-   <li class="breadcrumb-item text-truncate">
+   <li class="breadcrumb-item">
       <a href="{{ path(menu[sector]['default'] ?? (get_current_interface() == 'helpdesk' ? '/front/helpdesk.public.php' : '/front/central.php')) }}" title="{{ menu[sector]['title'] }}">
          <i class="{{ menu[sector]['icon'] ?? '' }}"></i>
          {{ menu[sector]['title'] }}
@@ -51,7 +51,7 @@
    {% if menu[sector]['content'][item] is defined %}
       {% if menu[sector]['content'][item]['page'] is defined %}
       {% set with_option = option is not empty and menu[sector]['content'][item]['options'][option]['title'] is defined and menu[sector]['content'][item]['options'][option]['page'] is defined %}
-      <li class="breadcrumb-item text-truncate">
+      <li class="breadcrumb-item">
          <a href="{{ path(menu[sector]['content'][item]['page']) }}"
             class="{{ with_option ? '' : 'here' }}"
             title="{{ menu[sector]['content'][item]['title'] }}" >
@@ -62,12 +62,12 @@
       {% endif %}
 
       {% if with_option %}
-      <li class="breadcrumb-item text-truncate">
+      <li class="breadcrumb-item">
          <a href="{{ path(menu[sector]['content'][item]['options'][option]['page']) }}"
             class="here"
             title="{{ menu[sector]['content'][item]['options'][option]['title'] }}" >
             <i class="{{ menu[sector]['content'][item]['options'][option]['icon'] ?? '' }}"></i>
-            {{ menu[sector]['content'][item]['options'][option]['title']|u.truncate(17, '...') }}
+            {{ menu[sector]['content'][item]['options'][option]['title'] }}
          </a>
       </li>
       {% endif %}
