@@ -307,9 +307,23 @@ class NotificationTemplate extends CommonDBTM
                             self::getDataForHtml($data)
                         );
 
-                        $css = !empty($this->fields['css'])
+                        $base_responsive_css = "
+html, body { margin: 0 auto !important; padding: 0 !important; width: 100% !important; min-width: 100% !important; }
+* { -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; box-sizing: border-box; }
+table, td { mso-table-lspace: 0pt !important; mso-table-rspace: 0pt !important; }
+table { border-spacing: 0 !important; border-collapse: collapse !important; table-layout: fixed !important; margin: 0 auto !important; }
+img { -ms-interpolation-mode: bicubic; max-width: 100% !important; height: auto !important; }
+.email-container { max-width: 600px !important; width: 100% !important; margin: 0 auto !important; }
+@media screen and (max-width: 600px) {
+    .email-container { width: 100% !important; max-width: 100% !important; border-radius: 0 !important; }
+    .email-pad { padding: 16px !important; }
+    .email-btn { width: 100% !important; display: block !important; box-sizing: border-box !important; }
+}
+";
+                        $custom_css = !empty($this->fields['css'])
                             ? Sanitizer::decodeHtmlSpecialChars($this->fields['css'])
                             : '';
+                        $css = $base_responsive_css . "\n" . $custom_css;
 
                         $lang['content_html'] =
                          "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"

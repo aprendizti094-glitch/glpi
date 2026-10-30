@@ -155,16 +155,129 @@ class NotificationTargetTicket extends NotificationTargetCommonITILObject
     }
 
 
+    /**
+     * Sanitiza e formata conteúdos HTML de chamados para e-mails responsivos.
+     * Elimina larguras fixas (ex: width="1352") que quebram o layout do e-mail no Zoho/Outlook,
+     * converte links de documentos para a URL pública segura com token e aplica estilos CSS inline responsivos.
+     */
+    public static function formatHtmlForEmail(string $html, int $ticketId = 0, string $token = ''): string
+    {
+        if (trim($html) === '') {
+            return '';
+        }
+
+        global $CFG_GLPI;
+        $rootUrl = rtrim((string)($CFG_GLPI['url_base'] ?? 'https://chamado.bragodistribuidora.com.br'), '/');
+
+        // Decodifica entidades HTML se estiver codificado (ex: &#60;img)
+        if (strpos($html, '&#60;') !== false || strpos($html, '&lt;') !== false) {
+            $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (strpos($html, '&#60;') !== false || strpos($html, '&lt;') !== false) {
+                $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+
+        // 1. Converte links de imagens document.send.php para o endpoint de acompanhamento ao vivo com token
+        $html = preg_replace_callback(
+            '~\\b(href|src)=["\'](?:https?://[^/]+)?(?:/[a-zA-Z0-9_.-]+)?/front/document\\.send\\.php\\?([^"\'\\s>]+)["\']?~i',
+            function ($m) use ($rootUrl, $ticketId, $token) {
+                parse_str(html_entity_decode($m[2]), $params);
+                $docId = (int)($params['docid'] ?? 0);
+                if ($docId > 0 && $ticketId > 0 && $token !== '') {
+                    $newUrl = $rootUrl . '/ajax/acompanhar_api.php?action=document&id=' . $ticketId . '&token=' . $token . '&docid=' . $docId;
+                    return strtolower($m[1]) . '="' . $newUrl . '"';
+                }
+                return $m[0];
+            },
+            $html
+        );
+
+        // 2. Remove atributos width e height fixos de <img> e insere estilos responsivos
+        $html = preg_replace_callback(
+            '~<img\\b([^>]*?)>~i',
+            function ($m) {
+                $attrs = $m[1];
+                $attrs = preg_replace('/\\b(?:width|height)\\s*=\\s*["\']?[0-9%px]+["\']?/i', '', $attrs);
+                $attrs = preg_replace('/\\bstyle\\s*=\\s*["\'][^"\']*["\']?/i', '', $attrs);
+                $attrs = rtrim(trim($attrs), '/');
+                $newStyle = 'style="max-width:100% !important;width:auto !important;height:auto !important;display:block;border-radius:10px;margin:10px 0;border:1px solid #E2E8F0;"';
+                return '<img ' . $attrs . ' ' . $newStyle . ' width="100%" />';
+            },
+            $html
+        );
+
+        // 3. Remove ou converte tabelas e divs com largura fixa maior que 540px
+        $html = preg_replace_callback(
+            '~<(table|div|p)\\b([^>]*?)>~i',
+            function ($m) {
+                $tag   = $m[1];
+                $attrs = $m[2];
+                $attrs = preg_replace_callback('/\\bwidth\\s*=\\s*["\']?([0-9]+)(?:px)?["\']?/i', function ($wm) {
+                    return ((int)$wm[1] > 540) ? 'width="100%"' : $wm[0];
+                }, $attrs);
+                if (preg_match('/style\\s*=\\s*["\']([^"\']*)["\']/i', $attrs, $mStyle)) {
+                    $style = $mStyle[1];
+                    $style = preg_replace_callback('/\\bwidth\\s*:\\s*([0-9]+)px/i', function ($sm) {
+                        return ((int)$sm[1] > 540) ? 'max-width: 100%' : $sm[0];
+                    }, $style);
+                    $attrs = str_replace($mStyle[0], 'style="' . $style . ';max-width:100%;box-sizing:border-box;word-break:break-word;"', $attrs);
+                }
+                return '<' . $tag . $attrs . '>';
+            },
+            $html
+        );
+
+        return $html;
+    }
+
     public function getDataForObject(CommonDBTM $item, array $options, $simple = false)
     {
         // Common ITIL data
         $data = parent::getDataForObject($item, $options, $simple);
 
-        $data['##ticket.content##'] = $data['##ticket.description##'];
-        $data['##ticket.trackingurl##'] = Ticket::getTrackingUrl(
-            (int)$item->getField('id'),
-            (string)($item->getField('date_creation') ?: $item->getField('date'))
-        );
+        $ticketId = (int)$item->getField('id');
+        $dateRef  = (string)($item->getField('date_creation') ?: $item->getField('date'));
+        $token    = Ticket::getTrackingToken($ticketId, $dateRef);
+
+        $data['##ticket.trackingurl##'] = Ticket::getTrackingUrl($ticketId, $dateRef);
+
+        // Se o chamado foi solucionado ou fechado sem descrição formal de solução,
+        // recupera o último acompanhamento técnico para informar o que foi feito no e-mail
+        $statusCode = (int)$item->getField('status');
+        if (($statusCode === Ticket::SOLVED || $statusCode === Ticket::CLOSED) && empty(trim(strip_tags((string)($data['##ticket.solution.description##'] ?? ''))))) {
+            global $DB;
+            $lastFup = $DB->request([
+                'SELECT' => ['content', 'users_id'],
+                'FROM'   => 'glpi_itilfollowups',
+                'WHERE'  => [
+                    'itemtype'   => 'Ticket',
+                    'items_id'   => $ticketId,
+                    'is_private' => 0
+                ],
+                'ORDER'  => ['date DESC', 'id DESC'],
+                'LIMIT'  => 1
+            ])->current();
+            if ($lastFup && !empty(trim(strip_tags((string)$lastFup['content'])))) {
+                $data['##ticket.solution.description##'] = $lastFup['content'];
+            } else {
+                $data['##ticket.solution.description##'] = 'O chamado foi concluído com sucesso pela equipe de TI. Você pode conferir os detalhes e acompanhar o histórico pelo botão de acompanhamento.';
+            }
+        }
+
+        // Sanitiza o HTML para e-mails: remove width/height fixos de imagens e garante responsividade (max-width: 600px)
+        $data['##ticket.content##'] = self::formatHtmlForEmail((string)$data['##ticket.description##'], $ticketId, $token);
+        $data['##ticket.description##'] = $data['##ticket.content##'];
+        if (!empty($data['##ticket.solution.description##'])) {
+            $data['##ticket.solution.description##'] = self::formatHtmlForEmail((string)$data['##ticket.solution.description##'], $ticketId, $token);
+        }
+        if (!empty($data['followups']) && is_array($data['followups'])) {
+            foreach ($data['followups'] as &$fupItem) {
+                if (!empty($fupItem['##followup.description##'])) {
+                    $fupItem['##followup.description##'] = self::formatHtmlForEmail((string)$fupItem['##followup.description##'], $ticketId, $token);
+                }
+            }
+            unset($fupItem);
+        }
         // Specific data
         $data['##ticket.urlvalidation##']
                         = $this->formatURL(
